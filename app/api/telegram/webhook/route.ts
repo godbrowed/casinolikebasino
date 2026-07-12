@@ -7,11 +7,12 @@ const token = process.env.TELEGRAM_BOT_TOKEN
 
 async function tg(method: string, body: unknown) {
   if (!token) return
-  await fetch(`https://api.telegram.org/bot${token}/${method}`, {
+  const response = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   })
+  return response.json().catch(() => null)
 }
 
 /** Resolve the public HTTPS URL of the Web App for the "Open app" button. */
@@ -42,6 +43,17 @@ export async function POST(req: Request) {
     const firstName: string = message.from?.first_name || "there"
     const isStart = text.startsWith("/start")
     const url = webAppUrl()
+    if (isStart) {
+      const photo = await tg("sendPhoto", {
+        chat_id: message.chat.id,
+        photo: `${url}/images/giftlys-welcome.png`,
+        caption: `Hi ${firstName}!\n\nOpen cases, collect gifts, and play with friends.`,
+        reply_markup: {
+          inline_keyboard: [[{ text: "Open Giftlys", web_app: { url } }]],
+        },
+      })
+      if (photo?.ok) return NextResponse.json({ ok: true })
+    }
     await tg("sendMessage", {
       chat_id: message.chat.id,
       text: isStart

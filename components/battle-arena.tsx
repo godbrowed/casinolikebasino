@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Crown, Bot } from "lucide-react"
+import { Crown } from "lucide-react"
 import type { BattleResult } from "@/app/actions/battles"
 import { Coin } from "@/components/coin"
 import { fmt, rarityOf } from "@/lib/format"
@@ -107,7 +107,7 @@ export function BattleArena({
                   <img src={p.photoUrl || "/images/nft-gift.png"} alt="" className="h-5 w-5 rounded-full" crossOrigin="anonymous" />
                 ) : (
                   <span className="flex h-5 w-5 items-center justify-center rounded-full bg-secondary text-muted-foreground">
-                    {p.isBot ? <Bot className="h-3 w-3" /> : p.name[0]}
+                    {p.name[0]?.toUpperCase()}
                   </span>
                 )}
                 <span className={cn("truncate text-[11px] font-bold", p.isYou && "text-cyan-300")}>{p.name}</span>

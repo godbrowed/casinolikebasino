@@ -34,9 +34,9 @@ export type CaseDTO = {
 }
 
 const FREE_CURRENCY_REWARDS: GiftDTO[] = [
-  { id: -1, slug: "gram-005", name: "0.05 GRAM", rarity: "common", imageUrl: "/icons/ton.svg", value: 0.05, chance: 70, rewardType: "currency" },
-  { id: -2, slug: "gram-010", name: "0.10 GRAM", rarity: "common", imageUrl: "/icons/ton.svg", value: 0.1, chance: 25, rewardType: "currency" },
-  { id: -3, slug: "gram-025", name: "0.25 GRAM", rarity: "rare", imageUrl: "/icons/ton.svg", value: 0.25, chance: 4.8, rewardType: "currency" },
+  { id: -1, slug: "gram-005", name: "0.05 GRAM", rarity: "common", imageUrl: "/images/giftlys-coin-v2.png", value: 0.05, chance: 70, rewardType: "currency" },
+  { id: -2, slug: "gram-010", name: "0.10 GRAM", rarity: "common", imageUrl: "/images/giftlys-coin-v2.png", value: 0.1, chance: 25, rewardType: "currency" },
+  { id: -3, slug: "gram-025", name: "0.25 GRAM", rarity: "rare", imageUrl: "/images/giftlys-coin-v2.png", value: 0.25, chance: 4.8, rewardType: "currency" },
 ]
 
 export async function getCases(): Promise<CaseDTO[]> {
@@ -99,10 +99,10 @@ export async function getCases(): Promise<CaseDTO[]> {
           rewardType: "gift" as const,
         }))
         .sort((a, b) => b.value - a.value),
-          { id: -101, slug: `gram-small-${c.id}`, name: `${Math.max(1, Math.round(Number(c.price) * 0.1))} GRAM`, rarity: "common", imageUrl: "/icons/ton.svg", value: Math.max(1, Math.round(Number(c.price) * 0.1)), chance: 20, rewardType: "currency" as const },
-          { id: -102, slug: `gram-medium-${c.id}`, name: `${Math.max(1, Math.round(Number(c.price) * 0.25))} GRAM`, rarity: "rare", imageUrl: "/icons/ton.svg", value: Math.max(1, Math.round(Number(c.price) * 0.25)), chance: 12, rewardType: "currency" as const },
-          { id: -103, slug: `gram-large-${c.id}`, name: `${Math.max(1, Math.round(Number(c.price) * 0.5))} GRAM`, rarity: "epic", imageUrl: "/icons/ton.svg", value: Math.max(1, Math.round(Number(c.price) * 0.5)), chance: 6, rewardType: "currency" as const },
-          { id: -104, slug: `gram-jackpot-${c.id}`, name: `${Math.max(1, Math.round(Number(c.price)))} GRAM`, rarity: "legendary", imageUrl: "/icons/ton.svg", value: Math.max(1, Math.round(Number(c.price))), chance: 2, rewardType: "currency" as const },
+          { id: -101, slug: `gram-small-${c.id}`, name: `${Math.max(1, Math.round(Number(c.price) * 0.1))} GRAM`, rarity: "common", imageUrl: "/images/giftlys-coin-v2.png", value: Math.max(1, Math.round(Number(c.price) * 0.1)), chance: 20, rewardType: "currency" as const },
+          { id: -102, slug: `gram-medium-${c.id}`, name: `${Math.max(1, Math.round(Number(c.price) * 0.25))} GRAM`, rarity: "rare", imageUrl: "/images/giftlys-coin-v2.png", value: Math.max(1, Math.round(Number(c.price) * 0.25)), chance: 12, rewardType: "currency" as const },
+          { id: -103, slug: `gram-large-${c.id}`, name: `${Math.max(1, Math.round(Number(c.price) * 0.5))} GRAM`, rarity: "epic", imageUrl: "/images/giftlys-coin-v2.png", value: Math.max(1, Math.round(Number(c.price) * 0.5)), chance: 6, rewardType: "currency" as const },
+          { id: -104, slug: `gram-jackpot-${c.id}`, name: `${Math.max(1, Math.round(Number(c.price)))} GRAM`, rarity: "legendary", imageUrl: "/images/giftlys-coin-v2.png", value: Math.max(1, Math.round(Number(c.price))), chance: 2, rewardType: "currency" as const },
         ],
     }
   })
@@ -200,7 +200,7 @@ export async function openCase(caseId: number): Promise<{
         slug: `gram-${currencyValue}`,
         name: `${currencyValue} GRAM`,
         rarity: currencyValue >= 0.25 ? "rare" : "common",
-        imageUrl: "/icons/ton.svg",
+        imageUrl: "/images/giftlys-coin-v2.png",
         value: currencyValue,
         rewardType: "currency",
       }
@@ -250,7 +250,7 @@ export async function openCase(caseId: number): Promise<{
         slug: `gram-${currencyValue}`,
         name: `${currencyValue} GRAM`,
         rarity: currencyValue >= price ? "legendary" : currencyValue >= price * 0.5 ? "epic" : currencyValue >= price * 0.25 ? "rare" : "common",
-        imageUrl: "/icons/ton.svg",
+        imageUrl: "/images/giftlys-coin-v2.png",
         value: currencyValue,
         rewardType: "currency",
       }

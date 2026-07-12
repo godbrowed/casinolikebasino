@@ -5,7 +5,7 @@ export function Coin({ className, glow = false }: { className?: string; glow?: b
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src="/icons/ton.svg"
+      src="/images/giftlys-coin-v2.png"
       alt=""
       aria-hidden="true"
       className={cn(

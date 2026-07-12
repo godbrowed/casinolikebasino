@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { Swords, Users, Layers, Loader2, Trophy, Bot, Search, X } from "lucide-react"
+import { Swords, Users, Layers, Loader2, Trophy, Search, X } from "lucide-react"
 import type { CaseDTO } from "@/app/actions/cases"
 import { joinBattle, getMatchState, leaveBattle, type BattleResult, type MatchState } from "@/app/actions/battles"
 import { BattleArena } from "@/components/battle-arena"
@@ -24,7 +24,8 @@ type Phase = "config" | "matching" | "arena"
 
 export function BattlesLobby({ cases, recent }: { cases: CaseDTO[]; recent: RecentBattle[] }) {
   const { me, refresh } = useUser()
-  const [caseId, setCaseId] = useState(cases[0]?.id ?? 0)
+  const battleCases = cases.filter((c) => !c.isFree)
+  const [caseId, setCaseId] = useState(battleCases[0]?.id ?? 0)
   const [players, setPlayers] = useState(2)
   const [rounds, setRounds] = useState(2)
   const [busy, setBusy] = useState(false)
@@ -36,7 +37,7 @@ export function BattlesLobby({ cases, recent }: { cases: CaseDTO[]; recent: Rece
   const [result, setResult] = useState<BattleResult | null>(null)
   const poll = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const selected = cases.find((c) => c.id === caseId) ?? cases[0]
+  const selected = battleCases.find((c) => c.id === caseId) ?? battleCases[0]
   const cost = selected ? selected.price * rounds : 0
   const balance = me?.balance ?? 0
   const canAfford = balance >= cost
@@ -88,7 +89,13 @@ export function BattlesLobby({ cases, recent }: { cases: CaseDTO[]; recent: Rece
       poll.current = setInterval(() => tick(id), 1000)
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Could not join battle"
-      setError(msg === "INSUFFICIENT_FUNDS" ? "Not enough balance. Deposit to play." : msg)
+      setError(
+        msg === "INSUFFICIENT_FUNDS"
+          ? "Not enough balance. Deposit to play."
+          : msg === "FREE_CASE_NOT_ALLOWED"
+            ? "Daily free cases cannot be used in battles."
+            : msg,
+      )
     } finally {
       setBusy(false)
     }
@@ -138,7 +145,7 @@ export function BattlesLobby({ cases, recent }: { cases: CaseDTO[]; recent: Rece
             <h1 className="font-display text-xl font-black">Case Battles</h1>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            Queue against real players. Open the same cases — highest total value takes the entire pot.
+            Pick a paid case, find a match, and compete for the pot.
           </p>
         </div>
       </div>
@@ -147,7 +154,7 @@ export function BattlesLobby({ cases, recent }: { cases: CaseDTO[]; recent: Rece
       <section>
         <h2 className="mb-2 text-sm font-bold">Pick a case</h2>
         <div className="no-scrollbar -mx-4 flex gap-2.5 overflow-x-auto px-4 pb-1">
-          {cases.map((c) => (
+          {battleCases.map((c) => (
             <button
               key={c.id}
               onClick={() => {
@@ -203,12 +210,18 @@ export function BattlesLobby({ cases, recent }: { cases: CaseDTO[]; recent: Rece
         </div>
       </section>
 
+      {battleCases.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-border bg-secondary/20 p-4 text-center text-xs text-muted-foreground">
+          Add a paid case to enable battles. Daily free cases are not eligible.
+        </div>
+      ) : null}
+
       {error && <p className="text-center text-xs font-medium text-destructive">{error}</p>}
 
       {/* find */}
       <button
         onClick={findBattle}
-        disabled={busy}
+        disabled={busy || !selected}
         className={cn(
           "flex w-full items-center justify-center gap-2 rounded-2xl py-4 font-display text-base font-black transition-transform active:scale-[0.98] disabled:opacity-70",
           canAfford ? "btn-glow" : "bg-secondary text-muted-foreground",
@@ -354,12 +367,12 @@ function Matchmaking({
                     />
                   ) : (
                     <span className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-muted-foreground">
-                      {s.isBot ? <Bot className="h-4 w-4" /> : s.name[0]}
+                      {s.name[0]?.toUpperCase()}
                     </span>
                   )}
                   <div className="leading-tight">
                     <div className={cn("truncate text-xs font-bold", s.isYou && "text-cyan-300")}>{s.name}</div>
-                    <div className="text-[10px] text-muted-foreground">{s.isBot ? "Bot" : "Player"}</div>
+                    <div className="text-[10px] text-muted-foreground">{s.isBot ? "Practice player" : "Player"}</div>
                   </div>
                 </>
               ) : (

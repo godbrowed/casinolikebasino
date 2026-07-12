@@ -12,7 +12,7 @@ const display = Space_Grotesk({ subsets: ["latin"], variable: "--font-display" }
 export const metadata: Metadata = {
   title: "Giftlys — Telegram Gifts",
   description: "Open cases, collect Telegram gifts, and play with friends in Giftlys.",
-  icons: { icon: "/icons/ton.svg", apple: "/icons/ton.svg" },
+  icons: { icon: "/images/giftlys-coin-v2.png", apple: "/images/giftlys-coin-v2.png" },
 }
 
 export const viewport: Viewport = {

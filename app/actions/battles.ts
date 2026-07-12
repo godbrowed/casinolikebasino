@@ -1,6 +1,6 @@
 "use server"
 
-import { eq, sql, desc, and, gt, asc } from "drizzle-orm"
+import { eq, sql, desc, and, gt, lte, asc } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { db } from "@/lib/db"
 import { cases, caseItems, gifts, users, gameHistory, battleRooms, battleSlots } from "@/lib/db/schema"
@@ -36,18 +36,18 @@ export type BattleResult = {
 }
 
 const BOT_NAMES = [
-  "Nikita",
-  "CryptoWhale",
-  "Sasha",
-  "MaxPower",
-  "Luna",
-  "Ghost",
-  "Volt",
-  "Kira",
-  "Zenith",
-  "Tonkeeper",
-  "Rhino",
-  "Neo",
+  "anton.wave",
+  "luna.ton",
+  "kira.nft",
+  "max.blox",
+  "sasha.play",
+  "zen.gram",
+  "mira.case",
+  "danylo.ton",
+  "vlad.drop",
+  "nora.gift",
+  "alex.box",
+  "kate.nft",
 ]
 
 function weightedPick(items: { weight: number }[]): number {
@@ -71,6 +71,7 @@ export async function runBattle(input: {
 
   const caseRow = (await db.select().from(cases).where(eq(cases.id, input.caseId)).limit(1))[0]
   if (!caseRow) throw new Error("Case not found")
+  if (caseRow.isFree) throw new Error("FREE_CASE_NOT_ALLOWED")
   const price = Number(caseRow.price)
   const entryCost = price * rounds
 
@@ -221,8 +222,17 @@ export async function joinBattle(input: {
   const capacity = Math.min(4, Math.max(2, Math.floor(input.capacity)))
   const rounds = Math.min(3, Math.max(1, Math.floor(input.rounds)))
 
+  // Settle rooms whose timer elapsed while nobody was polling them, so a
+  // player can never have an entry locked in an abandoned waiting room.
+  const expiredRooms = await db
+    .select({ id: battleRooms.id })
+    .from(battleRooms)
+    .where(and(eq(battleRooms.status, "waiting"), lte(battleRooms.startsAt, new Date())))
+  for (const room of expiredRooms) await resolveRoom(room.id)
+
   const caseRow = (await db.select().from(cases).where(eq(cases.id, input.caseId)).limit(1))[0]
   if (!caseRow) throw new Error("Case not found")
+  if (caseRow.isFree) throw new Error("FREE_CASE_NOT_ALLOWED")
   const entryCost = Number(caseRow.price) * rounds
 
   return db.transaction(async (tx) => {
@@ -305,6 +315,11 @@ export async function leaveBattle(roomId: number): Promise<void> {
     )[0]
     if (!mine) return
     await tx.delete(battleSlots).where(eq(battleSlots.id, mine.id))
+    const remaining = await tx.select({ id: battleSlots.id }).from(battleSlots).where(eq(battleSlots.roomId, roomId))
+    if (remaining.length === 0) {
+      await tx.delete(battleRooms).where(eq(battleRooms.id, roomId))
+      return
+    }
     await tx
       .update(users)
       .set({ balance: sql`${users.balance} + ${Number(room.entryCost)}` })
@@ -374,7 +389,7 @@ async function maybeAddBots(roomId: number, capacity: number, elapsedMs: number)
     while (used.has(slot)) slot++
     used.add(slot)
     try {
-      await db.insert(battleSlots).values({ roomId, slot, name: names[i] ?? `Bot ${slot}`, isBot: true })
+      await db.insert(battleSlots).values({ roomId, slot, name: names[i] ?? `Practice ${slot + 1}`, isBot: true })
     } catch {
       // slot race — ignore
     }
@@ -409,7 +424,7 @@ async function resolveRoom(roomId: number): Promise<void> {
     let bi = 0
     for (let slot = 0; slot < room.capacity; slot++) {
       if (!used.has(slot)) {
-        await tx.insert(battleSlots).values({ roomId, slot, name: names[bi++] ?? `Bot ${slot}`, isBot: true })
+        await tx.insert(battleSlots).values({ roomId, slot, name: names[bi++] ?? `Practice ${slot + 1}`, isBot: true })
       }
     }
 

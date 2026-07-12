@@ -1,0 +1,76 @@
+# Production Launch Checklist
+
+✅ **Environment Variables (Production)**
+- `DATABASE_URL` — Auto-provisioned by Neon integration
+- `TELEGRAM_BOT_TOKEN` — Set (encrypted)
+- `TELEGRAM_WEBHOOK_SECRET` — Set (encrypted)
+- `ADMIN_SECRET` — Set (encrypted)
+- `RELAYER_USERNAME` — Set to `fuckfutures` (no @ prefix)
+- `TON_RECEIVER_ADDRESS` — Set (encrypted)
+- `TONCENTER_API_KEY` — Set (encrypted)
+- `TELEGRAM_BUSINESS_CONNECTION_ID` — Set (encrypted)
+
+🔒 **Security Hardening**
+- Telegram Web App validation required (no demo auth in production)
+- Session cookies use HMAC-SHA256 with constant-time comparison
+- Crash game tokens use dedicated secret with timing-safe validation
+- All database writes scoped by `userId` with atomic balance updates
+- Price calculation: 30% discount baked into auto-pricing formula
+
+🎁 **Daily Free Case**
+- `daily-free` case row created with `is_free = true`, `cooldown_hours = 24`
+- Free reward pool: 70% = 1 GRAM, 20% = 2 GRAM, 8% = 5 GRAM, 1.8% = 10 GRAM, 0.2% = Mystery NFT
+- Server-side cooldown enforcement with atomic `last_free_case_at` timestamp
+- UI displays "FREE" label and recharge timer
+
+💰 **Paid Case Rebalancing**
+- All paid cases reduced by 30% via `UPDATE cases SET price = ROUND(price * 0.70, 2)`
+- Paid reward split: 60% chance = NFT gift (original weights scaled), 40% chance = GRAM balance
+  - 20% = 10% of price, 12% = 25% of price, 6% = 50% of price, 2% = 100% of price
+- Resulting target RTP maintained via prize + balance payouts
+
+🎖️ **Daily Reward Gate**
+- Claim action checks `@giftlysnft` membership via `getChatMember` before payout
+- Error `SUBSCRIPTION_REQUIRED` shown with channel link if not subscribed
+- Atomic daily claim with start-of-UTC-day cooldown check in WHERE clause
+
+💎 **TON Wallet Linking**
+- `ton_wallet_address` column added to users table
+- TonConnect UI integrated; wallet address stored on successful connection
+- Profile page shows linked wallet with disconnect option
+- TonConnect manifest points to production domain (`v0-giftlys.vercel.app`)
+
+🤖 **Bot Configuration**
+- Webhook setup route: `GET /api/telegram/setup?secret=<ADMIN_SECRET>`
+  - Registers `/start` command
+  - Sets persistent "Open app" menu button
+  - Validates bot token, channel access, and webhook registration
+  - Returns full diagnostic payload (bot username, channel ID, webhook status)
+- Bot greets with "Hey <name>! 👋 Welcome to GRAM…" + Web App button
+- Web App URL auto-resolved from env cascade (production/preview/v0 runtime)
+
+🚀 **Launch Steps**
+1. Deploy latest code to Vercel production
+2. Call `https://v0-giftlys.vercel.app/api/telegram/setup?secret=<ADMIN_SECRET>` to activate bot
+3. Test `/start` in Telegram — should show greeting + "Open app" button
+4. Open app through Telegram Web App (direct links show "Open in Telegram" gate)
+5. Verify daily free case appears at top of cases list (sort_order = -100)
+6. Verify paid cases show 30%-discounted prices
+7. Verify daily reward requires `@giftlysnft` subscription
+8. Test TON wallet connect in profile
+
+⚠️ **Pre-Flight Checks**
+- ✅ TypeScript compiles without errors
+- ✅ Production build succeeds
+- ✅ Direct web access shows Telegram gate screen
+- ✅ Session auth validates Telegram initData (demo auth disabled in production)
+- ✅ All serverless functions fit within Vercel limits
+- ✅ Database schema includes: `ton_wallet_address`, `last_free_case_at`, `is_free`, `cooldown_hours`
+- ✅ RELAYER_USERNAME normalized (no @ prefix)
+
+📋 **Post-Launch Monitoring**
+- Watch `/api/telegram/webhook` logs for incoming Telegram updates
+- Monitor Neon connection pool for transaction throughput
+- Check game_history table for case opens with `rewardType: "currency"` vs `"gift"`
+- Verify free case cooldown rejects double-claims within 24h window
+- Test NFT gift withdraw flow when `TELEGRAM_BUSINESS_CONNECTION_ID` is live

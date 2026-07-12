@@ -1,0 +1,53 @@
+"use client"
+
+import Link from "next/link"
+import { Plus } from "lucide-react"
+import { useUser } from "@/components/user-provider"
+import { Coin } from "@/components/coin"
+import { fmt } from "@/lib/format"
+
+export function AppHeader({ title }: { title?: string }) {
+  const { me, isLoading } = useUser()
+
+  return (
+    <header className="sticky top-0 z-40 glass border-b border-border">
+      <div className="flex items-center justify-between px-4 py-3">
+        <div className="flex items-center gap-2">
+          {me?.photoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={me.photoUrl || "/images/gram-logo.png"}
+              alt=""
+              className="h-8 w-8 rounded-full ring-1 ring-border"
+              crossOrigin="anonymous"
+            />
+          ) : (
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-xs font-bold text-muted-foreground">
+              {(me?.firstName?.[0] ?? "G").toUpperCase()}
+            </div>
+          )}
+          <div className="leading-tight">
+            <div className="font-display text-sm font-bold">{title ?? "Giftlys"}</div>
+            <div className="text-[10px] text-muted-foreground">
+              {me?.username ? `@${me.username}` : me?.firstName ?? "Guest"}
+              {me?.isDemo ? " · demo" : ""}
+            </div>
+          </div>
+        </div>
+
+        <Link
+          href="/deposit"
+          className="flex items-center gap-2 rounded-full border border-border bg-secondary/60 py-1.5 pl-3 pr-1.5 transition-colors hover:bg-secondary"
+        >
+          <Coin className="h-4 w-4" />
+          <span className="font-mono text-sm font-bold tabular-nums">
+            {isLoading ? "…" : fmt(me?.balance ?? 0)}
+          </span>
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground">
+            <Plus className="h-4 w-4" strokeWidth={3} />
+          </span>
+        </Link>
+      </div>
+    </header>
+  )
+}

@@ -311,7 +311,7 @@ export async function getHomeStats(): Promise<{ online: number; wonToday: number
   // them to drift gradually during the day instead of jumping on every render.
   const minuteOfDay = new Date().getHours() * 60 + new Date().getMinutes()
   const online = Math.round(155 + 65 * Math.sin(minuteOfDay / 83) + 24 * Math.sin(minuteOfDay / 19))
-  const displayWinnings = Math.min(24900, wonToday + 9200 + Math.round(3600 * (1 + Math.sin(minuteOfDay / 127))))
+  const displayWinnings = Math.min(4200, wonToday + 900 + Math.round(700 * (1 + Math.sin(minuteOfDay / 127))))
 
   return { online: Math.max(80, Math.min(250, online)), wonToday: displayWinnings }
 }

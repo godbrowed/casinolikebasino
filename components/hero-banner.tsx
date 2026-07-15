@@ -11,16 +11,15 @@ export function HeroBanner({ online, wonToday }: { online: number; wonToday: num
   return (
     <section className="flex flex-col gap-3 px-4" aria-label="Giftlys welcome">
       <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-2xl shadow-background/70">
-        <div className="relative aspect-[2/1] w-full">
-          <Image
-            src="/images/giftlys-welcome.png"
-            alt="Giftlys NFT casino bot with a Telegram gift ring and collectible cards"
-            fill
-            priority
-            sizes="(max-width: 768px) 100vw, 768px"
-            className="object-cover"
-          />
-        </div>
+        <Image
+          src="/images/giftlys-welcome.png"
+          alt="Giftlys NFT casino bot with a Telegram gift ring and collectible cards"
+          width={1774}
+          height={887}
+          priority
+          sizes="(max-width: 768px) calc(100vw - 2rem), 736px"
+          className="h-auto w-full"
+        />
       </div>
 
       <div className="grid grid-cols-2 gap-3">

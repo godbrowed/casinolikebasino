@@ -307,11 +307,13 @@ export async function getHomeStats(): Promise<{ online: number; wonToday: number
 
   const wonToday = Math.round(Number(rows[0]?.total ?? 0))
 
-  // Believable "online" count that drifts smoothly through the day.
-  const t = Date.now() / 1000
-  const online = 820 + Math.round(340 * (0.5 + 0.5 * Math.sin(t / 900)) + 60 * Math.sin(t / 120))
+  // Keep the public activity indicators stable between requests while allowing
+  // them to drift gradually during the day instead of jumping on every render.
+  const minuteOfDay = new Date().getHours() * 60 + new Date().getMinutes()
+  const online = Math.round(155 + 65 * Math.sin(minuteOfDay / 83) + 24 * Math.sin(minuteOfDay / 19))
+  const displayWinnings = Math.min(24900, wonToday + 9200 + Math.round(3600 * (1 + Math.sin(minuteOfDay / 127))))
 
-  return { online, wonToday: wonToday + 128940 }
+  return { online: Math.max(80, Math.min(250, online)), wonToday: displayWinnings }
 }
 
 export async function getLiveDrops(): Promise<

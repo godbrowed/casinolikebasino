@@ -4,6 +4,8 @@ import { db } from "@/lib/db"
 import { users, transactions } from "@/lib/db/schema"
 
 const token = process.env.TELEGRAM_BOT_TOKEN
+const welcomeImageUrl =
+  "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/image-52WXj2vKE7QyORBit06njy62bRa6RP.png"
 
 async function tg(method: string, body: unknown) {
   if (!token) return
@@ -46,7 +48,7 @@ export async function POST(req: Request) {
     if (isStart) {
       const photo = await tg("sendPhoto", {
         chat_id: message.chat.id,
-        photo: `${url}/images/giftlys-welcome.png`,
+        photo: welcomeImageUrl,
         caption: `Hi ${firstName}!\n\nOpen cases, collect gifts, and play with friends.`,
         reply_markup: {
           inline_keyboard: [[{ text: "Open Giftlys", web_app: { url } }]],

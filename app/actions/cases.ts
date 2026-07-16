@@ -1,6 +1,6 @@
 "use server"
 
-import { and, asc, desc, eq, isNull, lte, or, sql } from "drizzle-orm"
+import { and, asc, desc, eq, gte, isNull, lte, or, sql } from "drizzle-orm"
 import crypto from "crypto"
 import { revalidatePath } from "next/cache"
 import { db } from "@/lib/db"
@@ -30,22 +30,35 @@ export type CaseDTO = {
   isFree: boolean
   cooldownHours: number | null
   nextFreeAt: string | null
+  isUnlocked: boolean
   items: GiftDTO[]
 }
 
+const FREE_CASE_PROMO = "FREECASE"
+const LIVE_DROPS_CUTOFF = new Date("2026-07-16T09:33:56.000Z")
 const FREE_CURRENCY_REWARDS: GiftDTO[] = [
-  { id: -1, slug: "gram-005", name: "0.05 GRAM", rarity: "common", imageUrl: "/images/giftlys-coin-v2.png", value: 0.05, chance: 70, rewardType: "currency" },
-  { id: -2, slug: "gram-010", name: "0.10 GRAM", rarity: "common", imageUrl: "/images/giftlys-coin-v2.png", value: 0.1, chance: 25, rewardType: "currency" },
-  { id: -3, slug: "gram-025", name: "0.25 GRAM", rarity: "rare", imageUrl: "/images/giftlys-coin-v2.png", value: 0.25, chance: 4.8, rewardType: "currency" },
+  { id: -1, slug: "gram-005", name: "0.05 GRAM", rarity: "common", imageUrl: "/images/giftlys-coin-v2.png", value: 0.05, weight: 7000, chance: 70, rewardType: "currency" },
+  { id: -2, slug: "gram-010", name: "0.10 GRAM", rarity: "common", imageUrl: "/images/giftlys-coin-v2.png", value: 0.1, weight: 2200, chance: 22, rewardType: "currency" },
+  { id: -3, slug: "gram-025", name: "0.25 GRAM", rarity: "rare", imageUrl: "/images/giftlys-coin-v2.png", value: 0.25, weight: 780, chance: 7.8, rewardType: "currency" },
 ]
+
+async function hasFreeCaseUnlock(userId: string): Promise<boolean> {
+  const rows = await db
+    .select({ id: gameHistory.id })
+    .from(gameHistory)
+    .where(and(eq(gameHistory.userId, userId), eq(gameHistory.game, "promo"), sql`${gameHistory.meta}->>'code' = ${FREE_CASE_PROMO}`))
+    .limit(1)
+  return rows.length > 0
+}
 
 export async function getCases(): Promise<CaseDTO[]> {
   const userId = await getCurrentUserId()
-  const [rows, userRows] = await Promise.all([
+  const [rows, userRows, unlocked] = await Promise.all([
     db.select().from(cases).orderBy(asc(cases.sortOrder)),
     userId
       ? db.select({ lastFreeCaseAt: users.lastFreeCaseAt }).from(users).where(eq(users.id, userId)).limit(1)
       : Promise.resolve([]),
+    userId ? hasFreeCaseUnlock(userId) : Promise.resolve(false),
   ])
   const lastFreeCaseAt = userRows[0]?.lastFreeCaseAt ?? null
   const items = await db
@@ -63,6 +76,10 @@ export async function getCases(): Promise<CaseDTO[]> {
     .from(caseItems)
     .innerJoin(gifts, eq(caseItems.giftId, gifts.id))
 
+  const freeGiftPool = [...new Map(items.map((item) => [item.id, item])).values()]
+    .sort((a, b) => Number(b.value) - Number(a.value))
+    .slice(0, 5)
+
   return rows.map((c) => {
     const list = items.filter((i) => i.caseId === c.id)
     const totalW = list.reduce((s, i) => s + Number(i.weight), 0)
@@ -79,9 +96,25 @@ export async function getCases(): Promise<CaseDTO[]> {
       isFree: c.isFree,
       cooldownHours: c.cooldownHours,
       nextFreeAt,
+      isUnlocked: !c.isFree || unlocked,
       items: c.isFree
         ? [
-            { id: 37, slug: "snakebox", name: "Snake Box NFT", rarity: "legendary", imageUrl: "https://storage.portal-market.com/portals-market/gifts/snakebox/models/png/aquarium.png", value: 2.48, chance: 0.2, rewardType: "gift" as const },
+            ...freeGiftPool.map((i, index) => {
+                const giftWeights = [10, 5, 3, 1, 1]
+                const weight = giftWeights[index] ?? 1
+                return {
+                  id: i.id,
+                  slug: i.slug,
+                  name: i.name,
+                  rarity: i.rarity,
+                  imageUrl: i.imageUrl,
+                  value: Number(i.value),
+                  floorTon: Number(i.floorTon),
+                  weight,
+                  chance: weight / 100,
+                  rewardType: "gift" as const,
+                }
+              }),
             ...FREE_CURRENCY_REWARDS,
           ]
         : [
@@ -113,6 +146,25 @@ export async function getCaseBySlug(slug: string): Promise<CaseDTO | null> {
   return all.find((c) => c.slug === slug) ?? null
 }
 
+export async function redeemFreeCasePromo(code: string): Promise<{ unlocked: true }> {
+  const userId = await requireUserId()
+  const normalized = code.trim().toUpperCase()
+  if (normalized !== FREE_CASE_PROMO) throw new Error("INVALID_PROMO_CODE")
+
+  if (!(await hasFreeCaseUnlock(userId))) {
+    await db.insert(gameHistory).values({
+      userId,
+      game: "promo",
+      bet: "0",
+      result: "0",
+      meta: { code: FREE_CASE_PROMO, reward: "free-case-access" },
+    })
+  }
+
+  revalidatePath("/")
+  return { unlocked: true }
+}
+
 function weightedPick(items: { weight: number }[]): number {
   const total = items.reduce((s, i) => s + i.weight, 0)
   let r = Math.random() * total
@@ -133,6 +185,7 @@ export async function openCase(caseId: number): Promise<{
   const caseRow = (await db.select().from(cases).where(eq(cases.id, caseId)).limit(1))[0]
   if (!caseRow) throw new Error("Case not found")
   const price = Number(caseRow.price)
+  if (caseRow.isFree && !(await hasFreeCaseUnlock(userId))) throw new Error("FREE_CASE_LOCKED")
 
   const list = await db
     .select({
@@ -161,12 +214,26 @@ export async function openCase(caseId: number): Promise<{
       const eligibleBefore = new Date(now.getTime() - cooldownMs)
       const roll = crypto.randomInt(10_000)
       const currencyValue = roll < 7000 ? 0.05 : roll < 9200 ? 0.1 : 0.25
-      const wonGift = roll >= 9980
+      const giftRows = await tx
+        .select({
+          id: gifts.id,
+          slug: gifts.slug,
+          name: gifts.name,
+          rarity: gifts.rarity,
+          imageUrl: gifts.imageUrl,
+          value: gifts.value,
+        })
+        .from(caseItems)
+        .innerJoin(gifts, eq(caseItems.giftId, gifts.id))
+      const freeGiftPool = [...new Map(giftRows.map((gift) => [gift.id, gift])).values()]
+        .sort((a, b) => Number(b.value) - Number(a.value))
+        .slice(0, 5)
+      const giftWeights = [10, 5, 3, 1, 1]
+      const gift = roll >= 9980 && freeGiftPool.length > 0
+        ? freeGiftPool[weightedPick(freeGiftPool.map((_, index) => ({ weight: giftWeights[index] ?? 1 })))]
+        : null
 
-      if (wonGift) {
-        const giftRows = await tx.select().from(gifts).where(eq(gifts.id, 37)).limit(1)
-        const gift = giftRows[0]
-        if (gift) {
+      if (gift) {
           const claimed = await tx
             .update(users)
             .set({ lastFreeCaseAt: now })
@@ -186,7 +253,6 @@ export async function openCase(caseId: number): Promise<{
             balance: Number(claimed[0].balance),
             inventoryId: inv[0].id,
           }
-        }
       }
 
       const updated = await tx
@@ -322,7 +388,7 @@ export async function getLiveDrops(): Promise<
   const rows = await db
     .select()
     .from(gameHistory)
-    .where(eq(gameHistory.game, "case"))
+    .where(and(eq(gameHistory.game, "case"), gte(gameHistory.createdAt, LIVE_DROPS_CUTOFF)))
     .orderBy(desc(gameHistory.createdAt))
     .limit(20)
   return rows

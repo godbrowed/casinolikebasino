@@ -14,7 +14,7 @@ export function HeroBanner({ online, wonToday }: { online: number; wonToday: num
           {/* premium welcome artwork */}
           <div className="relative aspect-[2/1] w-full">
             <Image
-              src="/images/giftlys-welcome.png"
+              src="/images/giftlys-banner-v2.png"
               alt=""
               fill
               className="object-cover object-center"

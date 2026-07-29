@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { and, eq, sql } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { users, transactions } from "@/lib/db/schema"
+import { starsToGram } from "@/lib/deposit-shared"
 
 const token = process.env.TELEGRAM_BOT_TOKEN
 
@@ -46,7 +47,8 @@ export async function POST(req: Request) {
     if (isStart) {
       const photo = await tg("sendPhoto", {
         chat_id: message.chat.id,
-        photo: `${url}/images/giftlys-welcome.png`,
+        // New filename prevents Telegram from serving a previously cached banner.
+        photo: `${url}/images/giftlys-banner-v2.png`,
         caption: `Hi ${firstName}!\n\nOpen cases, collect gifts, and play with friends.`,
         reply_markup: {
           inline_keyboard: [[{ text: "Open Giftlys", web_app: { url } }]],
@@ -95,13 +97,14 @@ export async function POST(req: Request) {
   if (payment) {
     const stars = Number(payment.total_amount)
     if (Number.isSafeInteger(stars) && stars > 0 && payment.currency === "XTR") {
+      const credited = starsToGram(stars)
       await db.transaction(async (t) => {
         // Claim the pending intent first. Replayed Telegram updates cannot claim it twice.
         const claimed = await t
           .update(transactions)
           .set({
             status: "completed",
-            credited: String(stars),
+            credited: String(credited),
             meta: {
               telegramPaymentChargeId: payment.telegram_payment_charge_id,
               providerPaymentChargeId: payment.provider_payment_charge_id,
@@ -121,7 +124,7 @@ export async function POST(req: Request) {
         await t
           .update(users)
           .set({
-            balance: sql`${users.balance} + ${stars}`,
+            balance: sql`${users.balance} + ${credited}`,
             totalDepositedStars: sql`${users.totalDepositedStars} + ${stars}`,
           })
           .where(eq(users.id, claimed[0].userId))

@@ -19,6 +19,7 @@ import { useUser } from "@/components/user-provider"
 import { rarityOf, fmt } from "@/lib/format"
 import { getWebApp, haptic, hapticNotify } from "@/lib/telegram-webapp"
 import { cn } from "@/lib/utils"
+import { starsToGram } from "@/lib/deposit-shared"
 
 type Method = "stars" | "ton" | "gifts" | "demo"
 
@@ -184,6 +185,7 @@ export function DepositView({
                 {fmt(s)}
               </span>
               <span className="text-[11px] text-muted-foreground">{s} Stars</span>
+              <span className="flex items-center gap-1 text-[11px] text-cyan-300"><Coin className="h-3 w-3" />+{fmt(starsToGram(s))}</span>
             </PackButton>
           ))}
         </Grid>

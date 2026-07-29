@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache"
 import { db } from "@/lib/db"
 import { users, transactions } from "@/lib/db/schema"
 import { requireUserId, getCurrentUser } from "@/lib/session"
-import { TON_TO_GRAM, STAR_PACKS } from "@/lib/deposit-shared"
+import { TON_TO_GRAM, STAR_PACKS, starsToGram } from "@/lib/deposit-shared"
 
 /** Demo-only instant top up so the preview is fully playable. */
 export async function addDemoBalance(amount: number): Promise<{ balance: number }> {
@@ -40,6 +40,7 @@ export async function createStarsInvoice(stars: number): Promise<{ link: string 
   const token = process.env.TELEGRAM_BOT_TOKEN
   if (!token) throw new Error("Stars payments are not configured (missing TELEGRAM_BOT_TOKEN)")
   if (!STAR_PACKS.includes(stars)) throw new Error("Invalid pack")
+  const credited = starsToGram(stars)
 
   const payload = JSON.stringify({ userId, stars, n: crypto.randomBytes(6).toString("hex") })
 
@@ -48,7 +49,7 @@ export async function createStarsInvoice(stars: number): Promise<{ link: string 
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       title: `${stars} Stars`,
-      description: `Top up ${stars} Stars to your casino balance`,
+      description: `Top up your balance with ${stars} Telegram Stars (${credited} TON)`,
       payload,
       currency: "XTR",
       prices: [{ label: `${stars} Stars`, amount: stars }],
@@ -62,7 +63,7 @@ export async function createStarsInvoice(stars: number): Promise<{ link: string 
     type: "deposit",
     currency: "stars",
     amount: String(stars),
-    credited: "0",
+    credited: String(credited),
     status: "pending",
     externalId: payload,
   })

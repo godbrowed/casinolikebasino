@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { getCurrentUser } from "@/lib/session"
+import { isAdminId } from "@/lib/admin"
 
 export async function GET() {
   const user = await getCurrentUser()
@@ -12,6 +13,7 @@ export async function GET() {
       photoUrl: user.photoUrl,
       balance: Number(user.balance),
       isDemo: user.isDemo,
+      isAdmin: isAdminId(user.id),
     },
   })
 }

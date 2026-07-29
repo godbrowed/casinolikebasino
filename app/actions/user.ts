@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache"
 import { db } from "@/lib/db"
 import { users, inventory, gifts, gameHistory } from "@/lib/db/schema"
 import { requireUserId, getCurrentUser } from "@/lib/session"
+import { isAdminId } from "@/lib/admin"
 
 export async function getMe() {
   const user = await getCurrentUser()
@@ -20,6 +21,7 @@ export async function getMe() {
     totalDepositedStars: Number(user.totalDepositedStars),
     totalDepositedTon: Number(user.totalDepositedTon),
     tonWalletAddress: user.tonWalletAddress,
+    isAdmin: isAdminId(user.id),
   }
 }
 

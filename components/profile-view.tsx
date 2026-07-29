@@ -2,7 +2,8 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Package, TrendingUp, Rocket, Gift, Swords, Star, Send, Loader2 } from "lucide-react"
+import { Package, TrendingUp, Rocket, Gift, Swords, Star, Send, Loader2, Shield } from "lucide-react"
+import Link from "next/link"
 import { sellGift, sellAll } from "@/app/actions/user"
 import { requestGiftWithdraw } from "@/app/actions/gifts-transfer"
 import { Coin } from "@/components/coin"
@@ -28,6 +29,7 @@ type Me = {
   photoUrl: string | null
   balance: number
   isDemo: boolean
+  isAdmin?: boolean
   xp?: number
   tonWalletAddress?: string | null
 } | null
@@ -139,6 +141,13 @@ export function ProfileView({ me, inventory, history }: { me: Me; inventory: Ite
       </div>
 
       <TonWalletCard linkedAddress={me?.tonWalletAddress ?? null} />
+
+      {me?.isAdmin && (
+        <Link href="/admin" className="flex items-center justify-between rounded-2xl border border-primary/30 bg-primary/10 p-4 text-primary">
+          <span className="flex items-center gap-2 font-display font-bold"><Shield className="h-5 w-5" /> Admin panel</span>
+          <span className="text-xs font-semibold">Open</span>
+        </Link>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 gap-3">

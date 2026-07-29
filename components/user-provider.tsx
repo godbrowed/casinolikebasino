@@ -12,6 +12,7 @@ export type Me = {
   photoUrl: string | null
   balance: number
   isDemo: boolean
+  isAdmin: boolean
 }
 
 type UserContextValue = {

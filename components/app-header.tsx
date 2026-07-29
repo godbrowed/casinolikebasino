@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { useState } from "react"
 import { Plus } from "lucide-react"
 import { useUser } from "@/components/user-provider"
 import { Coin } from "@/components/coin"
@@ -9,18 +10,20 @@ import { LanguageSwitcher } from "@/components/language-switcher"
 
 export function AppHeader({ title }: { title?: string }) {
   const { me, isLoading } = useUser()
+  const [avatarFailed, setAvatarFailed] = useState(false)
+  const avatarUrl = !avatarFailed ? me?.photoUrl : null
 
   return (
     <header className="sticky top-0 z-40 glass border-b border-border">
       <div className="flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-2">
-          {me?.photoUrl ? (
+          {avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={me.photoUrl || "/images/gram-logo.png"}
+              src={avatarUrl}
               alt=""
               className="h-8 w-8 rounded-full ring-1 ring-border"
-              crossOrigin="anonymous"
+              onError={() => setAvatarFailed(true)}
             />
           ) : (
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-xs font-bold text-muted-foreground">

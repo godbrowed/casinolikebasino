@@ -5,6 +5,7 @@ import { Plus } from "lucide-react"
 import { useUser } from "@/components/user-provider"
 import { Coin } from "@/components/coin"
 import { fmt } from "@/lib/format"
+import { LanguageSwitcher } from "@/components/language-switcher"
 
 export function AppHeader({ title }: { title?: string }) {
   const { me, isLoading } = useUser()
@@ -35,6 +36,8 @@ export function AppHeader({ title }: { title?: string }) {
           </div>
         </div>
 
+        <div className="flex items-center gap-2">
+        <LanguageSwitcher />
         <Link
           href="/deposit"
           className="flex items-center gap-2 rounded-full border border-border bg-secondary/60 py-1.5 pl-3 pr-1.5 transition-colors hover:bg-secondary"
@@ -47,6 +50,7 @@ export function AppHeader({ title }: { title?: string }) {
             <Plus className="h-4 w-4" strokeWidth={3} />
           </span>
         </Link>
+        </div>
       </div>
     </header>
   )

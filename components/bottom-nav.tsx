@@ -5,17 +5,15 @@ import { usePathname } from "next/navigation"
 import { Package, Rocket, TrendingUp, User, Swords } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { haptic } from "@/lib/telegram-webapp"
+import { useLanguage } from "@/components/language-provider"
 
 const ITEMS = [
-  { href: "/", label: "Cases", icon: Package },
-  { href: "/battles", label: "Battles", icon: Swords },
-  { href: "/crash", label: "Crash", icon: Rocket },
-  { href: "/upgrade", label: "Upgrade", icon: TrendingUp },
-  { href: "/profile", label: "Profile", icon: User },
+  { href: "/", label: "cases", icon: Package }, { href: "/battles", label: "battles", icon: Swords }, { href: "/crash", label: "crash", icon: Rocket }, { href: "/upgrade", label: "upgrade", icon: TrendingUp }, { href: "/profile", label: "profile", icon: User },
 ]
 
 export function BottomNav() {
   const pathname = usePathname()
+  const { t } = useLanguage()
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-50 mx-auto max-w-md">
@@ -42,7 +40,7 @@ export function BottomNav() {
                   >
                     <Icon className="h-5 w-5" strokeWidth={active ? 2.5 : 2} />
                   </span>
-                  {item.label}
+                  {t(item.label as "cases")}
                 </Link>
               </li>
             )

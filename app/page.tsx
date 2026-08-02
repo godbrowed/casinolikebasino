@@ -1,7 +1,6 @@
-import { getCases, getLiveDrops, getHomeStats } from "@/app/actions/cases"
+import { getCases, getHomeStats } from "@/app/actions/cases"
 import { AppHeader } from "@/components/app-header"
 import { CaseCard } from "@/components/case-card"
-import { LiveDrops } from "@/components/live-drops"
 import { HeroBanner } from "@/components/hero-banner"
 import { GameModes } from "@/components/game-modes"
 import { DailyReward } from "@/components/daily-reward"
@@ -9,7 +8,7 @@ import { DailyReward } from "@/components/daily-reward"
 export const dynamic = "force-dynamic"
 
 export default async function HomePage() {
-  const [cases, drops, stats] = await Promise.all([getCases(), getLiveDrops(), getHomeStats()])
+  const [cases, stats] = await Promise.all([getCases(), getHomeStats()])
 
   return (
     <>
@@ -18,7 +17,6 @@ export default async function HomePage() {
         <HeroBanner online={stats.online} wonToday={stats.wonToday} />
         <DailyReward />
         <GameModes />
-        <LiveDrops drops={drops} />
         <section className="px-4">
           <div className="mb-3 flex items-baseline justify-between">
             <h2 className="font-display text-lg font-bold">Cases</h2>

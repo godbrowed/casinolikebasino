@@ -11,18 +11,11 @@ import { fmt } from "@/lib/format"
 import { haptic } from "@/lib/telegram-webapp"
 import { cn } from "@/lib/utils"
 
-type RecentBattle = {
-  id: number
-  caseName: string
-  winnerName: string
-  pot: number
-  players: number
-  youWon: boolean
-}
-
 type Phase = "config" | "matching" | "arena"
 
-export function BattlesLobby({ cases, recent }: { cases: CaseDTO[]; recent: RecentBattle[] }) {
+type RecentBattle = { id: number; caseName: string; winnerName: string; pot: number; players: number; youWon: boolean }
+
+export function BattlesLobby({ cases, recent = [] }: { cases: CaseDTO[]; recent?: RecentBattle[] }) {
   const { me, refresh } = useUser()
   const battleCases = cases.filter((c) => !c.isFree)
   const [caseId, setCaseId] = useState(battleCases[0]?.id ?? 0)
@@ -94,6 +87,8 @@ export function BattlesLobby({ cases, recent }: { cases: CaseDTO[]; recent: Rece
           ? "Not enough balance. Deposit to play."
           : msg === "FREE_CASE_NOT_ALLOWED"
             ? "Daily free cases cannot be used in battles."
+            : msg === "EMPTY_CASE"
+              ? "This case is temporarily unavailable. Choose another one."
             : msg,
       )
     } finally {

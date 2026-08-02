@@ -53,6 +53,16 @@ export function UserProvider({ children }: { children: ReactNode }) {
       .catch(() => setAuthState("telegram-required"))
   }, [])
 
+  // This keeps the online counter tied to active Mini App sessions instead of
+  // a fabricated number. The server only counts users seen in the last 5 min.
+  useEffect(() => {
+    if (authState !== "ready") return
+    const heartbeat = () => void fetch("/api/me", { cache: "no-store" })
+    heartbeat()
+    const timer = window.setInterval(heartbeat, 60_000)
+    return () => window.clearInterval(timer)
+  }, [authState])
+
   const value: UserContextValue = {
     me: data?.user ?? null,
     isLoading: authState === "loading" || isLoading,

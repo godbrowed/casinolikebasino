@@ -60,7 +60,7 @@ function weightedPick(items: { weight: number }[]): number {
   return items.length - 1
 }
 
-export async function runBattle(input: {
+async function runBattle(input: {
   caseId: number
   players: number // 2..4 total (you + bots)
   rounds: number // 1..3
@@ -186,11 +186,11 @@ export async function runBattle(input: {
 }
 
 /* --------------------------- Live matchmaking --------------------------- */
-// Players join a shared room. It fills with real players who queue for the
-// same case/size/rounds, and bots trickle in over a 30s window. The room
-// resolves when it's full or the timer expires.
+// Players join a shared room. It resolves only after every seat is occupied
+// by a real player; queued players can leave and receive a refund beforehand.
 
 const MATCH_WINDOW_MS = 30_000
+// Retained for backwards-compatible settlement code; matchmaking never calls it.
 const BOT_INTERVAL_MS = 6_000
 
 export type MatchSlot = {
@@ -222,17 +222,15 @@ export async function joinBattle(input: {
   const capacity = Math.min(4, Math.max(2, Math.floor(input.capacity)))
   const rounds = Math.min(3, Math.max(1, Math.floor(input.rounds)))
 
-  // Settle rooms whose timer elapsed while nobody was polling them, so a
-  // player can never have an entry locked in an abandoned waiting room.
-  const expiredRooms = await db
-    .select({ id: battleRooms.id })
-    .from(battleRooms)
-    .where(and(eq(battleRooms.status, "waiting"), lte(battleRooms.startsAt, new Date())))
-  for (const room of expiredRooms) await resolveRoom(room.id)
-
   const caseRow = (await db.select().from(cases).where(eq(cases.id, input.caseId)).limit(1))[0]
   if (!caseRow) throw new Error("Case not found")
   if (caseRow.isFree) throw new Error("FREE_CASE_NOT_ALLOWED")
+  const caseHasItems = await db
+    .select({ id: caseItems.id })
+    .from(caseItems)
+    .where(eq(caseItems.caseId, input.caseId))
+    .limit(1)
+  if (caseHasItems.length === 0) throw new Error("EMPTY_CASE")
   const entryCost = Number(caseRow.price) * rounds
 
   return db.transaction(async (tx) => {
@@ -251,7 +249,6 @@ export async function joinBattle(input: {
           eq(battleRooms.caseId, input.caseId),
           eq(battleRooms.capacity, capacity),
           eq(battleRooms.rounds, rounds),
-          gt(battleRooms.startsAt, now),
         ),
       )
       .orderBy(asc(battleRooms.createdAt))
@@ -334,16 +331,9 @@ export async function getMatchState(roomId: number): Promise<MatchState> {
   if (!room) throw new Error("Room not found")
   const caseRow = (await db.select().from(cases).where(eq(cases.id, room.caseId)).limit(1))[0]
 
-  // Trickle bots in over the window while waiting.
   if (room.status === "waiting") {
-    const elapsed = Date.now() - room.createdAt.getTime()
-    await maybeAddBots(roomId, room.capacity, elapsed)
-
     const current = await db.select().from(battleSlots).where(eq(battleSlots.roomId, roomId))
-    const realCount = current.filter((s) => !s.isBot).length
-    // Start when the timer runs out, or when real players fill the room.
-    // Bots filling up doesn't cut the 30s search short.
-    if (Date.now() >= room.startsAt.getTime() || realCount >= room.capacity) {
+    if (current.length >= room.capacity) {
       await resolveRoom(roomId)
     }
   }
@@ -416,16 +406,12 @@ async function resolveRoom(roomId: number): Promise<void> {
     if (claimed.length === 0) return
     const room = claimed[0]
 
-    // Fill any remaining slots with bots.
     const existing = await tx.select().from(battleSlots).where(eq(battleSlots.roomId, roomId))
-    const used = new Set(existing.map((s) => s.slot))
-    const usedNames = new Set(existing.map((s) => s.name))
-    const names = BOT_NAMES.filter((n) => !usedNames.has(n)).sort(() => Math.random() - 0.5)
-    let bi = 0
-    for (let slot = 0; slot < room.capacity; slot++) {
-      if (!used.has(slot)) {
-        await tx.insert(battleSlots).values({ roomId, slot, name: names[bi++] ?? `Practice ${slot + 1}`, isBot: true })
-      }
+    if (existing.length < room.capacity) {
+      // A concurrent leave can race with resolution. Reopen instead of ever
+      // manufacturing an opponent.
+      await tx.update(battleRooms).set({ status: "waiting" }).where(eq(battleRooms.id, roomId))
+      return
     }
 
     const slots = await tx.select().from(battleSlots).where(eq(battleSlots.roomId, roomId)).orderBy(asc(battleSlots.slot))

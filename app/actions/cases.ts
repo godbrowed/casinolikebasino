@@ -33,6 +33,20 @@ export type CaseDTO = {
   items: GiftDTO[]
 }
 
+// Currency payouts are deliberately limited to entry-level cases. Higher-tier
+// cases settle in gifts only, keeping their economy predictable.
+const CURRENCY_CASE_LIMIT = 10
+
+function currencyRewards(price: number): GiftDTO[] {
+  if (price > CURRENCY_CASE_LIMIT) return []
+  return [
+    { id: -101, slug: `gram-small-${price}`, name: `${Math.max(1, Math.round(price * 0.1))} GRAM`, rarity: "common", imageUrl: "/images/giftlys-coin-v2.png", value: Math.max(1, Math.round(price * 0.1)), chance: 20, rewardType: "currency" },
+    { id: -102, slug: `gram-medium-${price}`, name: `${Math.max(1, Math.round(price * 0.25))} GRAM`, rarity: "rare", imageUrl: "/images/giftlys-coin-v2.png", value: Math.max(1, Math.round(price * 0.25)), chance: 12, rewardType: "currency" },
+    { id: -103, slug: `gram-large-${price}`, name: `${Math.max(1, Math.round(price * 0.5))} GRAM`, rarity: "epic", imageUrl: "/images/giftlys-coin-v2.png", value: Math.max(1, Math.round(price * 0.5)), chance: 6, rewardType: "currency" },
+    { id: -104, slug: `gram-jackpot-${price}`, name: `${Math.max(1, Math.round(price))} GRAM`, rarity: "legendary", imageUrl: "/images/giftlys-coin-v2.png", value: Math.max(1, Math.round(price)), chance: 2, rewardType: "currency" },
+  ]
+}
+
 const FREE_CURRENCY_REWARDS: GiftDTO[] = [
   { id: -1, slug: "gram-005", name: "0.05 GRAM", rarity: "common", imageUrl: "/images/giftlys-coin-v2.png", value: 0.05, chance: 70, rewardType: "currency" },
   { id: -2, slug: "gram-010", name: "0.10 GRAM", rarity: "common", imageUrl: "/images/giftlys-coin-v2.png", value: 0.1, chance: 25, rewardType: "currency" },
@@ -99,10 +113,7 @@ export async function getCases(): Promise<CaseDTO[]> {
           rewardType: "gift" as const,
         }))
         .sort((a, b) => b.value - a.value),
-          { id: -101, slug: `gram-small-${c.id}`, name: `${Math.max(1, Math.round(Number(c.price) * 0.1))} GRAM`, rarity: "common", imageUrl: "/images/giftlys-coin-v2.png", value: Math.max(1, Math.round(Number(c.price) * 0.1)), chance: 20, rewardType: "currency" as const },
-          { id: -102, slug: `gram-medium-${c.id}`, name: `${Math.max(1, Math.round(Number(c.price) * 0.25))} GRAM`, rarity: "rare", imageUrl: "/images/giftlys-coin-v2.png", value: Math.max(1, Math.round(Number(c.price) * 0.25)), chance: 12, rewardType: "currency" as const },
-          { id: -103, slug: `gram-large-${c.id}`, name: `${Math.max(1, Math.round(Number(c.price) * 0.5))} GRAM`, rarity: "epic", imageUrl: "/images/giftlys-coin-v2.png", value: Math.max(1, Math.round(Number(c.price) * 0.5)), chance: 6, rewardType: "currency" as const },
-          { id: -104, slug: `gram-jackpot-${c.id}`, name: `${Math.max(1, Math.round(Number(c.price)))} GRAM`, rarity: "legendary", imageUrl: "/images/giftlys-coin-v2.png", value: Math.max(1, Math.round(Number(c.price))), chance: 2, rewardType: "currency" as const },
+          ...currencyRewards(Number(c.price)),
         ],
     }
   })
@@ -218,7 +229,7 @@ export async function openCase(caseId: number): Promise<{
     if (Number(user.balance) < price) throw new Error("INSUFFICIENT_FUNDS")
 
     const rewardRoll = crypto.randomInt(10_000)
-    const isCurrencyReward = rewardRoll < 4000
+    const isCurrencyReward = price <= CURRENCY_CASE_LIMIT && rewardRoll < 4000
     const currencyValue = rewardRoll < 2000
       ? Math.max(1, Math.round(price * 0.1))
       : rewardRoll < 3200
@@ -300,18 +311,17 @@ export async function getHomeStats(): Promise<{ online: number; wonToday: number
   const startOfDay = new Date()
   startOfDay.setHours(0, 0, 0, 0)
 
-  const rows = await db
+  const [rows, activeUsers] = await Promise.all([
+    db
     .select({ total: sql<string>`coalesce(sum(${gameHistory.result}), 0)` })
     .from(gameHistory)
-    .where(sql`${gameHistory.createdAt} >= ${startOfDay.toISOString()}`)
+    .where(sql`${gameHistory.createdAt} >= ${startOfDay.toISOString()}`),
+    db.select({ count: sql<string>`count(*)` }).from(users).where(sql`${users.lastSeen} >= now() - interval '5 minutes'}`),
+  ])
 
   const wonToday = Math.round(Number(rows[0]?.total ?? 0))
 
-  // Believable "online" count that drifts smoothly through the day.
-  const t = Date.now() / 1000
-  const online = 820 + Math.round(340 * (0.5 + 0.5 * Math.sin(t / 900)) + 60 * Math.sin(t / 120))
-
-  return { online, wonToday: wonToday + 128940 }
+  return { online: Number(activeUsers[0]?.count ?? 0), wonToday }
 }
 
 export async function getLiveDrops(): Promise<

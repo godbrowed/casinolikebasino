@@ -8,7 +8,13 @@ import { DailyReward } from "@/components/daily-reward"
 export const dynamic = "force-dynamic"
 
 export default async function HomePage() {
-  const [cases, stats] = await Promise.all([getCases(), getHomeStats()])
+  // Do not take down the entire mini app if Neon is temporarily unavailable
+  // or the production database schema has not been migrated yet.
+  const [casesResult, statsResult] = await Promise.allSettled([getCases(), getHomeStats()])
+  const cases = casesResult.status === "fulfilled" ? casesResult.value : []
+  const stats = statsResult.status === "fulfilled"
+    ? statsResult.value
+    : { online: 0, wonToday: 0 }
 
   return (
     <>

@@ -30,7 +30,7 @@ export function CrashRocket({
   const crashed = phase === "crashed"
 
   // Time-based liftoff so the rocket visibly launches on every round (even the
-  // frequent instant busts at 20% RTP) instead of staying glued to the pad.
+  // low crash points) instead of staying glued to the pad.
   const [liftoff, setLiftoff] = useState(0)
   useEffect(() => {
     if (!running) {

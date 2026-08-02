@@ -38,9 +38,9 @@ function verifyRound(token: string): RoundPayload | null {
 }
 
 // For point = edge/(1-r) with anytime cashout the theoretical RTP equals `edge`.
-// edge = 0.20 => RTP 20% (house edge 80%). No separate instabust needed: the
+// edge = 0.90 => RTP 90% (house edge 10%). No separate instabust needed: the
 // formula already busts ~80% of rounds at 1.00x on its own.
-function rollCrashPoint(edge = 0.2): number {
+function rollCrashPoint(edge = 0.9): number {
   const r = Math.random()
   const point = edge / (1 - r)
   return Math.max(1.0, Math.floor(point * 100) / 100)
@@ -211,8 +211,8 @@ export async function startGiftCrash(inventoryId: number): Promise<{
     await tx.update(inventory).set({ status: "wagered" }).where(eq(inventory.id, inventoryId))
 
     const startTime = Date.now()
-    // Same 20% RTP for gift crash (payout is a real NFT).
-    const crashPoint = rollCrashPoint(0.2)
+    // Same 90% RTP for gift crash (payout is a real NFT).
+    const crashPoint = rollCrashPoint()
     const stakeValue = Number(item.value)
     const token = signGiftRound({ userId, inventoryId, stakeValue, crashPoint, startTime })
     return { token, startTime, crashPoint, stakeValue }

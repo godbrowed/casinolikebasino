@@ -1,5 +1,6 @@
 // Client-safe upgrade odds. Must match the server settlement in app/actions/upgrade.ts.
-export const HOUSE_FACTOR = 0.82
+// 90% return-to-player across every valid source/target pair.
+export const HOUSE_FACTOR = 0.9
 
 export function upgradeChance(sourceValue: number, targetValue: number): number {
   if (targetValue <= 0 || sourceValue <= 0) return 0

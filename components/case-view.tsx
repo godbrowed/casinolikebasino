@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation"
 import { useState } from "react"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, ShieldCheck, Sparkles } from "lucide-react"
 import Link from "next/link"
 import type { CaseDTO, GiftDTO } from "@/app/actions/cases"
 import { openCase } from "@/app/actions/cases"
@@ -98,6 +98,9 @@ export function CaseView({ c }: { c: CaseDTO }) {
             <ArrowLeft className="h-4 w-4" />
           </Link>
           <h1 className="font-display text-lg font-bold">{c.name}</h1>
+          <span className="ml-auto flex items-center gap-1 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-emerald-300">
+            <ShieldCheck className="h-3 w-3" /> {c.isFree ? "Daily" : "90% RTP"}
+          </span>
         </div>
 
         <CaseRoulette pool={c.items} spinning={spinning} result={result} onSettled={handleSettled} />
@@ -130,9 +133,9 @@ export function CaseView({ c }: { c: CaseDTO }) {
           )}
         </button>
 
-        <section>
+        <section className="surface-panel rounded-3xl p-3">
           <div className="mb-2 flex items-baseline justify-between">
-            <h2 className="text-sm font-bold">Contents</h2>
+            <h2 className="flex items-center gap-1.5 text-sm font-bold"><Sparkles className="h-3.5 w-3.5 text-primary" /> Possible rewards</h2>
             <span className="text-xs text-muted-foreground">{c.items.length} rewards</span>
           </div>
           <div className="grid grid-cols-3 gap-2">
@@ -141,7 +144,7 @@ export function CaseView({ c }: { c: CaseDTO }) {
               return (
                 <div
                   key={g.id}
-                  className={cn("rounded-xl border border-border bg-card p-2 text-center ring-1", r.ring)}
+                  className={cn("rounded-2xl border border-border bg-background/45 p-2 text-center ring-1", r.ring)}
                 >
                   <div className="relative mx-auto h-14 w-14">
                     {/* eslint-disable-next-line @next/next/no-img-element */}

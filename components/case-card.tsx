@@ -27,29 +27,25 @@ export function CaseCard({ c }: { c: CaseDTO }) {
       href={`/case/${c.slug}`}
       onClick={() => haptic("light")}
       className={cn(
-        "card-premium group relative flex flex-col overflow-hidden rounded-2xl p-3 ring-1 transition-transform active:scale-[0.97]",
+        "case-card group relative flex flex-col overflow-hidden rounded-[1.35rem] p-3 ring-1 transition-all duration-300 active:scale-[0.97]",
         accent.ring,
       )}
     >
-      {/* top row: rarity + up-to value */}
       <div className="relative z-10 mb-1 flex items-center justify-between">
         <span className={cn("rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide", topRarity.chip)}>
           {topRarity.label}
         </span>
         <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
-          {c.isFree ? "free every 24h" : "up to"}
+          {c.isFree ? "every 24h" : "top prize"}
           {!c.isFree && <Coin className="h-3 w-3" />}
           {!c.isFree && <span className="font-mono font-bold text-foreground">{fmt(top?.value ?? 0)}</span>}
         </span>
       </div>
 
-      {/* gift stage — real transparent gift models, no AI cover */}
       <div className="relative flex aspect-square w-full items-center justify-center">
-        {/* accent glow */}
         <div className={cn("absolute h-24 w-24 rounded-full blur-2xl", accent.glow)} />
         <div className={cn("absolute inset-0 rounded-xl bg-gradient-to-b to-transparent", accent.from)} />
 
-        {/* secondary gifts fanned behind */}
         {left && (
           <img
             src={left.imageUrl || "/images/nft-gift.png"}
@@ -66,7 +62,6 @@ export function CaseCard({ c }: { c: CaseDTO }) {
             className="absolute right-1 bottom-3 h-[46%] w-[46%] rotate-12 object-contain opacity-70 drop-shadow-[0_6px_14px_rgba(0,0,0,0.5)] transition-transform duration-300 group-hover:translate-x-1"
           />
         )}
-        {/* hero gift */}
         {top && (
           <img
             src={top.imageUrl || "/images/nft-gift.png"}
@@ -77,7 +72,10 @@ export function CaseCard({ c }: { c: CaseDTO }) {
       </div>
 
       <div className="relative z-10 mt-1 flex flex-col items-center">
-        <div className="truncate font-display text-sm font-bold">{c.isFree ? "Daily case" : c.name}</div>
+        <div className="w-full truncate text-center font-display text-[15px] font-black tracking-tight">{c.isFree ? "Daily Drop" : c.name}</div>
+        <div className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+          {c.isFree ? `${c.items.length} daily rewards` : c.price >= 7 ? "NFT rewards only" : "90% RTP"}
+        </div>
         <div className={cn(
           "mt-1.5 inline-flex items-center gap-1.5 rounded-full px-3 py-1 ring-1 transition-colors",
           c.isFree

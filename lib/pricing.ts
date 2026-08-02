@@ -6,7 +6,11 @@ export const PORTALS_API = "https://portal-market.com/api/collections?limit=500"
 
 // Target return-to-player. A case price is set so the average payout equals
 // CASE_RTP of the price (i.e. the house keeps ~1 - CASE_RTP as its edge).
-export const CASE_RTP = 0.82
+export const CASE_RTP = 0.9
+
+// Premium cases must always award an on-chain gift. Balance payouts are kept
+// only in entry cases, where they make the first sessions less volatile.
+export const BALANCE_REWARD_MAX_CASE_PRICE = 7
 
 // Expected value of a case from its contents: Σ (weight_i / totalWeight) * value_i.
 export function caseExpectedValue(items: { weight: number; value: number }[]): number {
@@ -18,9 +22,10 @@ export function caseExpectedValue(items: { weight: number; value: number }[]): n
 // Fair price bound to contents. Rounded to a clean step for nicer prices.
 export function priceFromContents(items: { weight: number; value: number }[]): number {
   const ev = caseExpectedValue(items)
-  // Paid cases are intentionally 30% cheaper than the pure NFT-only price.
-  // Their remaining payout is balanced with GRAM balance rewards at open time.
-  const raw = (ev / CASE_RTP) * 0.7
+  const giftOnlyPrice = ev / CASE_RTP
+  // Entry cases use a 60% gift / 40% balance mix. Balance tiers contribute
+  // exactly 10% of the case price to EV, so 0.6*giftEV + 0.1*price = 0.9*price.
+  const raw = giftOnlyPrice <= BALANCE_REWARD_MAX_CASE_PRICE ? ev * 0.75 : giftOnlyPrice
   if (raw <= 0) return 0
   // Round to 2 significant-ish steps so prices read cleanly (e.g. 12.4, 187, 2350).
   if (raw < 10) return Math.round(raw * 10) / 10

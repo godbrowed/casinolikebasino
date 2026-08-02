@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache"
 import { db } from "@/lib/db"
 import { cases, caseItems, gifts, users, inventory, gameHistory } from "@/lib/db/schema"
 import { getCurrentUserId, requireUserId } from "@/lib/session"
+import { BALANCE_REWARD_MAX_CASE_PRICE } from "@/lib/pricing"
 
 export type GiftDTO = {
   id: number
@@ -35,22 +36,25 @@ export type CaseDTO = {
 
 // Currency payouts are deliberately limited to entry-level cases. Higher-tier
 // cases settle in gifts only, keeping their economy predictable.
-const CURRENCY_CASE_LIMIT = 10
+const CURRENCY_CASE_LIMIT = BALANCE_REWARD_MAX_CASE_PRICE
 
 function currencyRewards(price: number): GiftDTO[] {
   if (price > CURRENCY_CASE_LIMIT) return []
   return [
-    { id: -101, slug: `gram-small-${price}`, name: `${Math.max(1, Math.round(price * 0.1))} GRAM`, rarity: "common", imageUrl: "/images/giftlys-coin-v2.png", value: Math.max(1, Math.round(price * 0.1)), chance: 20, rewardType: "currency" },
-    { id: -102, slug: `gram-medium-${price}`, name: `${Math.max(1, Math.round(price * 0.25))} GRAM`, rarity: "rare", imageUrl: "/images/giftlys-coin-v2.png", value: Math.max(1, Math.round(price * 0.25)), chance: 12, rewardType: "currency" },
-    { id: -103, slug: `gram-large-${price}`, name: `${Math.max(1, Math.round(price * 0.5))} GRAM`, rarity: "epic", imageUrl: "/images/giftlys-coin-v2.png", value: Math.max(1, Math.round(price * 0.5)), chance: 6, rewardType: "currency" },
-    { id: -104, slug: `gram-jackpot-${price}`, name: `${Math.max(1, Math.round(price))} GRAM`, rarity: "legendary", imageUrl: "/images/giftlys-coin-v2.png", value: Math.max(1, Math.round(price)), chance: 2, rewardType: "currency" },
+    { id: -101, slug: `gram-small-${price}`, name: `${(price * 0.1).toFixed(2)} GRAM`, rarity: "common", imageUrl: "/images/giftlys-coin-v2.png", value: price * 0.1, chance: 20, rewardType: "currency" },
+    { id: -102, slug: `gram-medium-${price}`, name: `${(price * 0.25).toFixed(2)} GRAM`, rarity: "rare", imageUrl: "/images/giftlys-coin-v2.png", value: price * 0.25, chance: 12, rewardType: "currency" },
+    { id: -103, slug: `gram-large-${price}`, name: `${(price * 0.5).toFixed(2)} GRAM`, rarity: "epic", imageUrl: "/images/giftlys-coin-v2.png", value: price * 0.5, chance: 6, rewardType: "currency" },
+    { id: -104, slug: `gram-jackpot-${price}`, name: `${price.toFixed(2)} GRAM`, rarity: "legendary", imageUrl: "/images/giftlys-coin-v2.png", value: price, chance: 2, rewardType: "currency" },
   ]
 }
 
 const FREE_CURRENCY_REWARDS: GiftDTO[] = [
-  { id: -1, slug: "gram-005", name: "0.05 GRAM", rarity: "common", imageUrl: "/images/giftlys-coin-v2.png", value: 0.05, chance: 70, rewardType: "currency" },
-  { id: -2, slug: "gram-010", name: "0.10 GRAM", rarity: "common", imageUrl: "/images/giftlys-coin-v2.png", value: 0.1, chance: 25, rewardType: "currency" },
-  { id: -3, slug: "gram-025", name: "0.25 GRAM", rarity: "rare", imageUrl: "/images/giftlys-coin-v2.png", value: 0.25, chance: 4.8, rewardType: "currency" },
+  { id: -1, slug: "gram-002", name: "0.02 GRAM", rarity: "common", imageUrl: "/images/giftlys-coin-v2.png", value: 0.02, chance: 45, rewardType: "currency" },
+  { id: -2, slug: "gram-005", name: "0.05 GRAM", rarity: "common", imageUrl: "/images/giftlys-coin-v2.png", value: 0.05, chance: 30, rewardType: "currency" },
+  { id: -3, slug: "gram-010", name: "0.10 GRAM", rarity: "rare", imageUrl: "/images/giftlys-coin-v2.png", value: 0.1, chance: 15, rewardType: "currency" },
+  { id: -4, slug: "gram-025", name: "0.25 GRAM", rarity: "epic", imageUrl: "/images/giftlys-coin-v2.png", value: 0.25, chance: 7, rewardType: "currency" },
+  { id: -5, slug: "gram-050", name: "0.50 GRAM", rarity: "legendary", imageUrl: "/images/giftlys-coin-v2.png", value: 0.5, chance: 2, rewardType: "currency" },
+  { id: -6, slug: "gram-100", name: "1.00 GRAM", rarity: "mythic", imageUrl: "/images/giftlys-coin-v2.png", value: 1, chance: 0.8, rewardType: "currency" },
 ]
 
 export async function getCases(): Promise<CaseDTO[]> {
@@ -95,7 +99,7 @@ export async function getCases(): Promise<CaseDTO[]> {
       nextFreeAt,
       items: c.isFree
         ? [
-            { id: 37, slug: "snakebox", name: "Snake Box NFT", rarity: "legendary", imageUrl: "https://storage.portal-market.com/portals-market/gifts/snakebox/models/png/aquarium.png", value: 2.48, chance: 0.2, rewardType: "gift" as const },
+            { id: 37, slug: "snakebox", name: "Snake Box NFT", rarity: "mythic", imageUrl: "https://storage.portal-market.com/portals-market/gifts/snakebox/models/png/aquarium.png", value: 2.48, chance: 0.2, rewardType: "gift" as const },
             ...FREE_CURRENCY_REWARDS,
           ]
         : [
@@ -109,7 +113,7 @@ export async function getCases(): Promise<CaseDTO[]> {
           value: Number(i.value),
           floorTon: Number(i.floorTon),
           weight: Number(i.weight),
-          chance: totalW ? (Number(i.weight) / totalW) * 60 : 0,
+          chance: totalW ? (Number(i.weight) / totalW) * (Number(c.price) <= CURRENCY_CASE_LIMIT ? 60 : 100) : 0,
           rewardType: "gift" as const,
         }))
         .sort((a, b) => b.value - a.value),
@@ -171,7 +175,7 @@ export async function openCase(caseId: number): Promise<{
       const cooldownMs = (caseRow.cooldownHours ?? 24) * 60 * 60 * 1000
       const eligibleBefore = new Date(now.getTime() - cooldownMs)
       const roll = crypto.randomInt(10_000)
-      const currencyValue = roll < 7000 ? 0.05 : roll < 9200 ? 0.1 : 0.25
+      const currencyValue = roll < 4500 ? 0.02 : roll < 7500 ? 0.05 : roll < 9000 ? 0.1 : roll < 9700 ? 0.25 : roll < 9900 ? 0.5 : 1
       const wonGift = roll >= 9980
 
       if (wonGift) {
@@ -231,12 +235,12 @@ export async function openCase(caseId: number): Promise<{
     const rewardRoll = crypto.randomInt(10_000)
     const isCurrencyReward = price <= CURRENCY_CASE_LIMIT && rewardRoll < 4000
     const currencyValue = rewardRoll < 2000
-      ? Math.max(1, Math.round(price * 0.1))
+      ? price * 0.1
       : rewardRoll < 3200
-        ? Math.max(1, Math.round(price * 0.25))
+        ? price * 0.25
         : rewardRoll < 3800
-          ? Math.max(1, Math.round(price * 0.5))
-          : Math.max(1, Math.round(price))
+          ? price * 0.5
+          : price
 
     const idx = weightedPick(list.map((i) => ({ weight: Number(i.weight) })))
     const won = list[idx]

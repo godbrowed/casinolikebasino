@@ -49,9 +49,9 @@ export async function POST(req: Request) {
         chat_id: message.chat.id,
         // New filename prevents Telegram from serving a previously cached banner.
         photo: `${url}/images/giftlys-banner-v2.png`,
-        caption: `Hi ${firstName}!\n\nOpen cases, collect gifts, and play with friends.`,
+        caption: `✨ Welcome to Giftlys, ${firstName}!\n\nChoose a game, collect rare gifts and make every round count.`,
         reply_markup: {
-          inline_keyboard: [[{ text: "Open Giftlys", web_app: { url } }]],
+          inline_keyboard: [[{ text: "🎮 Play Giftlys", web_app: { url } }]],
         },
       })
       if (photo?.ok) return NextResponse.json({ ok: true })
@@ -59,10 +59,10 @@ export async function POST(req: Request) {
     await tg("sendMessage", {
       chat_id: message.chat.id,
       text: isStart
-        ? `Hey ${firstName}! 👋\n\nWelcome to Giftlys — open cases, collect gifts, and play with friends.\n\nTap the button below to jump in!`
-        : `Tap the button to open Giftlys 👇`,
+        ? `✨ Welcome to Giftlys, ${firstName}!\n\nYour gift arcade is ready: choose a game, open surprises and play live rounds with everyone.\n\nPress Play to enter.`
+        : `🎮 Your Giftlys arcade is waiting — tap Play to continue.`,
       reply_markup: {
-        inline_keyboard: [[{ text: "🎁 Open app", web_app: { url } }]],
+        inline_keyboard: [[{ text: "🎮 Play Giftlys", web_app: { url } }]],
       },
     })
     return NextResponse.json({ ok: true })

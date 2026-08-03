@@ -10,6 +10,7 @@ import { useUser } from "@/components/user-provider"
 import { fmt } from "@/lib/format"
 import { haptic, hapticNotify } from "@/lib/telegram-webapp"
 import { cn } from "@/lib/utils"
+import { multiplierAtElapsed } from "@/lib/crash-shared"
 
 export function CrashGame() {
   const { me, setBalance, refresh } = useUser()
@@ -18,10 +19,11 @@ export function CrashGame() {
   const [token, setToken] = useState<string | null>(null)
   const [outcome, setOutcome] = useState<{ payout: number; at: number } | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [displayMultiplier, setDisplayMultiplier] = useState(1)
   const settling = useRef(false)
   const balance = me?.balance ?? 0
   const phase = board?.phase ?? "betting"
-  const multiplier = board?.multiplier ?? 1
+  const multiplier = displayMultiplier
   const canBet = phase === "betting" && !token
   const canCashout = phase === "flying" && Boolean(token)
 
@@ -36,6 +38,20 @@ export function CrashGame() {
       hapticNotify("error")
     })
   }, [mutate, phase, refresh, token])
+
+  // The server decides whether the round has crashed.  Between those small
+  // syncs the rocket advances locally, so it stays smooth on slower phones.
+  useEffect(() => {
+    if (!board) return
+    if (board.phase !== "flying") {
+      setDisplayMultiplier(board.multiplier)
+      return
+    }
+    const tick = () => setDisplayMultiplier(multiplierAtElapsed(Date.now() - board.flightStart))
+    tick()
+    const id = window.setInterval(tick, 80)
+    return () => window.clearInterval(id)
+  }, [board])
 
   async function placeBet() {
     if (!canBet || bet <= 0 || bet > balance) return setError("Not enough balance. Deposit to play.")

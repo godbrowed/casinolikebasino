@@ -4,6 +4,7 @@ import { CaseCard } from "@/components/case-card"
 import { HeroBanner } from "@/components/hero-banner"
 import { GameModes } from "@/components/game-modes"
 import { DailyReward } from "@/components/daily-reward"
+import { PlayLobby } from "@/components/play-lobby"
 import { ShieldCheck, Sparkles } from "lucide-react"
 
 export const dynamic = "force-dynamic"
@@ -22,6 +23,7 @@ export default async function HomePage() {
       <AppHeader />
       <main className="flex flex-col gap-6 pt-4">
         <HeroBanner online={stats.online} wonToday={stats.wonToday} />
+        <PlayLobby />
         <GameModes />
         <DailyReward />
         <section className="px-4">

@@ -53,6 +53,7 @@ function rollCrashPoint(roundId: number, edge = 0.9): number {
 
 export type CrashBoard = {
   roundId: number
+  flightStart: number
   phase: "betting" | "flying" | "crashed"
   multiplier: number
   secondsLeft: number
@@ -83,6 +84,7 @@ export async function getCrashBoard(): Promise<CrashBoard> {
   }
   return {
     roundId,
+    flightStart,
     phase: crashed ? "crashed" : phase,
     multiplier: crashed ? point : Math.max(1, current),
     secondsLeft: Math.max(0, Math.ceil(((phase === "betting" ? flightStart : sharedRoundStart(now) + CRASH_ROUND_MS) - now) / 1000)),

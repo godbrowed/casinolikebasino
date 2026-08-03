@@ -99,7 +99,7 @@ export function CaseView({ c }: { c: CaseDTO }) {
           </Link>
           <h1 className="font-display text-lg font-bold">{c.name}</h1>
           <span className="ml-auto flex items-center gap-1 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-emerald-300">
-            <ShieldCheck className="h-3 w-3" /> {c.isFree ? "Daily" : "90% RTP"}
+            <ShieldCheck className="h-3 w-3" /> {c.isFree ? "Daily" : "Gift rewards"}
           </span>
         </div>
 

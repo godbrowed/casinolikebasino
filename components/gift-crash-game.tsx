@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import useSWR from "swr"
-import { getCrashGifts, startGiftCrash, cashoutGiftCrash, settleGiftBust, type OwnedGift } from "@/app/actions/crash"
-import { multiplierAtElapsed } from "@/lib/crash-shared"
+import { getCrashGifts, getGiftImages, startGiftCrash, cashoutGiftCrash, settleGiftBust, type OwnedGift } from "@/app/actions/crash"
+import { multiplierAtElapsed, timeToNextCrashRound } from "@/lib/crash-shared"
 import { Coin } from "@/components/coin"
 import { CrashRocket } from "@/components/crash-rocket"
 import { useUser } from "@/components/user-provider"
@@ -16,16 +16,28 @@ type Phase = "select" | "running" | "cashed" | "crashed"
 export function GiftCrashGame() {
   const { refresh } = useUser()
   const { data: gifts, mutate, isLoading } = useSWR<OwnedGift[]>("crash-gifts", () => getCrashGifts())
+  const { data: rewardImages } = useSWR<string[]>("gift-crash-rewards", () => getGiftImages())
   const [selected, setSelected] = useState<OwnedGift | null>(null)
   const [phase, setPhase] = useState<Phase>("select")
   const [multiplier, setMultiplier] = useState(1)
   const [won, setWon] = useState<OwnedGift | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [roundClock, setRoundClock] = useState(timeToNextCrashRound())
 
   const tokenRef = useRef<string | null>(null)
   const startRef = useRef<number>(0)
   const crashRef = useRef<number>(999)
   const rafRef = useRef<number | null>(null)
+  const phaseRef = useRef<Phase>("select")
+
+  useEffect(() => {
+    phaseRef.current = phase
+  }, [phase])
+
+  useEffect(() => {
+    const id = window.setInterval(() => setRoundClock(timeToNextCrashRound()), 250)
+    return () => window.clearInterval(id)
+  }, [])
 
   useEffect(() => {
     return () => {
@@ -34,8 +46,10 @@ export function GiftCrashGame() {
   }, [])
 
   const endCrashed = useCallback(async () => {
+    const alreadyCashed = phaseRef.current === "cashed"
+    phaseRef.current = "crashed"
     setPhase("crashed")
-    hapticNotify("error")
+    if (!alreadyCashed) hapticNotify("error")
     if (tokenRef.current) {
       try {
         await settleGiftBust(tokenRef.current)
@@ -72,6 +86,7 @@ export function GiftCrashGame() {
       startRef.current = res.startTime
       crashRef.current = res.crashPoint
       setMultiplier(1)
+      phaseRef.current = "running"
       setPhase("running")
       rafRef.current = requestAnimationFrame(loop)
     } catch (e) {
@@ -81,11 +96,11 @@ export function GiftCrashGame() {
 
   async function handleCashout() {
     if (phase !== "running" || !tokenRef.current) return
-    if (rafRef.current) cancelAnimationFrame(rafRef.current)
     haptic("heavy")
     try {
       const res = await cashoutGiftCrash(tokenRef.current)
       if (res.success && res.gift) {
+        phaseRef.current = "cashed"
         setPhase("cashed")
         setMultiplier(res.multiplier)
         setWon(res.gift)
@@ -93,6 +108,7 @@ export function GiftCrashGame() {
       } else {
         setMultiplier(res.crashPoint)
         crashRef.current = res.crashPoint
+        phaseRef.current = "crashed"
         setPhase("crashed")
         hapticNotify("error")
       }
@@ -100,7 +116,7 @@ export function GiftCrashGame() {
       setError("Cashout failed")
     } finally {
       tokenRef.current = null
-      setSelected(null)
+      if (phaseRef.current !== "cashed") setSelected(null)
       mutate()
       refresh()
     }
@@ -110,6 +126,7 @@ export function GiftCrashGame() {
     setPhase("select")
     setMultiplier(1)
     setWon(null)
+    setSelected(null)
     setError(null)
   }
 
@@ -122,7 +139,8 @@ export function GiftCrashGame() {
       <CrashRocket
         phase={running ? "running" : phase === "cashed" ? "cashed" : phase === "crashed" ? "crashed" : "idle"}
         multiplier={multiplier}
-        payloadImage={running ? selected?.imageUrl : null}
+        payloadImage={(running || phase === "cashed") ? selected?.imageUrl : null}
+        collectImages={rewardImages ?? []}
       >
         {phase === "cashed" && won ? (
           <div className="animate-pop-in flex flex-col items-center">
@@ -164,6 +182,10 @@ export function GiftCrashGame() {
         )}
       </CrashRocket>
 
+      <div className="-mt-2 text-center text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+        Shared round · next launch in {Math.ceil(roundClock / 1000)}s
+      </div>
+
       {error && <p className="text-center text-xs font-medium text-destructive">{error}</p>}
 
       {/* Controls */}
@@ -174,7 +196,11 @@ export function GiftCrashGame() {
         >
           Cash out gift · {multiplier.toFixed(2)}×
         </button>
-      ) : phase === "cashed" || phase === "crashed" ? (
+      ) : phase === "cashed" ? (
+        <div className="rounded-2xl border border-emerald-400/25 bg-emerald-400/10 py-3 text-center text-sm font-bold text-emerald-300">
+          Gift collected — keep watching possible rewards
+        </div>
+      ) : phase === "crashed" ? (
         <button
           onClick={reset}
           className="w-full rounded-2xl bg-primary py-4 font-display text-base font-black text-primary-foreground shadow-[0_0_28px_-4px] shadow-primary/60 transition-transform active:scale-[0.98]"

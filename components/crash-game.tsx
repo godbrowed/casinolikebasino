@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import useSWR from "swr"
 import { startCrash, cashoutCrash, settleCrashBust, getGiftImages } from "@/app/actions/crash"
-import { multiplierAtElapsed } from "@/lib/crash-shared"
+import { CRASH_ROUND_MS, multiplierAtElapsed, timeToNextCrashRound } from "@/lib/crash-shared"
 import { BetInput } from "@/components/bet-input"
 import { Coin } from "@/components/coin"
 import { CrashRocket } from "@/components/crash-rocket"
@@ -23,6 +23,7 @@ export function CrashGame() {
   const [outcome, setOutcome] = useState<{ won: boolean; payout: number; at: number } | null>(null)
   const [history, setHistory] = useState<number[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [roundClock, setRoundClock] = useState(timeToNextCrashRound())
 
   const tokenRef = useRef<string | null>(null)
   const startRef = useRef<number>(0)
@@ -37,16 +38,23 @@ export function CrashGame() {
   }, [phase])
 
   useEffect(() => {
+    const id = window.setInterval(() => setRoundClock(timeToNextCrashRound()), 250)
+    return () => window.clearInterval(id)
+  }, [])
+
+  useEffect(() => {
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
     }
   }, [])
 
   const endCrashed = useCallback(async () => {
+    const alreadyCashed = phaseRef.current === "cashed"
+    phaseRef.current = "crashed"
     setPhase("crashed")
-    setOutcome({ won: false, payout: 0, at: crashRef.current })
+    if (!alreadyCashed) setOutcome({ won: false, payout: 0, at: crashRef.current })
     setHistory((h) => [crashRef.current, ...h].slice(0, 12))
-    hapticNotify("error")
+    if (!alreadyCashed) hapticNotify("error")
     if (tokenRef.current) {
       try {
         await settleCrashBust(tokenRef.current)
@@ -88,6 +96,7 @@ export function CrashGame() {
       // Server owns settlement (cashout is re-verified server-side); crashPoint drives the local curve.
       crashRef.current = res.crashPoint ?? 999
       setMultiplier(1)
+      phaseRef.current = "running"
       setPhase("running")
       rafRef.current = requestAnimationFrame(loop)
     } catch (e) {
@@ -98,11 +107,11 @@ export function CrashGame() {
 
   async function handleCashout() {
     if (phase !== "running" || !tokenRef.current) return
-    if (rafRef.current) cancelAnimationFrame(rafRef.current)
     haptic("heavy")
     try {
       const res = await cashoutCrash(tokenRef.current)
       if (res.success) {
+        phaseRef.current = "cashed"
         setPhase("cashed")
         setMultiplier(res.multiplier)
         setOutcome({ won: true, payout: res.payout, at: res.multiplier })
@@ -165,6 +174,10 @@ export function CrashGame() {
         )}
       </CrashRocket>
 
+      <div className="-mt-2 text-center text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+        Shared round · next launch in {Math.ceil(roundClock / 1000)}s
+      </div>
+
       {error && <p className="text-center text-xs font-medium text-destructive">{error}</p>}
 
       {running ? (
@@ -174,6 +187,10 @@ export function CrashGame() {
         >
           Cash out · {fmt(potential)}
         </button>
+      ) : phase === "cashed" ? (
+        <div className="rounded-2xl border border-emerald-400/25 bg-emerald-400/10 py-3 text-center text-sm font-bold text-emerald-300">
+          Collected — keep watching the shared flight
+        </div>
       ) : (
         <>
           <BetInput value={bet} onChange={setBet} max={balance} />
@@ -188,5 +205,4 @@ export function CrashGame() {
     </>
   )
 }
-
 

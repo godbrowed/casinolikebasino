@@ -367,7 +367,7 @@ function Matchmaking({
                   )}
                   <div className="leading-tight">
                     <div className={cn("truncate text-xs font-bold", s.isYou && "text-cyan-300")}>{s.name}</div>
-                    <div className="text-[10px] text-muted-foreground">{s.isBot ? "Practice player" : "Player"}</div>
+                    <div className="text-[10px] text-muted-foreground">{s.isBot ? "Online player" : "Online"}</div>
                   </div>
                 </>
               ) : (

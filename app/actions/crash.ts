@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache"
 import { db } from "@/lib/db"
 import { users, gameHistory, inventory, gifts } from "@/lib/db/schema"
 import { requireUserId } from "@/lib/session"
-import { multiplierAtElapsed } from "@/lib/crash-shared"
+import { multiplierAtElapsed, sharedRoundId, sharedRoundStart } from "@/lib/crash-shared"
 
 function crashSecret(): string {
   const configured = process.env.SESSION_SECRET || process.env.TELEGRAM_BOT_TOKEN
@@ -40,8 +40,11 @@ function verifyRound(token: string): RoundPayload | null {
 // For point = edge/(1-r) with anytime cashout the theoretical RTP equals `edge`.
 // edge = 0.90 => RTP 90% (house edge 10%). No separate instabust needed: the
 // formula already busts ~80% of rounds at 1.00x on its own.
-function rollCrashPoint(edge = 0.9): number {
-  const r = Math.random()
+function rollCrashPoint(roundId: number, edge = 0.9): number {
+  // A deterministic, server-secret roll makes the board identical for every
+  // player in this 15 second round, without exposing future rounds.
+  const hash = crypto.createHmac("sha256", crashSecret()).update(`crash:${roundId}`).digest()
+  const r = hash.readUInt32BE(0) / 0x1_0000_0000
   const point = edge / (1 - r)
   return Math.max(1.0, Math.floor(point * 100) / 100)
 }
@@ -68,8 +71,8 @@ export async function startCrash(bet: number): Promise<{
 
     if (updated.length === 0) throw new Error("INSUFFICIENT_FUNDS")
 
-    const startTime = Date.now()
-    const crashPoint = rollCrashPoint()
+    const startTime = sharedRoundStart()
+    const crashPoint = rollCrashPoint(sharedRoundId())
     const token = signRound({ userId, bet, crashPoint, startTime })
 
     return { token, startTime, balance: Number(updated[0].balance), crashPoint }
@@ -210,9 +213,9 @@ export async function startGiftCrash(inventoryId: number): Promise<{
     // Lock the gift for the duration of the round.
     await tx.update(inventory).set({ status: "wagered" }).where(eq(inventory.id, inventoryId))
 
-    const startTime = Date.now()
+    const startTime = sharedRoundStart()
     // Same 90% RTP for gift crash (payout is a real NFT).
-    const crashPoint = rollCrashPoint()
+    const crashPoint = rollCrashPoint(sharedRoundId())
     const stakeValue = Number(item.value)
     const token = signGiftRound({ userId, inventoryId, stakeValue, crashPoint, startTime })
     return { token, startTime, crashPoint, stakeValue }

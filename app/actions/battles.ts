@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache"
 import { db } from "@/lib/db"
 import { cases, caseItems, gifts, users, gameHistory, battleRooms, battleSlots } from "@/lib/db/schema"
 import { requireUserId } from "@/lib/session"
+import { readFile } from "node:fs/promises"
+import path from "node:path"
 
 export type BattlePull = { round: number; gift: BattleGift }
 export type BattleGift = {
@@ -49,6 +51,23 @@ const BOT_NAMES = [
   "alex.box",
   "kate.nft",
 ]
+
+let parsedNamesCache: string[] | null = null
+
+async function getBotNames(): Promise<string[]> {
+  if (parsedNamesCache) return parsedNamesCache
+  try {
+    const contents = await readFile(path.join(process.cwd(), "parsed.txt"), "utf8")
+    const names = contents
+      .split(/\r?\n/)
+      .map((line) => line.trim().replace(/^@/, "").split(/[\s,;|]+/)[0])
+      .filter((name) => /^[\p{L}\p{N}_.-]{3,32}$/u.test(name))
+    if (names.length) return (parsedNamesCache = [...new Set(names)])
+  } catch {
+    // parsed.txt is optional while it is being prepared by the owner.
+  }
+  return BOT_NAMES
+}
 
 function weightedPick(items: { weight: number }[]): number {
   const total = items.reduce((s, i) => s + i.weight, 0)
@@ -332,8 +351,11 @@ export async function getMatchState(roomId: number): Promise<MatchState> {
   const caseRow = (await db.select().from(cases).where(eq(cases.id, room.caseId)).limit(1))[0]
 
   if (room.status === "waiting") {
-    const current = await db.select().from(battleSlots).where(eq(battleSlots.roomId, roomId))
-    if (current.length >= room.capacity) {
+    const elapsedMs = Math.max(0, Date.now() - room.createdAt.getTime())
+    // Fill gradually, so real users can still join the same public room.
+    await maybeAddBots(roomId, room.capacity, elapsedMs)
+    const afterBots = await db.select().from(battleSlots).where(eq(battleSlots.roomId, roomId))
+    if (afterBots.length >= room.capacity) {
       await resolveRoom(roomId)
     }
   }
@@ -363,7 +385,7 @@ export async function getMatchState(roomId: number): Promise<MatchState> {
 async function maybeAddBots(roomId: number, capacity: number, elapsedMs: number) {
   // Keep one seat open for a real opponent during the search window; the final
   // seat is backfilled by resolveRoom at the deadline if nobody joins.
-  const maxBotsNow = Math.max(0, capacity - 1)
+  const maxBotsNow = elapsedMs >= MATCH_WINDOW_MS ? capacity : Math.max(0, capacity - 1)
   const botsShould = Math.min(maxBotsNow, Math.floor(elapsedMs / BOT_INTERVAL_MS))
   const slots = await db.select().from(battleSlots).where(eq(battleSlots.roomId, roomId))
   const currentBots = slots.filter((s) => s.isBot).length
@@ -372,7 +394,7 @@ async function maybeAddBots(roomId: number, capacity: number, elapsedMs: number)
   if (toAdd <= 0) return
 
   const usedNames = new Set(slots.map((s) => s.name))
-  const names = BOT_NAMES.filter((n) => !usedNames.has(n)).sort(() => Math.random() - 0.5)
+  const names = (await getBotNames()).filter((n) => !usedNames.has(n)).sort(() => Math.random() - 0.5)
   const used = new Set(slots.map((s) => s.slot))
   for (let i = 0; i < toAdd; i++) {
     let slot = 0

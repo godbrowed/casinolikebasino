@@ -99,11 +99,11 @@ export function CrashRocket({
       )}
 
       {/* floating collectible gifts */}
-      {(running || phase === "idle") &&
+      {(running || phase === "cashed" || phase === "idle") &&
         collectImages.slice(0, 5).map((img, i) => {
           const gx = 26 + i * 15
           const gy = 20 + ((i % 3) * 16)
-          const collected = running && multiplier >= thresholds[i]
+          const collected = (running || phase === "cashed") && multiplier >= thresholds[i]
           return (
             // eslint-disable-next-line @next/next/no-img-element
             <img

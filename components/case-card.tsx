@@ -74,7 +74,7 @@ export function CaseCard({ c }: { c: CaseDTO }) {
       <div className="relative z-10 mt-1 flex flex-col items-center">
         <div className="w-full truncate text-center font-display text-[15px] font-black tracking-tight">{c.isFree ? "Daily Drop" : c.name}</div>
         <div className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-          {c.isFree ? `${c.items.length} daily rewards` : c.price >= 7 ? "NFT rewards only" : "90% RTP"}
+          {c.isFree ? `${c.items.length} daily rewards` : "Gift rewards"}
         </div>
         <div className={cn(
           "mt-1.5 inline-flex items-center gap-1.5 rounded-full px-3 py-1 ring-1 transition-colors",

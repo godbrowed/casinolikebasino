@@ -4,8 +4,11 @@
 // All clients use the same wall-clock round.  The first part of a round is
 // deliberately short: a player can join at any point and immediately sees the
 // exact same flight as everybody else.
-export const CRASH_ROUND_MS = 15_000
-export const CRASH_BETTING_MS = 4_000
+// Each shared round has a real 15-second betting lobby.  Nothing launches
+// when one player presses the button: every accepted bet waits for this timer
+// and all rockets leave together.
+export const CRASH_ROUND_MS = 30_000
+export const CRASH_BETTING_MS = 15_000
 export const CRASH_GROWTH_K = 0.42 // growth rate per second (exponential)
 
 export function sharedRoundStart(now = Date.now()): number {

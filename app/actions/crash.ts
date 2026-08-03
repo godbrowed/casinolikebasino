@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache"
 import { db } from "@/lib/db"
 import { users, gameHistory, inventory, gifts } from "@/lib/db/schema"
 import { requireUserId } from "@/lib/session"
-import { crashRoundPhase, multiplierAtElapsed, sharedFlightStart, sharedRoundId, sharedRoundStart } from "@/lib/crash-shared"
+import { crashRoundPhase, CRASH_ROUND_MS, multiplierAtElapsed, sharedFlightStart, sharedRoundId, sharedRoundStart } from "@/lib/crash-shared"
 
 function crashSecret(): string {
   const configured = process.env.SESSION_SECRET || process.env.TELEGRAM_BOT_TOKEN
@@ -85,7 +85,7 @@ export async function getCrashBoard(): Promise<CrashBoard> {
     roundId,
     phase: crashed ? "crashed" : phase,
     multiplier: crashed ? point : Math.max(1, current),
-    secondsLeft: Math.max(0, Math.ceil((sharedRoundStart(now) + 15_000 - now) / 1000)),
+    secondsLeft: Math.max(0, Math.ceil(((phase === "betting" ? flightStart : sharedRoundStart(now) + CRASH_ROUND_MS) - now) / 1000)),
     players: rows.map((row) => {
       const meta = (row.meta ?? {}) as Record<string, unknown>
       const status = meta.status === "cashed" || meta.status === "bust" ? meta.status : "bet"

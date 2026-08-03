@@ -61,7 +61,7 @@ export function GameModes() {
               href={m.href}
               onClick={() => haptic("light")}
               className={cn(
-                "card-premium group relative flex items-center gap-3 overflow-hidden rounded-2xl p-3 ring-1 transition-transform active:scale-[0.97]",
+                "card-premium group relative flex min-h-32 flex-col items-start justify-between overflow-hidden rounded-3xl p-4 ring-1 transition-transform active:scale-[0.97]",
                 m.ring,
               )}
             >
@@ -73,7 +73,7 @@ export function GameModes() {
               />
               <span
                 className={cn(
-                  "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-secondary/70 shadow-lg",
+                  "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-background/45 shadow-lg",
                   m.glow,
                   m.text,
                 )}
@@ -82,14 +82,14 @@ export function GameModes() {
               </span>
               <div className="relative min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <span className="font-display text-sm font-bold">{m.label}</span>
+                  <span className="font-display text-base font-black">{m.label}</span>
                   {m.hot && (
                     <span className="rounded-full bg-fuchsia-500/20 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wide text-fuchsia-300">
                       New
                     </span>
                   )}
                 </div>
-                <div className="truncate text-[11px] text-muted-foreground">{m.tag}</div>
+                <div className="mt-0.5 truncate text-[11px] font-medium text-muted-foreground">{m.tag}</div>
               </div>
             </Link>
           )

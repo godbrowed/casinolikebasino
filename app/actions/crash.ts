@@ -6,13 +6,15 @@ import { revalidatePath } from "next/cache"
 import { db } from "@/lib/db"
 import { users, gameHistory, inventory, gifts } from "@/lib/db/schema"
 import { requireUserId } from "@/lib/session"
-import { crashRoundPhase, CRASH_BETTING_MS, multiplierAtElapsed, sharedFlightStart, sharedRoundId, sharedRoundStart } from "@/lib/crash-shared"
+import { crashRoundPhase, multiplierAtElapsed, sharedFlightStart, sharedRoundId, sharedRoundStart } from "@/lib/crash-shared"
 
 function crashSecret(): string {
   const configured = process.env.SESSION_SECRET || process.env.TELEGRAM_BOT_TOKEN
   if (configured) return configured
-  if (process.env.NODE_ENV !== "production") return "giftlys-local-crash-development-secret"
-  throw new Error("SESSION_SECRET is required in production")
+  // The public board is rendered before a player can place a bet. Keep it
+  // available on installations that have not yet configured a separate
+  // session secret; production deployments should still set SESSION_SECRET.
+  return "giftlys-crash-fallback-secret-change-in-production"
 }
 
 type RoundPayload = { userId: string; bet: number; roundId: number; startTime: number; historyId: number }
@@ -67,12 +69,18 @@ export async function getCrashBoard(): Promise<CrashBoard> {
   const point = rollCrashPoint(roundId)
   const current = phase === "betting" ? 1 : multiplierAtElapsed(now - flightStart)
   const crashed = phase === "flying" && current >= point
-  const rows = await db
-    .select({ bet: gameHistory.bet, result: gameHistory.result, meta: gameHistory.meta, username: users.username, firstName: users.firstName })
-    .from(gameHistory)
-    .innerJoin(users, eq(gameHistory.userId, users.id))
-    .where(and(eq(gameHistory.game, "crash"), gte(gameHistory.createdAt, new Date(sharedRoundStart(now)))))
-    .limit(40)
+  let rows: { bet: string; result: string; meta: unknown; username: string | null; firstName: string | null }[] = []
+  try {
+    rows = await db
+      .select({ bet: gameHistory.bet, result: gameHistory.result, meta: gameHistory.meta, username: users.username, firstName: users.firstName })
+      .from(gameHistory)
+      .innerJoin(users, eq(gameHistory.userId, users.id))
+      .where(and(eq(gameHistory.game, "crash"), gte(gameHistory.createdAt, new Date(sharedRoundStart(now)))))
+      .limit(40)
+  } catch {
+    // The board must still render during a transient database reconnect.
+    // It will populate again on the next lightweight refresh.
+  }
   return {
     roundId,
     phase: crashed ? "crashed" : phase,

@@ -47,22 +47,22 @@
 
 :root {
   color-scheme: dark;
-  --background: oklch(0.13 0.02 264);
-  --foreground: oklch(0.97 0.01 250);
-  --card: oklch(0.17 0.025 264);
-  --card-foreground: oklch(0.97 0.01 250);
-  --popover: oklch(0.16 0.025 264);
+  --background: oklch(0.17 0.045 286);
+  --foreground: oklch(0.98 0.01 270);
+  --card: oklch(0.24 0.055 286);
+  --card-foreground: oklch(0.98 0.01 270);
+  --popover: oklch(0.23 0.055 286);
   --popover-foreground: oklch(0.97 0.01 250);
-  --primary: oklch(0.8 0.16 195);
-  --primary-foreground: oklch(0.13 0.02 264);
-  --secondary: oklch(0.24 0.03 264);
+  --primary: oklch(0.84 0.17 88);
+  --primary-foreground: oklch(0.22 0.055 286);
+  --secondary: oklch(0.31 0.07 286);
   --secondary-foreground: oklch(0.97 0.01 250);
-  --muted: oklch(0.22 0.02 264);
-  --muted-foreground: oklch(0.72 0.02 260);
-  --accent: oklch(0.72 0.22 330);
+  --muted: oklch(0.28 0.05 286);
+  --muted-foreground: oklch(0.78 0.04 280);
+  --accent: oklch(0.73 0.19 340);
   --accent-foreground: oklch(0.99 0.01 320);
   --destructive: oklch(0.63 0.23 22);
-  --border: oklch(1 0 0 / 10%);
+  --border: oklch(0.9 0.1 286 / 18%);
   --input: oklch(1 0 0 / 14%);
   --ring: oklch(0.8 0.16 195);
   --gold: oklch(0.83 0.15 85);
@@ -81,9 +81,10 @@
   body {
     @apply bg-background text-foreground;
     background-image:
-      radial-gradient(ellipse 80% 45% at 50% -8%, oklch(0.8 0.16 195 / 0.14), transparent 70%),
-      radial-gradient(ellipse 55% 45% at 105% 15%, oklch(0.72 0.24 330 / 0.09), transparent 70%),
-      linear-gradient(180deg, oklch(0.145 0.024 264), oklch(0.115 0.018 264));
+      radial-gradient(ellipse 75% 42% at 50% -8%, oklch(0.84 0.17 88 / 0.19), transparent 70%),
+      radial-gradient(ellipse 55% 45% at 105% 15%, oklch(0.73 0.19 340 / 0.16), transparent 70%),
+      radial-gradient(ellipse 45% 38% at -10% 60%, oklch(0.72 0.14 240 / 0.13), transparent 75%),
+      linear-gradient(180deg, oklch(0.22 0.06 286), oklch(0.14 0.035 286));
     background-attachment: fixed;
   }
 }
@@ -122,11 +123,12 @@
   /* Premium card: subtle top sheen + inner border */
   .card-premium {
     background:
-      linear-gradient(180deg, oklch(1 0 0 / 0.05), oklch(1 0 0 / 0) 40%),
+      linear-gradient(145deg, oklch(1 0 0 / 0.14), oklch(1 0 0 / 0) 42%),
       var(--card);
     box-shadow:
-      inset 0 1px 0 0 oklch(1 0 0 / 0.06),
-      0 1px 2px 0 oklch(0 0 0 / 0.4);
+      inset 0 1px 0 0 oklch(1 0 0 / 0.14),
+      0 9px 0 -5px oklch(0.1 0.035 286 / .7),
+      0 14px 28px -18px oklch(0 0 0 / .8);
   }
 
   .app-shell {
@@ -135,16 +137,16 @@
   }
 
   .surface-panel {
-    border: 1px solid oklch(1 0 0 / 0.08);
-    background: linear-gradient(155deg, oklch(1 0 0 / 0.055), oklch(1 0 0 / 0.018));
-    box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.06), 0 18px 50px -32px oklch(0 0 0 / 0.9);
+    border: 1px solid oklch(0.9 0.12 286 / .22);
+    background: linear-gradient(155deg, oklch(1 0 0 / 0.11), oklch(1 0 0 / 0.035));
+    box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.13), 0 11px 0 -6px oklch(0.1 0.035 286 / .8), 0 18px 42px -28px oklch(0 0 0 / .9);
   }
 
   .case-card {
     background:
-      linear-gradient(145deg, oklch(1 0 0 / 0.07), transparent 38%),
-      linear-gradient(180deg, oklch(0.19 0.03 264), oklch(0.145 0.022 264));
-    box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.08), 0 18px 44px -28px oklch(0 0 0 / 0.95);
+      linear-gradient(145deg, oklch(1 0 0 / 0.15), transparent 40%),
+      linear-gradient(180deg, oklch(0.31 0.08 286), oklch(0.22 0.055 286));
+    box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.15), 0 10px 0 -6px oklch(0.1 0.035 286 / .75), 0 18px 44px -28px oklch(0 0 0 / .95);
   }
   .case-card:hover {
     transform: translateY(-2px);
@@ -153,11 +155,12 @@
 
   /* Glowing primary CTA */
   .btn-glow {
-    background: linear-gradient(180deg, oklch(0.86 0.16 195), oklch(0.72 0.16 200));
+    background: linear-gradient(180deg, oklch(0.91 0.17 90), oklch(0.76 0.16 78));
     color: var(--primary-foreground);
     box-shadow:
-      0 0 0 1px oklch(0.9 0.1 195 / 0.4) inset,
-      0 8px 24px -6px oklch(0.8 0.16 195 / 0.6);
+      0 0 0 1px oklch(1 0 0 / .34) inset,
+      0 7px 0 oklch(0.55 0.12 72),
+      0 13px 24px -8px oklch(0.84 0.17 88 / .55);
   }
   .btn-glow:active {
     transform: scale(0.97);
@@ -186,7 +189,7 @@
       linear-gradient(#000 0 0);
     -webkit-mask-composite: xor;
     mask-composite: exclude;
-    animation: spin-border 6s linear infinite;
+    animation: none;
     z-index: -1;
   }
   @property --a {
@@ -228,6 +231,10 @@
   }
   .animate-pop-in {
     animation: pop-in 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
   }
 
   @keyframes twinkle {

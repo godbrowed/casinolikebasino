@@ -5,6 +5,7 @@
 // deliberately short: a player can join at any point and immediately sees the
 // exact same flight as everybody else.
 export const CRASH_ROUND_MS = 15_000
+export const CRASH_BETTING_MS = 4_000
 export const CRASH_GROWTH_K = 0.42 // growth rate per second (exponential)
 
 export function sharedRoundStart(now = Date.now()): number {
@@ -13,6 +14,14 @@ export function sharedRoundStart(now = Date.now()): number {
 
 export function sharedRoundId(now = Date.now()): number {
   return Math.floor(now / CRASH_ROUND_MS)
+}
+
+export function sharedFlightStart(now = Date.now()): number {
+  return sharedRoundStart(now) + CRASH_BETTING_MS
+}
+
+export function crashRoundPhase(now = Date.now()): "betting" | "flying" {
+  return now - sharedRoundStart(now) < CRASH_BETTING_MS ? "betting" : "flying"
 }
 
 export function timeToNextCrashRound(now = Date.now()): number {

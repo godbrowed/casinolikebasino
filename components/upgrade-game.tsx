@@ -20,7 +20,7 @@ export function UpgradeGame({ inventory, targets }: { inventory: Item[]; targets
   const [source, setSource] = useState<Item | null>(inventory[0] ?? null)
   const [target, setTarget] = useState<Item | null>(null)
   const [spinning, setSpinning] = useState(false)
-  const [progress, setProgress] = useState(0)
+  const [angle, setAngle] = useState(180)
   const [outcome, setOutcome] = useState<boolean | null>(null)
 
   const chance = useMemo(() => (!source || !target ? 0 : upgradeChance(source.value, target.value)), [source, target])
@@ -34,16 +34,17 @@ export function UpgradeGame({ inventory, targets }: { inventory: Item[]; targets
     if (!source || !target || spinning || chance <= 0) return
     setSpinning(true)
     setOutcome(null)
-    setProgress(0)
+    setAngle(180)
     haptic("medium")
     try {
       const result = await upgradeGift(source.id, target.id)
+      const winDegrees = chance * 360
       const landing = result.success
-        ? winFloor + Math.max(2, Math.random() * Math.max(3, chance * 100 - 4))
-        : Math.max(3, Math.random() * Math.max(4, winFloor - 3))
+        ? Math.max(2, Math.random() * Math.max(3, winDegrees - 4))
+        : winDegrees + Math.random() * Math.max(5, 356 - winDegrees)
       // Allow the reset-to-bottom frame to paint before every run. This avoids
       // the short/failed second spin caused by transitioning from a prior end.
-      window.setTimeout(() => setProgress(Math.min(98, landing)), 70)
+      window.setTimeout(() => setAngle(1440 + landing), 70)
       window.setTimeout(() => {
         setSpinning(false)
         setOutcome(result.success)
@@ -73,7 +74,7 @@ export function UpgradeGame({ inventory, targets }: { inventory: Item[]; targets
 
       <div className="grid grid-cols-[1fr_128px_1fr] items-center gap-2">
         <GiftCard title="Stake" item={source} />
-        <FlightMeter progress={progress} spinning={spinning} chance={chance} outcome={outcome} />
+        <FlightMeter angle={angle} spinning={spinning} chance={chance} outcome={outcome} />
         <GiftCard title="Target" item={target} />
       </div>
 
@@ -86,22 +87,19 @@ export function UpgradeGame({ inventory, targets }: { inventory: Item[]; targets
         {spinning ? "Flying…" : "Start upgrade"}
       </button>
 
-      <Picker title="Your gifts" items={inventory} activeId={source?.id} empty="No gifts available" onPick={(item) => { if (spinning) return; haptic("light"); setSource(item); setTarget(null); setOutcome(null); setProgress(0) }} />
-      <Picker title="Choose a target" items={eligibleTargets} activeId={target?.id} empty="Choose a stake first" onPick={(item) => { if (spinning) return; haptic("light"); setTarget(item); setOutcome(null); setProgress(0) }} />
+      <Picker title="Your gifts" items={inventory} activeId={source?.id} empty="No gifts available" onPick={(item) => { if (spinning) return; haptic("light"); setSource(item); setTarget(null); setOutcome(null); setAngle(180) }} />
+      <Picker title="Choose a target" items={eligibleTargets} activeId={target?.id} empty="Choose a stake first" onPick={(item) => { if (spinning) return; haptic("light"); setTarget(item); setOutcome(null); setAngle(180) }} />
     </div>
   )
 }
 
-function FlightMeter({ progress, spinning, chance, outcome }: { progress: number; spinning: boolean; chance: number; outcome: boolean | null }) {
-  const zone = Math.max(3, chance * 100)
-  return <div className="relative h-64 overflow-hidden rounded-3xl border border-cyan-300/30 bg-[#07121e] p-2 shadow-[inset_0_0_32px_rgba(34,211,238,.12)]">
-    <div className="absolute inset-x-2 top-2 rounded-t-2xl border border-emerald-400/40 bg-emerald-400/15" style={{ height: `${zone}%` }} />
-    <div className="absolute left-1/2 top-3 z-10 -translate-x-1/2 text-center text-[9px] font-black uppercase tracking-wider text-emerald-300"><Target className="mx-auto h-3 w-3" /> win</div>
-    <div className="absolute inset-0 opacity-40 [background-image:linear-gradient(rgba(255,255,255,.08)_1px,transparent_1px)] [background-size:100%_20%]" />
-    <div className="absolute bottom-3 left-1/2 z-20 -translate-x-1/2" style={{ transform: `translate(-50%, -${progress * 2.15}px)`, transition: spinning ? "transform 3s cubic-bezier(.12,.72,.08,1)" : "none" }}>
-      <div className={cn("flex h-9 w-9 items-center justify-center rounded-full border-2 bg-background shadow-[0_0_18px]", outcome === false ? "border-rose-400 text-rose-300 shadow-rose-400/60" : outcome === true ? "border-emerald-300 text-emerald-200 shadow-emerald-400/70" : "border-cyan-300 text-cyan-100 shadow-cyan-400/70")}><Sparkles className="h-4 w-4" /></div>
-    </div>
-    <div className="absolute bottom-2 left-2 right-2 text-center text-[9px] font-black uppercase tracking-widest text-cyan-200/70">Launch</div>
+function FlightMeter({ angle, spinning, chance, outcome }: { angle: number; spinning: boolean; chance: number; outcome: boolean | null }) {
+  const circumference = 2 * Math.PI * 42
+  return <div className="relative aspect-square overflow-hidden rounded-full border border-cyan-300/30 bg-[#07121e] shadow-[inset_0_0_32px_rgba(34,211,238,.16),0_0_25px_rgba(34,211,238,.08)]">
+    <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full -rotate-90"><circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,.09)" strokeWidth="8" /><circle cx="50" cy="50" r="42" fill="none" stroke="#34d399" strokeWidth="8" strokeLinecap="round" strokeDasharray={`${Math.max(3, chance * circumference)} ${circumference}`} /></svg>
+    <div className="absolute inset-[24%] rounded-full border border-white/10 bg-background/90" />
+    <div className="absolute inset-0" style={{ transform: `rotate(${angle}deg)`, transition: spinning ? "transform 3s cubic-bezier(.11,.72,.06,1)" : "none" }}><div className={cn("absolute left-1/2 top-[4px] flex h-8 w-8 -translate-x-1/2 items-center justify-center rounded-full border-2 bg-background shadow-[0_0_18px]", outcome === false ? "border-rose-400 text-rose-300" : outcome === true ? "border-emerald-300 text-emerald-200" : "border-cyan-300 text-cyan-100")}><Sparkles className="h-4 w-4" /></div></div>
+    <div className="absolute inset-0 flex flex-col items-center justify-center text-center"><Target className="h-4 w-4 text-emerald-300" /><span className="text-[9px] font-black uppercase tracking-wider text-muted-foreground">Win zone</span></div>
   </div>
 }
 

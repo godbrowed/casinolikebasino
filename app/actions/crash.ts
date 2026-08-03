@@ -1,12 +1,12 @@
 "use server"
 
 import crypto from "crypto"
-import { and, eq, sql } from "drizzle-orm"
+import { and, eq, gte, sql } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { db } from "@/lib/db"
 import { users, gameHistory, inventory, gifts } from "@/lib/db/schema"
 import { requireUserId } from "@/lib/session"
-import { multiplierAtElapsed, sharedRoundId, sharedRoundStart } from "@/lib/crash-shared"
+import { crashRoundPhase, CRASH_BETTING_MS, multiplierAtElapsed, sharedFlightStart, sharedRoundId, sharedRoundStart } from "@/lib/crash-shared"
 
 function crashSecret(): string {
   const configured = process.env.SESSION_SECRET || process.env.TELEGRAM_BOT_TOKEN
@@ -15,7 +15,7 @@ function crashSecret(): string {
   throw new Error("SESSION_SECRET is required in production")
 }
 
-type RoundPayload = { userId: string; bet: number; crashPoint: number; startTime: number }
+type RoundPayload = { userId: string; bet: number; roundId: number; startTime: number; historyId: number }
 
 function signRound(p: RoundPayload): string {
   const body = Buffer.from(JSON.stringify(p)).toString("base64url")
@@ -49,14 +49,51 @@ function rollCrashPoint(roundId: number, edge = 0.9): number {
   return Math.max(1.0, Math.floor(point * 100) / 100)
 }
 
+export type CrashBoard = {
+  roundId: number
+  phase: "betting" | "flying" | "crashed"
+  multiplier: number
+  secondsLeft: number
+  players: { name: string; bet: number; result: number; status: "bet" | "cashed" | "bust" }[]
+}
+
+/** Public snapshot for the shared crash board. It deliberately never exposes
+ * a future crash point: clients learn it only once the rocket has busted. */
+export async function getCrashBoard(): Promise<CrashBoard> {
+  const now = Date.now()
+  const roundId = sharedRoundId(now)
+  const flightStart = sharedFlightStart(now)
+  const phase = crashRoundPhase(now)
+  const point = rollCrashPoint(roundId)
+  const current = phase === "betting" ? 1 : multiplierAtElapsed(now - flightStart)
+  const crashed = phase === "flying" && current >= point
+  const rows = await db
+    .select({ bet: gameHistory.bet, result: gameHistory.result, meta: gameHistory.meta, username: users.username, firstName: users.firstName })
+    .from(gameHistory)
+    .innerJoin(users, eq(gameHistory.userId, users.id))
+    .where(and(eq(gameHistory.game, "crash"), gte(gameHistory.createdAt, new Date(sharedRoundStart(now)))))
+    .limit(40)
+  return {
+    roundId,
+    phase: crashed ? "crashed" : phase,
+    multiplier: crashed ? point : Math.max(1, current),
+    secondsLeft: Math.max(0, Math.ceil((sharedRoundStart(now) + 15_000 - now) / 1000)),
+    players: rows.map((row) => {
+      const meta = (row.meta ?? {}) as Record<string, unknown>
+      const status = meta.status === "cashed" || meta.status === "bust" ? meta.status : "bet"
+      return { name: row.username ? `@${row.username}` : row.firstName || "Player", bet: Number(row.bet), result: Number(row.result), status }
+    }),
+  }
+}
+
 export async function startCrash(bet: number): Promise<{
   token: string
   startTime: number
   balance: number
-  crashPoint: number
 }> {
   const userId = await requireUserId()
   if (!(bet > 0)) throw new Error("Invalid bet")
+  if (crashRoundPhase() !== "betting") throw new Error("BETTING_CLOSED")
 
   return db.transaction(async (tx) => {
     const user = (await tx.select().from(users).where(eq(users.id, userId)).limit(1))[0]
@@ -71,11 +108,14 @@ export async function startCrash(bet: number): Promise<{
 
     if (updated.length === 0) throw new Error("INSUFFICIENT_FUNDS")
 
-    const startTime = sharedRoundStart()
-    const crashPoint = rollCrashPoint(sharedRoundId())
-    const token = signRound({ userId, bet, crashPoint, startTime })
+    const roundId = sharedRoundId()
+    const startTime = sharedFlightStart()
+    const history = await tx.insert(gameHistory).values({
+      userId, game: "crash", bet: String(bet), result: "0", meta: { roundId, status: "active" },
+    }).returning({ id: gameHistory.id })
+    const token = signRound({ userId, bet, roundId, startTime, historyId: history[0].id })
 
-    return { token, startTime, balance: Number(updated[0].balance), crashPoint }
+    return { token, startTime, balance: Number(updated[0].balance) }
   })
 }
 
@@ -90,28 +130,23 @@ export async function cashoutCrash(token: string): Promise<{
   const round = verifyRound(token)
   if (!round || round.userId !== userId) throw new Error("Invalid round")
 
+  const crashPoint = rollCrashPoint(round.roundId)
   const elapsed = Date.now() - round.startTime
   const current = multiplierAtElapsed(elapsed)
-  const crashed = current >= round.crashPoint
+  const crashed = current >= crashPoint
 
   if (crashed) {
-    await db.insert(gameHistory).values({
-      userId,
-      game: "crash",
-      bet: String(round.bet),
-      result: "0",
-      meta: { crashPoint: round.crashPoint, cashedOut: false },
-    })
+    await db.update(gameHistory).set({ result: "0", meta: { roundId: round.roundId, crashPoint, status: "bust" } }).where(eq(gameHistory.id, round.historyId))
     return {
       success: false,
-      multiplier: round.crashPoint,
-      crashPoint: round.crashPoint,
+      multiplier: crashPoint,
+      crashPoint,
       payout: 0,
       balance: null,
     }
   }
 
-  const mult = Math.min(current, round.crashPoint)
+  const mult = Math.min(current, crashPoint)
   const payout = Math.round(round.bet * mult * 100) / 100
 
   const updated = await db
@@ -120,18 +155,12 @@ export async function cashoutCrash(token: string): Promise<{
     .where(eq(users.id, userId))
     .returning({ balance: users.balance })
 
-  await db.insert(gameHistory).values({
-    userId,
-    game: "crash",
-    bet: String(round.bet),
-    result: String(payout),
-    meta: { crashPoint: round.crashPoint, cashedOut: true, multiplier: mult },
-  })
+  await db.update(gameHistory).set({ result: String(payout), meta: { roundId: round.roundId, crashPoint, status: "cashed", multiplier: mult } }).where(eq(gameHistory.id, round.historyId))
 
   return {
     success: true,
     multiplier: Math.round(mult * 100) / 100,
-    crashPoint: round.crashPoint,
+    crashPoint,
     payout,
     balance: Number(updated[0].balance),
   }
@@ -142,13 +171,7 @@ export async function settleCrashBust(token: string): Promise<void> {
   const userId = await requireUserId()
   const round = verifyRound(token)
   if (!round || round.userId !== userId) return
-  await db.insert(gameHistory).values({
-    userId,
-    game: "crash",
-    bet: String(round.bet),
-    result: "0",
-    meta: { crashPoint: round.crashPoint, cashedOut: false },
-  })
+  await db.update(gameHistory).set({ result: "0", meta: { roundId: round.roundId, crashPoint: rollCrashPoint(round.roundId), status: "bust" } }).where(eq(gameHistory.id, round.historyId))
 }
 
 /* ----------------------------- Gift Crash ----------------------------- */
@@ -156,7 +179,7 @@ export async function settleCrashBust(token: string): Promise<void> {
 // for a real gift whose value is closest to (staked value * multiplier).
 // Busting loses the staked gift.
 
-type GiftRound = { userId: string; inventoryId: number; stakeValue: number; crashPoint: number; startTime: number }
+type GiftRound = { userId: string; inventoryId: number; stakeValue: number; roundId: number; startTime: number; historyId: number }
 
 export type OwnedGift = {
   id: number
@@ -196,10 +219,10 @@ export async function getCrashGifts(): Promise<OwnedGift[]> {
 export async function startGiftCrash(inventoryId: number): Promise<{
   token: string
   startTime: number
-  crashPoint: number
   stakeValue: number
 }> {
   const userId = await requireUserId()
+  if (crashRoundPhase() !== "betting") throw new Error("BETTING_CLOSED")
   return db.transaction(async (tx) => {
     const item = (
       await tx
@@ -213,12 +236,15 @@ export async function startGiftCrash(inventoryId: number): Promise<{
     // Lock the gift for the duration of the round.
     await tx.update(inventory).set({ status: "wagered" }).where(eq(inventory.id, inventoryId))
 
-    const startTime = sharedRoundStart()
+    const startTime = sharedFlightStart()
     // Same 90% RTP for gift crash (payout is a real NFT).
-    const crashPoint = rollCrashPoint(sharedRoundId())
+    const roundId = sharedRoundId()
     const stakeValue = Number(item.value)
-    const token = signGiftRound({ userId, inventoryId, stakeValue, crashPoint, startTime })
-    return { token, startTime, crashPoint, stakeValue }
+    const history = await tx.insert(gameHistory).values({
+      userId, game: "crash", bet: String(stakeValue), result: "0", meta: { roundId, mode: "gift", status: "active" },
+    }).returning({ id: gameHistory.id })
+    const token = signGiftRound({ userId, inventoryId, stakeValue, roundId, startTime, historyId: history[0].id })
+    return { token, startTime, stakeValue }
   })
 }
 
@@ -232,24 +258,19 @@ export async function cashoutGiftCrash(token: string): Promise<{
   const round = verifyGiftRound(token)
   if (!round || round.userId !== userId) throw new Error("Invalid round")
 
+  const crashPoint = rollCrashPoint(round.roundId)
   const elapsed = Date.now() - round.startTime
   const current = multiplierAtElapsed(elapsed)
 
-  if (current >= round.crashPoint) {
+  if (current >= crashPoint) {
     // Bust — the wagered gift is lost.
     await db.update(inventory).set({ status: "lost" }).where(eq(inventory.id, round.inventoryId))
-    await db.insert(gameHistory).values({
-      userId,
-      game: "crash",
-      bet: String(round.stakeValue),
-      result: "0",
-      meta: { mode: "gift", crashPoint: round.crashPoint, cashedOut: false },
-    })
+    await db.update(gameHistory).set({ result: "0", meta: { roundId: round.roundId, mode: "gift", crashPoint, status: "bust" } }).where(eq(gameHistory.id, round.historyId))
     revalidatePath("/profile")
-    return { success: false, multiplier: round.crashPoint, crashPoint: round.crashPoint, gift: null }
+    return { success: false, multiplier: crashPoint, crashPoint, gift: null }
   }
 
-  const mult = Math.min(current, round.crashPoint)
+  const mult = Math.min(current, crashPoint)
   const targetValue = round.stakeValue * mult
 
   return db.transaction(async (tx) => {
@@ -267,19 +288,13 @@ export async function cashoutGiftCrash(token: string): Promise<{
       .set({ giftId: chosen.id, value: String(Number(chosen.value)), source: "crash", status: "owned" })
       .where(eq(inventory.id, round.inventoryId))
 
-    await tx.insert(gameHistory).values({
-      userId,
-      game: "crash",
-      bet: String(round.stakeValue),
-      result: String(Number(chosen.value)),
-      meta: { mode: "gift", crashPoint: round.crashPoint, cashedOut: true, multiplier: mult, giftName: chosen.name },
-    })
+    await tx.update(gameHistory).set({ result: String(Number(chosen.value)), meta: { roundId: round.roundId, mode: "gift", crashPoint, status: "cashed", multiplier: mult, giftName: chosen.name } }).where(eq(gameHistory.id, round.historyId))
 
     revalidatePath("/profile")
     return {
       success: true,
       multiplier: Math.round(mult * 100) / 100,
-      crashPoint: round.crashPoint,
+      crashPoint,
       gift: {
         id: chosen.id,
         name: chosen.name,
@@ -301,13 +316,7 @@ export async function settleGiftBust(token: string): Promise<void> {
   )[0]
   if (!item || item.status !== "wagered") return
   await db.update(inventory).set({ status: "lost" }).where(eq(inventory.id, round.inventoryId))
-  await db.insert(gameHistory).values({
-    userId,
-    game: "crash",
-    bet: String(round.stakeValue),
-    result: "0",
-    meta: { mode: "gift", crashPoint: round.crashPoint, cashedOut: false },
-  })
+  await db.update(gameHistory).set({ result: "0", meta: { roundId: round.roundId, mode: "gift", crashPoint: rollCrashPoint(round.roundId), status: "bust" } }).where(eq(gameHistory.id, round.historyId))
   revalidatePath("/profile")
 }
 

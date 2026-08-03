@@ -1,9 +1,8 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import useSWR from "swr"
-import { startCrash, cashoutCrash, settleCrashBust, getGiftImages } from "@/app/actions/crash"
-import { CRASH_ROUND_MS, multiplierAtElapsed, timeToNextCrashRound } from "@/lib/crash-shared"
+import { cashoutCrash, getCrashBoard, settleCrashBust, startCrash, type CrashBoard } from "@/app/actions/crash"
 import { BetInput } from "@/components/bet-input"
 import { Coin } from "@/components/coin"
 import { CrashRocket } from "@/components/crash-rocket"
@@ -12,197 +11,79 @@ import { fmt } from "@/lib/format"
 import { haptic, hapticNotify } from "@/lib/telegram-webapp"
 import { cn } from "@/lib/utils"
 
-type Phase = "idle" | "running" | "cashed" | "crashed"
-
 export function CrashGame() {
   const { me, setBalance, refresh } = useUser()
-  const { data: giftImages } = useSWR<string[]>("crash-gift-images", () => getGiftImages())
+  const { data: board, mutate } = useSWR<CrashBoard>("shared-crash-board", getCrashBoard, { refreshInterval: 1200, revalidateOnFocus: true })
   const [bet, setBet] = useState(100)
-  const [phase, setPhase] = useState<Phase>("idle")
-  const [multiplier, setMultiplier] = useState(1)
-  const [outcome, setOutcome] = useState<{ won: boolean; payout: number; at: number } | null>(null)
-  const [history, setHistory] = useState<number[]>([])
+  const [token, setToken] = useState<string | null>(null)
+  const [outcome, setOutcome] = useState<{ payout: number; at: number } | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [roundClock, setRoundClock] = useState(timeToNextCrashRound())
-
-  const tokenRef = useRef<string | null>(null)
-  const startRef = useRef<number>(0)
-  const crashRef = useRef<number>(999)
-  const rafRef = useRef<number | null>(null)
-  const phaseRef = useRef<Phase>("idle")
-
+  const settling = useRef(false)
   const balance = me?.balance ?? 0
+  const phase = board?.phase ?? "betting"
+  const multiplier = board?.multiplier ?? 1
+  const canBet = phase === "betting" && !token
+  const canCashout = phase === "flying" && Boolean(token)
 
   useEffect(() => {
-    phaseRef.current = phase
-  }, [phase])
+    if (phase !== "crashed" || !token || settling.current) return
+    settling.current = true
+    void settleCrashBust(token).finally(() => {
+      setToken(null)
+      settling.current = false
+      refresh()
+      mutate()
+      hapticNotify("error")
+    })
+  }, [mutate, phase, refresh, token])
 
-  useEffect(() => {
-    const id = window.setInterval(() => setRoundClock(timeToNextCrashRound()), 250)
-    return () => window.clearInterval(id)
-  }, [])
-
-  useEffect(() => {
-    return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current)
-    }
-  }, [])
-
-  const endCrashed = useCallback(async () => {
-    const alreadyCashed = phaseRef.current === "cashed"
-    phaseRef.current = "crashed"
-    setPhase("crashed")
-    if (!alreadyCashed) setOutcome({ won: false, payout: 0, at: crashRef.current })
-    setHistory((h) => [crashRef.current, ...h].slice(0, 12))
-    if (!alreadyCashed) hapticNotify("error")
-    if (tokenRef.current) {
-      try {
-        await settleCrashBust(tokenRef.current)
-      } catch {
-        // ignore
-      }
-    }
-    tokenRef.current = null
-    refresh()
-  }, [refresh])
-
-  const loop = useCallback(() => {
-    const elapsed = Date.now() - startRef.current
-    const m = multiplierAtElapsed(elapsed)
-    // Keep the rocket airborne for a beat so the launch is always visible,
-    // even on instant busts. Payout stays server-authoritative.
-    if (m >= crashRef.current && elapsed >= 900) {
-      setMultiplier(crashRef.current)
-      endCrashed()
-      return
-    }
-    setMultiplier(Math.min(m, crashRef.current))
-    rafRef.current = requestAnimationFrame(loop)
-  }, [endCrashed])
-
-  async function handleStart() {
-    if (phase === "running" || bet <= 0 || bet > balance) {
-      if (bet > balance) setError("Not enough balance. Deposit to play.")
-      return
-    }
-    setError(null)
-    setOutcome(null)
-    haptic("medium")
+  async function placeBet() {
+    if (!canBet || bet <= 0 || bet > balance) return setError("Not enough balance. Deposit to play.")
+    setError(null); setOutcome(null); haptic("medium")
     try {
-      const res = await startCrash(bet)
-      setBalance(res.balance)
-      tokenRef.current = res.token
-      startRef.current = res.startTime
-      // Server owns settlement (cashout is re-verified server-side); crashPoint drives the local curve.
-      crashRef.current = res.crashPoint ?? 999
-      setMultiplier(1)
-      phaseRef.current = "running"
-      setPhase("running")
-      rafRef.current = requestAnimationFrame(loop)
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "Error"
-      setError(msg === "INSUFFICIENT_FUNDS" ? "Not enough balance. Deposit to play." : msg)
+      const result = await startCrash(bet)
+      setToken(result.token)
+      setBalance(result.balance)
+      mutate()
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : "Could not place bet"
+      setError(message === "BETTING_CLOSED" ? "Betting closed — wait for the next round." : message)
+      mutate()
     }
   }
 
-  async function handleCashout() {
-    if (phase !== "running" || !tokenRef.current) return
+  async function cashout() {
+    if (!token || !canCashout) return
     haptic("heavy")
     try {
-      const res = await cashoutCrash(tokenRef.current)
-      if (res.success) {
-        phaseRef.current = "cashed"
-        setPhase("cashed")
-        setMultiplier(res.multiplier)
-        setOutcome({ won: true, payout: res.payout, at: res.multiplier })
-        setBalance(res.balance ?? balance)
-        setHistory((h) => [res.crashPoint, ...h].slice(0, 12))
+      const result = await cashoutCrash(token)
+      if (result.success) {
+        setOutcome({ payout: result.payout, at: result.multiplier })
+        setBalance(result.balance ?? balance)
         hapticNotify("success")
-      } else {
-        setMultiplier(res.crashPoint)
-        crashRef.current = res.crashPoint
-        endCrashed()
-      }
-    } catch {
-      setError("Cashout failed")
-    } finally {
-      tokenRef.current = null
-    }
+      } else hapticNotify("error")
+      setToken(null); refresh(); mutate()
+    } catch { setError("Cashout failed. Try again in the next round.") }
   }
 
-  const running = phase === "running"
-  const potential = Math.round(bet * multiplier)
+  const status = phase === "betting" ? `BETTING · ${board?.secondsLeft ?? 0}s` : phase === "crashed" ? "CRASHED" : "LIVE ROUND"
+  return <div className="flex flex-col gap-3">
+    <div className="flex items-center justify-between rounded-2xl border border-border bg-card/70 px-3 py-2 text-[11px] font-bold">
+      <span className={cn("flex items-center gap-2", phase === "flying" && "text-emerald-300", phase === "crashed" && "text-rose-300")}><span className={cn("h-2 w-2 rounded-full", phase === "flying" ? "bg-emerald-400 animate-pulse" : phase === "crashed" ? "bg-rose-400" : "bg-amber-300")} />{status}</span>
+      <span className="text-muted-foreground">Round #{board?.roundId ?? "…"}</span>
+    </div>
 
-  return (
-    <>
-      {/* Recent multipliers */}
-      <div className="no-scrollbar flex gap-1.5 overflow-x-auto">
-        {history.length === 0 && <span className="text-xs text-muted-foreground">No rounds yet</span>}
-        {history.map((h, i) => (
-          <span
-            key={i}
-            className={cn(
-              "shrink-0 rounded-md px-2 py-1 font-mono text-xs font-bold",
-              h >= 2 ? "bg-emerald-500/15 text-emerald-300" : "bg-rose-500/15 text-rose-300",
-            )}
-          >
-            {h.toFixed(2)}×
-          </span>
-        ))}
-      </div>
+    <CrashRocket phase={phase === "flying" ? "running" : phase === "crashed" ? "crashed" : "idle"} multiplier={multiplier}>
+      <div className={cn("font-display text-6xl font-black tabular-nums", phase === "crashed" ? "text-rose-400" : "neon-text-cyan text-foreground")}>{multiplier.toFixed(2)}×</div>
+      {outcome && <div className="mt-2 rounded-full bg-emerald-400/15 px-3 py-1 text-xs font-black text-emerald-300">YOU CASHED {outcome.at.toFixed(2)}× · +{fmt(outcome.payout)} <Coin className="inline h-3 w-3" /></div>}
+    </CrashRocket>
 
-      {/* Rocket stage */}
-      <CrashRocket phase={phase} multiplier={multiplier} collectImages={giftImages ?? []}>
-        <div
-          className={cn(
-            "font-display text-6xl font-black tabular-nums transition-colors",
-            phase === "crashed" ? "text-rose-400 neon-text-magenta" : "text-foreground neon-text-cyan",
-          )}
-        >
-          {multiplier.toFixed(2)}×
-        </div>
-        {phase === "crashed" && <div className="mt-1 font-display text-sm font-bold text-rose-400">CRASHED</div>}
-        {phase === "cashed" && outcome && (
-          <div className="mt-1 flex items-center justify-center gap-1 text-sm font-bold text-emerald-400">
-            +{fmt(outcome.payout)} <Coin className="h-3.5 w-3.5" />
-          </div>
-        )}
-        {running && (
-          <div className="mt-1 flex items-center justify-center gap-1 text-xs text-muted-foreground">
-            cash out for {fmt(potential)} <Coin className="h-3 w-3" />
-          </div>
-        )}
-      </CrashRocket>
+    {error && <p className="text-center text-xs font-medium text-destructive">{error}</p>}
+    {canCashout ? <button onClick={cashout} className="w-full rounded-2xl bg-emerald-400 py-4 font-display text-base font-black text-emerald-950 shadow-[0_0_25px_-5px] shadow-emerald-400">Cash out · {fmt(bet * multiplier)}</button> : <><BetInput value={bet} onChange={setBet} max={balance} /><button onClick={placeBet} disabled={!canBet} className="w-full rounded-2xl py-4 font-display text-base font-black disabled:bg-secondary disabled:text-muted-foreground btn-glow">{token ? "Bet placed" : phase === "betting" ? "Place bet" : "Next round is opening…"}</button></>}
 
-      <div className="-mt-2 text-center text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
-        Shared round · next launch in {Math.ceil(roundClock / 1000)}s
-      </div>
-
-      {error && <p className="text-center text-xs font-medium text-destructive">{error}</p>}
-
-      {running ? (
-        <button
-          onClick={handleCashout}
-          className="w-full rounded-2xl bg-emerald-500 py-4 font-display text-base font-black text-emerald-950 shadow-[0_0_28px_-4px] shadow-emerald-500/60 transition-transform active:scale-[0.98]"
-        >
-          Cash out · {fmt(potential)}
-        </button>
-      ) : phase === "cashed" ? (
-        <div className="rounded-2xl border border-emerald-400/25 bg-emerald-400/10 py-3 text-center text-sm font-bold text-emerald-300">
-          Collected — keep watching the shared flight
-        </div>
-      ) : (
-        <>
-          <BetInput value={bet} onChange={setBet} max={balance} />
-          <button
-            onClick={handleStart}
-            className="w-full rounded-2xl bg-primary py-4 font-display text-base font-black text-primary-foreground shadow-[0_0_28px_-4px] shadow-primary/60 transition-transform active:scale-[0.98]"
-          >
-            Place bet
-          </button>
-        </>
-      )}
-    </>
-  )
+    <section className="overflow-hidden rounded-2xl border border-border bg-card/75">
+      <div className="flex items-center justify-between border-b border-border px-3 py-2"><h2 className="text-sm font-black">Live players</h2><span className="text-[10px] font-bold text-muted-foreground">{board?.players.length ?? 0} bets</span></div>
+      <div className="max-h-44 overflow-y-auto">{board?.players.length ? board.players.map((player, index) => <div key={`${player.name}-${index}`} className="flex items-center justify-between px-3 py-2 text-xs"><span className="min-w-0 truncate font-bold">{player.name}</span><span className="flex items-center gap-1 font-mono"><Coin className="h-3 w-3" />{fmt(player.bet)}</span><span className={cn("w-16 text-right font-bold", player.status === "cashed" ? "text-emerald-300" : player.status === "bust" ? "text-rose-300" : "text-amber-300")}>{player.status === "cashed" ? `+${fmt(player.result)}` : player.status === "bust" ? "lost" : "in flight"}</span></div>) : <div className="px-3 py-5 text-center text-xs text-muted-foreground">Be the first player in this round.</div>}</div>
+    </section>
+  </div>
 }
-

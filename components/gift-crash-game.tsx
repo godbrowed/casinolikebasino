@@ -84,7 +84,10 @@ export function GiftCrashGame() {
       const res = await startGiftCrash(selected.id)
       tokenRef.current = res.token
       startRef.current = res.startTime
-      crashRef.current = res.crashPoint
+      // The shared board keeps the authoritative crash point server-side.
+      // Gift cashout still verifies it on the server; this only caps legacy
+      // local animation if the player leaves the page mid-round.
+      crashRef.current = 999
       setMultiplier(1)
       phaseRef.current = "running"
       setPhase("running")

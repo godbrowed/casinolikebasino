@@ -1,5 +1,9 @@
+"use client"
+
 import Link from "next/link"
+import useSWR from "swr"
 import { CirclePlay, Gift, Rocket, Swords, TrendingUp, Users } from "lucide-react"
+import { getLiveDrops } from "@/app/actions/cases"
 import { Coin } from "@/components/coin"
 
 const GAMES = [
@@ -10,12 +14,18 @@ const GAMES = [
 ]
 
 export function HomeLobby({ online }: { online: number }) {
+  const { data: drops } = useSWR("home-live-drops", getLiveDrops, { refreshInterval: 12_000 })
   return <section className="flex flex-col gap-3 px-4">
-    <div className="flex items-center gap-3 overflow-hidden rounded-3xl border border-white/10 bg-[#282b32] px-4 py-3">
-      <span className="flex h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(74,222,128,.9)]" />
-      <span className="text-sm font-black uppercase tracking-widest">Live</span>
-      <div className="flex gap-3 text-2xl opacity-90"><span>🎁</span><span>💎</span><span>🎲</span><span>🚀</span><span>👑</span><span>🧸</span><span>🍀</span></div>
-    </div>
+    {drops && drops.length > 0 && <div className="overflow-hidden rounded-3xl border border-white/10 bg-[#282b32] py-2.5">
+      <div className="no-scrollbar flex items-center gap-2 overflow-x-auto px-3">
+        <span className="flex shrink-0 items-center gap-2 pr-1 text-[10px] font-black uppercase tracking-[.14em] text-emerald-300"><i className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_10px_#4ade80]" />Live drops</span>
+        {drops.map((drop) => <div key={drop.id} className="flex shrink-0 items-center gap-1.5 rounded-2xl bg-white/5 py-1 pl-1 pr-2.5">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={drop.imageUrl} alt="" className="h-7 w-7 object-contain" />
+          <span className="max-w-20 truncate text-[10px] font-bold">{drop.name}</span>
+        </div>)}
+      </div>
+    </div>}
     <div className="rounded-[28px] border border-[#4a74ff] bg-[#2f5bff] p-4 shadow-[0_8px_0_#1938a8]">
       <div className="flex items-center gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-[#2f5bff]"><CirclePlay className="h-6 w-6 fill-current" /></span><div><div className="font-display text-lg font-black">Start playing in seconds</div><div className="text-xs font-medium text-white/70">Open a case or join a live game</div></div></div>
     </div>

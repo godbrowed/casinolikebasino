@@ -10,6 +10,7 @@ import { useUser } from "@/components/user-provider"
 import { fmt, rarityOf } from "@/lib/format"
 import { haptic, hapticNotify } from "@/lib/telegram-webapp"
 import { cn } from "@/lib/utils"
+import { playGameSound } from "@/lib/game-sound"
 
 type Phase = "select" | "running" | "cashed" | "crashed"
 
@@ -50,6 +51,7 @@ export function GiftCrashGame() {
     phaseRef.current = "crashed"
     setPhase("crashed")
     if (!alreadyCashed) hapticNotify("error")
+    if (!alreadyCashed) playGameSound("crash")
     if (tokenRef.current) {
       try {
         await settleGiftBust(tokenRef.current)
@@ -80,6 +82,7 @@ export function GiftCrashGame() {
     setError(null)
     setWon(null)
     haptic("medium")
+    playGameSound("bet")
     try {
       const res = await startGiftCrash(selected.id)
       tokenRef.current = res.token
@@ -108,12 +111,14 @@ export function GiftCrashGame() {
         setMultiplier(res.multiplier)
         setWon(res.gift)
         hapticNotify("success")
+        playGameSound("cashout")
       } else {
         setMultiplier(res.crashPoint)
         crashRef.current = res.crashPoint
         phaseRef.current = "crashed"
         setPhase("crashed")
         hapticNotify("error")
+        playGameSound("crash")
       }
     } catch {
       setError("Cashout failed")

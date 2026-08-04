@@ -44,7 +44,9 @@ export function CrashRocket({
   // Rocket position: climbs from bottom-left toward top-right. Blend a small
   // time-based liftoff with the multiplier-based climb so it always leaves the pad.
   const multClimb = Math.min(1, Math.log(Math.max(1, multiplier)) / Math.log(15))
-  const climb = running ? Math.max(liftoff ? 0.08 : 0, multClimb) : phase === "cashed" ? multClimb : 0
+  // Keep the rocket at the actual end point after a crash. Resetting it to
+  // the launch pad made a finished shared round look as if it was still flying.
+  const climb = running ? Math.max(liftoff ? 0.08 : 0, multClimb) : (phase === "cashed" || phase === "crashed") ? multClimb : 0
   const x = 12 + climb * 62 // %
   const y = 82 - climb * 64 // % (from top)
   const angle = -32 - climb * 12
@@ -55,13 +57,14 @@ export function CrashRocket({
   return (
     <div
       className={cn(
-        "relative flex aspect-[4/3] w-full flex-col items-center justify-center overflow-hidden rounded-3xl border bg-black/60",
+        "relative flex aspect-[3/4] min-h-[390px] w-full flex-col items-center justify-center overflow-hidden rounded-[30px] border bg-[#071126]",
         crashed ? "border-rose-500/50" : running ? "border-primary/40" : "border-border",
       )}
     >
-      {/* starfield + grid */}
+      {/* Deep-space board: deliberately transform-only animation, so phones do not reflow it every frame. */}
       <Starfield running={running} />
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.035)_1px,transparent_1px)] bg-[size:32px_32px]" />
+      <div className="absolute inset-0 opacity-70 [background:radial-gradient(circle_at_18%_15%,rgba(96,165,250,.32),transparent_18%),radial-gradient(circle_at_85%_72%,rgba(168,85,247,.22),transparent_24%)]" />
+      <MeteorField running={running} />
       <div
         className={cn(
           "absolute inset-0 transition-opacity duration-500",
@@ -74,7 +77,7 @@ export function CrashRocket({
       />
 
       {/* trajectory trail */}
-      {(running || phase === "cashed") && (
+      {(running || phase === "cashed" || crashed) && (
         <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
           <defs>
             <linearGradient id="trail" x1="0" y1="1" x2="1" y2="0">
@@ -115,7 +118,7 @@ export function CrashRocket({
         })}
 
       {/* rocket + payload */}
-      {(running || phase === "cashed") && (
+      {(running || phase === "cashed" || crashed) && (
         <div
           className="absolute z-10 transition-all duration-200 ease-out"
           style={{ left: `${x}%`, top: `${y}%`, transform: `translate(-50%,-50%) rotate(${angle}deg)` }}
@@ -208,4 +211,10 @@ function Starfield({ running }: { running: boolean }) {
       ))}
     </div>
   )
+}
+
+function MeteorField({ running }: { running: boolean }) {
+  return <div className="pointer-events-none absolute inset-0 overflow-hidden opacity-70">
+    {[12, 31, 54, 76].map((top, index) => <span key={top} className={cn("absolute h-px w-24 -rotate-45 bg-gradient-to-r from-transparent via-blue-100 to-transparent", running && "animate-pulse")} style={{ top: `${top}%`, left: `${(index * 29) - 12}%`, animationDelay: `${index * .25}s` }} />)}
+  </div>
 }

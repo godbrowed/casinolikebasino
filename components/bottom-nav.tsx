@@ -17,7 +17,7 @@ export function BottomNav() {
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-50 mx-auto max-w-md px-3 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
-      <div className="rounded-3xl border border-white/15 bg-card/95 px-2 py-2 shadow-[0_10px_0_-5px_rgba(30,12,58,.9),0_16px_30px_-16px_rgba(0,0,0,.95)] backdrop-blur-xl">
+      <div className="rounded-3xl border border-white/10 bg-[#282b32]/95 px-2 py-2 shadow-[0_16px_32px_-12px_rgba(0,0,0,.9)] backdrop-blur-xl">
         <ul className="flex items-center justify-between">
           {ITEMS.map((item) => {
             const active = pathname === item.href
@@ -35,7 +35,7 @@ export function BottomNav() {
                   <span
                     className={cn(
                       "flex h-9 w-9 items-center justify-center rounded-2xl transition-all",
-                      active && "bg-primary text-primary-foreground shadow-[0_4px_0_rgb(151,92,28)]",
+                      active && "bg-primary text-primary-foreground shadow-[0_4px_0_#1938a8]",
                     )}
                   >
                     <Icon className="h-5 w-5" strokeWidth={active ? 2.5 : 2} />

@@ -15,7 +15,7 @@ export function AppHeader({ title }: { title?: string }) {
 
   return (
     <header className="sticky top-0 z-40 px-3 pt-2">
-      <div className="flex items-center justify-between rounded-3xl border border-white/15 bg-card/90 px-3 py-2.5 shadow-[0_8px_0_-5px_rgba(30,12,58,.8),0_12px_26px_-18px_rgba(0,0,0,.9)] backdrop-blur-md">
+      <div className="flex items-center justify-between rounded-3xl border border-white/10 bg-[#282b32]/95 px-3 py-2.5 shadow-[0_12px_28px_-18px_rgba(0,0,0,.95)] backdrop-blur-md">
         <div className="flex items-center gap-2.5">
           {avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element

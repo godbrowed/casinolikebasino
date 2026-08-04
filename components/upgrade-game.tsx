@@ -11,6 +11,7 @@ import { useUser } from "@/components/user-provider"
 import { fmt, rarityOf } from "@/lib/format"
 import { haptic, hapticNotify } from "@/lib/telegram-webapp"
 import { cn } from "@/lib/utils"
+import { playGameSound } from "@/lib/game-sound"
 
 type Item = { id: number; name: string; rarity: string; imageUrl: string; value: number }
 
@@ -36,6 +37,7 @@ export function UpgradeGame({ inventory, targets }: { inventory: Item[]; targets
     setOutcome(null)
     setAngle(180)
     haptic("medium")
+    playGameSound("bet")
     try {
       const result = await upgradeGift(source.id, target.id)
       const winDegrees = chance * 360
@@ -49,6 +51,7 @@ export function UpgradeGame({ inventory, targets }: { inventory: Item[]; targets
         setSpinning(false)
         setOutcome(result.success)
         hapticNotify(result.success ? "success" : "error")
+        playGameSound(result.success ? "cashout" : "crash")
         if (result.success) setSource({ ...result.target, id: source.id })
         else setSource(null)
         setTarget(null)
@@ -65,14 +68,13 @@ export function UpgradeGame({ inventory, targets }: { inventory: Item[]; targets
   }
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="relative overflow-hidden rounded-3xl border border-cyan-400/20 bg-card p-4">
-        <div className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-cyan-400/20 blur-3xl" />
-        <div className="flex items-center gap-2"><ArrowUp className="h-5 w-5 text-cyan-300" /><h1 className="font-display text-xl font-black">Upgrade flight</h1></div>
-        <p className="mt-1 text-xs text-muted-foreground">Launch your gift from the bottom and land in the reward zone.</p>
+    <div className="flex flex-col gap-4">
+      <div className="relative overflow-hidden rounded-[30px] border border-[#5d86ff]/30 bg-[linear-gradient(135deg,#122d78,#201249)] p-5 shadow-[0_10px_0_-6px_rgba(0,0,0,.55)]">
+        <div className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-blue-300/20 blur-3xl" />
+        <div className="relative flex items-center gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/12"><ArrowUp className="h-6 w-6 text-cyan-100" /></span><div><h1 className="font-display text-xl font-black">Upgrade lab</h1><p className="mt-0.5 text-xs text-white/65">Put in a gift. Spin the orbit. Take the upgrade.</p></div></div>
       </div>
 
-      <div className="grid grid-cols-[1fr_128px_1fr] items-center gap-2">
+      <div className="relative grid grid-cols-[1fr_142px_1fr] items-center gap-2 rounded-[30px] border border-white/10 bg-[#272a32] p-3">
         <GiftCard title="Stake" item={source} />
         <FlightMeter angle={angle} spinning={spinning} chance={chance} outcome={outcome} />
         <GiftCard title="Target" item={target} />
@@ -83,7 +85,7 @@ export function UpgradeGame({ inventory, targets }: { inventory: Item[]; targets
         <div className="text-right"><div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Upgrade</div><div className="font-display text-lg font-black">{multiplier ? `${multiplier.toFixed(2)}×` : "—"}</div></div>
       </div>
 
-      <button onClick={handleUpgrade} disabled={!source || !target || spinning || chance <= 0} className={cn("w-full rounded-2xl py-4 font-display text-base font-black transition-transform active:scale-[0.98] disabled:bg-secondary disabled:text-muted-foreground", source && target && !spinning ? "btn-glow" : "bg-secondary text-muted-foreground")}>
+      <button onClick={handleUpgrade} disabled={!source || !target || spinning || chance <= 0} className={cn("w-full rounded-3xl py-4 font-display text-base font-black transition-transform active:scale-[0.98] disabled:bg-secondary disabled:text-muted-foreground", source && target && !spinning ? "btn-glow" : "bg-secondary text-muted-foreground")}>
         {spinning ? "Flying…" : "Start upgrade"}
       </button>
 
@@ -95,17 +97,17 @@ export function UpgradeGame({ inventory, targets }: { inventory: Item[]; targets
 
 function FlightMeter({ angle, spinning, chance, outcome }: { angle: number; spinning: boolean; chance: number; outcome: boolean | null }) {
   const circumference = 2 * Math.PI * 42
-  return <div className="relative aspect-square overflow-hidden rounded-full border border-cyan-300/30 bg-[#07121e] shadow-[inset_0_0_32px_rgba(34,211,238,.16),0_0_25px_rgba(34,211,238,.08)]">
+  return <div className="relative aspect-square overflow-hidden rounded-full border border-cyan-300/35 bg-[#071126] shadow-[inset_0_0_34px_rgba(69,114,255,.25),0_0_28px_rgba(69,114,255,.13)]">
     <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full -rotate-90"><circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,.09)" strokeWidth="8" /><circle cx="50" cy="50" r="42" fill="none" stroke="#34d399" strokeWidth="8" strokeLinecap="round" strokeDasharray={`${Math.max(3, chance * circumference)} ${circumference}`} /></svg>
-    <div className="absolute inset-[24%] rounded-full border border-white/10 bg-background/90" />
+    <div className="absolute inset-[24%] rounded-full border border-white/10 bg-[#151924]" />
     <div className="absolute inset-0" style={{ transform: `rotate(${angle}deg)`, transition: spinning ? "transform 3s cubic-bezier(.11,.72,.06,1)" : "none" }}><div className={cn("absolute left-1/2 top-[4px] flex h-8 w-8 -translate-x-1/2 items-center justify-center rounded-full border-2 bg-background shadow-[0_0_18px]", outcome === false ? "border-rose-400 text-rose-300" : outcome === true ? "border-emerald-300 text-emerald-200" : "border-cyan-300 text-cyan-100")}><Sparkles className="h-4 w-4" /></div></div>
-    <div className="absolute inset-0 flex flex-col items-center justify-center text-center"><Target className="h-4 w-4 text-emerald-300" /><span className="text-[9px] font-black uppercase tracking-wider text-muted-foreground">Win zone</span></div>
+    <div className="absolute inset-0 flex flex-col items-center justify-center text-center"><Target className="h-4 w-4 text-emerald-300" /><span className="text-[9px] font-black uppercase tracking-wider text-muted-foreground">Win zone</span><span className="mt-0.5 text-[9px] font-bold text-cyan-200">{(chance * 100).toFixed(0)}%</span></div>
   </div>
 }
 
 function GiftCard({ title, item }: { title: string; item: Item | null }) {
   const rarity = item ? rarityOf(item.rarity) : null
-  return <div className={cn("min-w-0 rounded-2xl border border-border bg-card p-2 text-center ring-1", rarity?.ring)}><div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{title}</div>{item ? <><img src={item.imageUrl || "/images/nft-gift.png"} alt={item.name} className="mx-auto my-2 h-16 w-16 object-contain" /><div className={cn("truncate text-xs font-bold", rarity?.text)}>{item.name}</div><div className="mt-1 flex justify-center gap-1 text-[10px] text-muted-foreground"><Coin className="h-3 w-3" />{fmt(item.value)}</div></> : <div className="flex h-[104px] items-center justify-center text-[11px] text-muted-foreground">Choose gift</div>}</div>
+  return <div className={cn("min-w-0 rounded-2xl border border-white/10 bg-[#1e222b] p-2 text-center ring-1", rarity?.ring)}><div className="text-[9px] font-black uppercase tracking-[.12em] text-muted-foreground">{title}</div>{item ? <><img src={item.imageUrl || "/images/nft-gift.png"} alt={item.name} className="mx-auto my-2 h-16 w-16 object-contain drop-shadow-[0_8px_12px_rgba(0,0,0,.55)]" /><div className={cn("truncate text-xs font-bold", rarity?.text)}>{item.name}</div><div className="mt-1 flex justify-center gap-1 text-[10px] text-muted-foreground"><Coin className="h-3 w-3" />{fmt(item.value)}</div></> : <div className="flex h-[104px] items-center justify-center text-[11px] text-muted-foreground">Choose gift</div>}</div>
 }
 
 function Picker({ title, items, activeId, empty, onPick }: { title: string; items: Item[]; activeId?: number; empty: string; onPick: (item: Item) => void }) {

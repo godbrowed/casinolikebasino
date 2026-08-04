@@ -161,18 +161,22 @@ export function CrashRocket({
 
 function Rocket() {
   return (
-    <svg width="46" height="46" viewBox="0 0 48 48" fill="none" aria-hidden>
-      <path d="M15 31 8 38l5 2 2 5 7-7" fill="#7B4B9A" stroke="#351A53" strokeWidth="2.5" strokeLinejoin="round" />
-      <path d="M33 31 40 38l-5 2-2 5-7-7" fill="#7B4B9A" stroke="#351A53" strokeWidth="2.5" strokeLinejoin="round" />
-      <path
-        d="M24 4c9 5 13 13 13 22 0 5-1.3 8.8-3.5 12H14.5C12.3 34.8 11 31 11 26c0-9 4-17 13-22Z"
-        fill="#FFDE6A"
-        stroke="#351A53"
-        strokeWidth="2.5"
-      />
-      <circle cx="24" cy="20" r="6.5" fill="#77DDF5" stroke="#351A53" strokeWidth="2.5" />
-      <circle cx="22" cy="18" r="1.6" fill="#fff" />
-      <path d="M18 38h12l-6 8-6-8Z" fill="#FF7B57" stroke="#351A53" strokeWidth="2.5" strokeLinejoin="round" />
+    <svg width="78" height="78" viewBox="0 0 96 96" fill="none" aria-hidden>
+      <defs>
+        <linearGradient id="hull" x1="30" y1="20" x2="74" y2="74" gradientUnits="userSpaceOnUse"><stop stopColor="#F8FBFF" /><stop offset=".48" stopColor="#A7B7D5" /><stop offset="1" stopColor="#566785" /></linearGradient>
+        <linearGradient id="glass" x1="44" y1="28" x2="66" y2="51" gradientUnits="userSpaceOnUse"><stop stopColor="#CAFBFF" /><stop offset="1" stopColor="#3978F8" /></linearGradient>
+        <linearGradient id="fire" x1="25" y1="68" x2="5" y2="87" gradientUnits="userSpaceOnUse"><stop stopColor="#FFF3A4" /><stop offset=".45" stopColor="#FFAD32" /><stop offset="1" stopColor="#F04771" /></linearGradient>
+      </defs>
+      <path d="M33 65 15 78l13 4 4 13 15-19" fill="#7552D6" stroke="#18213C" strokeWidth="4" strokeLinejoin="round" />
+      <path d="m66 65 17 14-13 3-4 13-14-19" fill="#7552D6" stroke="#18213C" strokeWidth="4" strokeLinejoin="round" />
+      <path d="M48 9c20 11 30 28 30 47 0 11-3 19-9 26H27c-6-7-9-15-9-26C18 37 28 20 48 9Z" fill="url(#hull)" stroke="#18213C" strokeWidth="4" strokeLinejoin="round" />
+      <path d="M48 22c10 5 16 13 18 24H30c2-11 8-19 18-24Z" fill="url(#glass)" stroke="#18213C" strokeWidth="4" />
+      <path d="M39 30c4-4 8-6 12-6" stroke="white" strokeWidth="3" strokeLinecap="round" opacity=".8" />
+      <path d="M27 55h42" stroke="#42516D" strokeWidth="4" />
+      <circle cx="36" cy="66" r="4" fill="#FFCA45" stroke="#18213C" strokeWidth="3" />
+      <circle cx="60" cy="66" r="4" fill="#FFCA45" stroke="#18213C" strokeWidth="3" />
+      <path d="M37 80h22L48 94 37 80Z" fill="url(#fire)" stroke="#18213C" strokeWidth="4" strokeLinejoin="round" />
+      <path d="M48 82v8" stroke="#FFF3A4" strokeWidth="3" strokeLinecap="round" />
     </svg>
   )
 }

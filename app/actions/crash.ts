@@ -1,7 +1,7 @@
 "use server"
 
 import crypto from "crypto"
-import { and, eq, gte, sql } from "drizzle-orm"
+import { and, desc, eq, gte, sql } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { db } from "@/lib/db"
 import { users, gameHistory, inventory, gifts } from "@/lib/db/schema"
@@ -58,6 +58,7 @@ export type CrashBoard = {
   multiplier: number
   secondsLeft: number
   players: { name: string; bet: number; result: number; status: "bet" | "cashed" | "bust" }[]
+  recent: { multiplier: number; won: boolean }[]
 }
 
 /** Public snapshot for the shared crash board. It deliberately never exposes
@@ -76,8 +77,9 @@ export async function getCrashBoard(): Promise<CrashBoard> {
       .select({ bet: gameHistory.bet, result: gameHistory.result, meta: gameHistory.meta, username: users.username, firstName: users.firstName })
       .from(gameHistory)
       .innerJoin(users, eq(gameHistory.userId, users.id))
-      .where(and(eq(gameHistory.game, "crash"), gte(gameHistory.createdAt, new Date(sharedRoundStart(now)))))
-      .limit(40)
+      .where(and(eq(gameHistory.game, "crash"), gte(gameHistory.createdAt, new Date(now - 24 * 60 * 60 * 1000))))
+      .orderBy(desc(gameHistory.createdAt))
+      .limit(80)
   } catch {
     // The board must still render during a transient database reconnect.
     // It will populate again on the next lightweight refresh.
@@ -88,11 +90,17 @@ export async function getCrashBoard(): Promise<CrashBoard> {
     phase: crashed ? "crashed" : phase,
     multiplier: crashed ? point : Math.max(1, current),
     secondsLeft: Math.max(0, Math.ceil(((phase === "betting" ? flightStart : sharedRoundStart(now) + CRASH_ROUND_MS) - now) / 1000)),
-    players: rows.map((row) => {
+    players: rows.filter((row) => Number((row.meta as Record<string, unknown> | null)?.roundId) === roundId).map((row) => {
       const meta = (row.meta ?? {}) as Record<string, unknown>
       const status = meta.status === "cashed" || meta.status === "bust" ? meta.status : "bet"
       return { name: row.username ? `@${row.username}` : row.firstName || "Player", bet: Number(row.bet), result: Number(row.result), status }
     }),
+    recent: Array.from(new Map(rows.map((row) => {
+      const meta = (row.meta ?? {}) as Record<string, unknown>
+      const id = Number(meta.roundId)
+      const point = Number(meta.crashPoint)
+      return [id, { multiplier: Number.isFinite(point) && point > 0 ? point : 1, won: meta.status === "cashed" }] as const
+    })).values()).filter((row) => row.multiplier > 0).slice(0, 12),
   }
 }
 

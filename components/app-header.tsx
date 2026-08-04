@@ -17,7 +17,6 @@ export function AppHeader({ title }: { title?: string }) {
     <header className="sticky top-0 z-40 px-3 pt-2">
       <div className="flex items-center justify-between rounded-3xl border border-white/15 bg-card/90 px-3 py-2.5 shadow-[0_8px_0_-5px_rgba(30,12,58,.8),0_12px_26px_-18px_rgba(0,0,0,.9)] backdrop-blur-md">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-2xl bg-primary shadow-[0_4px_0_rgb(151,92,28)]"><img src="/images/giftlys-coin-v2.png" alt="Giftlys" className="h-full w-full object-cover" /></div>
           {avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -32,7 +31,7 @@ export function AppHeader({ title }: { title?: string }) {
             </div>
           )}
           <div className="leading-tight">
-            <div className={title ? "font-display text-sm font-black tracking-tight" : "font-display text-base font-black tracking-[-0.06em] text-primary drop-shadow-[0_2px_0_rgba(151,92,28,.45)]"}>{title ?? "Giftlys"}</div>
+            <div className="font-display text-base font-black tracking-tight">{title ?? "Giftlys"}</div>
             <div className="text-[10px] text-muted-foreground">
               {me?.username ? `@${me.username}` : me?.firstName ?? "Guest"}
               {me?.isDemo ? " · demo" : ""}

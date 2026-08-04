@@ -20,12 +20,18 @@ export function CrashGame() {
   const [outcome, setOutcome] = useState<{ payout: number; at: number } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [displayMultiplier, setDisplayMultiplier] = useState(1)
+  const [clock, setClock] = useState(Date.now())
   const settling = useRef(false)
   const balance = me?.balance ?? 0
-  const phase = board?.phase ?? "betting"
+  const phase = board?.phase === "crashed" ? "crashed" : board && clock >= board.flightStart ? "flying" : "betting"
   const multiplier = displayMultiplier
   const canBet = phase === "betting" && !token
   const canCashout = phase === "flying" && Boolean(token)
+
+  useEffect(() => {
+    const id = window.setInterval(() => setClock(Date.now()), 250)
+    return () => window.clearInterval(id)
+  }, [])
 
   useEffect(() => {
     if (phase !== "crashed" || !token || settling.current) return
@@ -43,15 +49,15 @@ export function CrashGame() {
   // syncs the rocket advances locally, so it stays smooth on slower phones.
   useEffect(() => {
     if (!board) return
-    if (board.phase !== "flying") {
+    if (phase !== "flying") {
       setDisplayMultiplier(board.multiplier)
       return
     }
     const tick = () => setDisplayMultiplier(multiplierAtElapsed(Date.now() - board.flightStart))
     tick()
-    const id = window.setInterval(tick, 80)
+    const id = window.setInterval(tick, 250)
     return () => window.clearInterval(id)
-  }, [board])
+  }, [board, phase])
 
   async function placeBet() {
     if (!canBet || bet <= 0 || bet > balance) return setError("Not enough balance. Deposit to play.")
@@ -84,9 +90,12 @@ export function CrashGame() {
 
   const status = phase === "betting" ? `BETTING · ${board?.secondsLeft ?? 0}s` : phase === "crashed" ? "CRASHED" : "LIVE ROUND"
   return <div className="flex flex-col gap-3">
+    <div className="no-scrollbar flex gap-1.5 overflow-x-auto pb-0.5">
+      {board?.recent.length ? board.recent.map((round, index) => <span key={index} className={cn("shrink-0 rounded-full px-2.5 py-1 font-mono text-[11px] font-black", round.multiplier >= 2 ? "bg-emerald-400/16 text-emerald-200" : "bg-rose-400/16 text-rose-200")}>{round.multiplier.toFixed(2)}×</span>) : <span className="text-xs text-muted-foreground">Previous rounds will appear here</span>}
+    </div>
     <div className="flex items-center justify-between rounded-2xl border border-border bg-card/70 px-3 py-2 text-[11px] font-bold">
       <span className={cn("flex items-center gap-2", phase === "flying" && "text-emerald-300", phase === "crashed" && "text-rose-300")}><span className={cn("h-2 w-2 rounded-full", phase === "flying" ? "bg-emerald-400 animate-pulse" : phase === "crashed" ? "bg-rose-400" : "bg-amber-300")} />{status}</span>
-      <span className="text-muted-foreground">Round #{board?.roundId ?? "…"}</span>
+      <span className="text-muted-foreground">{phase === "betting" ? `${board?.secondsLeft ?? 0}s to launch` : "Everyone flies together"}</span>
     </div>
 
     <CrashRocket phase={phase === "flying" ? "running" : phase === "crashed" ? "crashed" : "idle"} multiplier={multiplier}>

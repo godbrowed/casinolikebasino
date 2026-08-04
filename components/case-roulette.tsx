@@ -52,13 +52,12 @@ export function CaseRoulette({ pool, spinning, result, onSettled }: Props) {
     }
   }, [spinning, result, pool])
 
-  const winSlug = result?.slug
-
   return (
-    <div ref={containerRef} className="relative overflow-hidden rounded-2xl border border-border bg-black/40 py-4">
+    <div ref={containerRef} className="relative overflow-hidden rounded-[28px] border border-white/15 bg-[radial-gradient(ellipse_at_center,rgba(255,222,106,.12),transparent_56%),linear-gradient(135deg,#2e1b4d,#171124)] px-1 py-5 shadow-[inset_0_1px_0_rgba(255,255,255,.13),0_10px_0_-5px_rgba(30,12,58,.82)]">
+      <div className="pointer-events-none absolute left-1/2 top-2 z-20 -translate-x-1/2 rounded-full border border-primary/40 bg-primary/20 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-primary">Drop zone</div>
       {/* center marker */}
       <div className="pointer-events-none absolute inset-y-0 left-1/2 z-20 w-0.5 -translate-x-1/2 bg-primary shadow-[0_0_16px_2px] shadow-primary/70" />
-      <div className="pointer-events-none absolute left-1/2 top-1 z-20 -translate-x-1/2 border-x-8 border-t-8 border-x-transparent border-t-primary" />
+      <div className="pointer-events-none absolute left-1/2 top-8 z-20 -translate-x-1/2 border-x-9 border-t-9 border-x-transparent border-t-primary" />
       <div className="pointer-events-none absolute bottom-1 left-1/2 z-20 -translate-x-1/2 border-x-8 border-b-8 border-x-transparent border-b-primary" />
       {/* fade edges */}
       <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-16 bg-gradient-to-r from-black/70 to-transparent" />
@@ -81,7 +80,7 @@ export function CaseRoulette({ pool, spinning, result, onSettled }: Props) {
             <div
               key={i}
               className={cn(
-                "flex h-24 w-24 shrink-0 flex-col items-center justify-center rounded-xl border border-border bg-card ring-1",
+                "flex h-24 w-24 shrink-0 flex-col items-center justify-center rounded-2xl border border-white/12 bg-card ring-1 shadow-[0_5px_0_-3px_rgba(15,8,31,.8)]",
                 r.ring,
                 isWin && `${r.glow} scale-105`,
               )}

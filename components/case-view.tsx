@@ -5,7 +5,7 @@ import { useState } from "react"
 import { ArrowLeft, ShieldCheck, Sparkles } from "lucide-react"
 import Link from "next/link"
 import type { CaseDTO, GiftDTO } from "@/app/actions/cases"
-import { openCase } from "@/app/actions/cases"
+import { openCases } from "@/app/actions/cases"
 import { sellGift } from "@/app/actions/user"
 import { AppHeader } from "@/components/app-header"
 import { CaseRoulette } from "@/components/case-roulette"
@@ -25,10 +25,12 @@ export function CaseView({ c }: { c: CaseDTO }) {
   const [showWin, setShowWin] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [openCount, setOpenCount] = useState(1)
+  const [batchResults, setBatchResults] = useState<GiftDTO[]>([])
 
   const balance = me?.balance ?? 0
   const freeReady = !c.isFree || !c.nextFreeAt || new Date(c.nextFreeAt).getTime() <= Date.now()
-  const canAfford = (c.isFree || balance >= c.price) && freeReady
+  const canAfford = (c.isFree || balance >= c.price * openCount) && freeReady
 
   async function handleSpin() {
     if (spinning || busy) return
@@ -40,9 +42,10 @@ export function CaseView({ c }: { c: CaseDTO }) {
     setBusy(true)
     haptic("medium")
     try {
-      const res = await openCase(c.id)
-      setResult(res.won)
-      setLastInventoryId(res.inventoryId)
+      const res = await openCases(c.id, c.isFree ? 1 : openCount)
+      setResult(res.results[0].won)
+      setBatchResults(res.results.map((item) => item.won))
+      setLastInventoryId(res.results[0].inventoryId)
       setBalance(res.balance)
       setSpinning(true)
     } catch (e) {
@@ -61,7 +64,7 @@ export function CaseView({ c }: { c: CaseDTO }) {
 
   function handleSettled() {
     setSpinning(false)
-    setShowWin(true)
+    setShowWin(batchResults.length === 1)
     hapticNotify("success")
   }
 
@@ -83,6 +86,7 @@ export function CaseView({ c }: { c: CaseDTO }) {
     setShowWin(false)
     setResult(null)
     setLastInventoryId(null)
+    setBatchResults([])
     refresh()
   }
 
@@ -90,14 +94,14 @@ export function CaseView({ c }: { c: CaseDTO }) {
     <>
       <AppHeader title={c.name} />
       <main className="flex flex-col gap-5 px-4 pt-4">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 rounded-3xl border border-white/12 bg-card/70 p-2 shadow-[0_7px_0_-5px_rgba(30,12,58,.75)]">
           <Link
             href="/"
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-secondary/60"
+            className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/12 bg-secondary/60"
           >
             <ArrowLeft className="h-4 w-4" />
           </Link>
-          <h1 className="font-display text-lg font-bold">{c.name}</h1>
+          <div><div className="text-[9px] font-black uppercase tracking-[.16em] text-muted-foreground">Case laboratory</div><h1 className="font-display text-lg font-black">{c.name}</h1></div>
           <span className="ml-auto flex items-center gap-1 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-emerald-300">
             <ShieldCheck className="h-3 w-3" /> {c.isFree ? "Daily" : "Gift rewards"}
           </span>
@@ -108,6 +112,8 @@ export function CaseView({ c }: { c: CaseDTO }) {
         {error && (
           <p className="text-center text-xs font-medium text-destructive">{error}</p>
         )}
+
+        {!c.isFree && <div className="rounded-3xl border border-white/12 bg-card/70 p-2"><div className="mb-2 px-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">How many cases?</div><div className="grid grid-cols-4 gap-2">{[1, 2, 3, 5].map((count) => <button key={count} onClick={() => setOpenCount(count)} disabled={spinning || busy} className={cn("rounded-2xl py-2 text-xs font-black transition-all", openCount === count ? "bg-primary text-primary-foreground shadow-[0_3px_0_rgb(151,92,28)]" : "bg-secondary text-muted-foreground")}>×{count}</button>)}</div></div>}
 
         <button
           onClick={handleSpin}
@@ -127,11 +133,13 @@ export function CaseView({ c }: { c: CaseDTO }) {
               <span>{c.isFree ? (freeReady ? "Open free case" : "Available in 24h") : "Open case"}</span>
               <span className="flex items-center gap-1 rounded-full bg-black/20 px-2.5 py-0.5">
                 {!c.isFree && <Coin className="h-3.5 w-3.5" />}
-                <span className="font-mono">{c.isFree ? "FREE" : fmt(c.price)}</span>
+                <span className="font-mono">{c.isFree ? "FREE" : fmt(c.price * openCount)}</span>
               </span>
             </>
           )}
         </button>
+
+        {batchResults.length > 1 && !spinning && <section className="surface-panel rounded-3xl p-3"><div className="mb-2 flex items-center justify-between"><h2 className="font-display text-sm font-black">Your drops</h2><span className="text-xs text-muted-foreground">{batchResults.length} opened</span></div><div className="grid grid-cols-5 gap-2">{batchResults.map((gift, index) => { const rarity = rarityOf(gift.rarity); return <div key={`${gift.slug}-${index}`} className={cn("rounded-2xl border bg-background/45 p-1.5 text-center", rarity.ring)}><img src={gift.imageUrl || "/images/nft-gift.png"} alt={gift.name} className="mx-auto h-11 w-11 object-contain" /><div className={cn("mt-1 truncate text-[9px] font-bold", rarity.text)}>{gift.name}</div></div> })}</div></section>}
 
         <section className="surface-panel rounded-3xl p-3">
           <div className="mb-2 flex items-baseline justify-between">

@@ -9,7 +9,9 @@
 // and all rockets leave together.
 export const CRASH_ROUND_MS = 30_000
 export const CRASH_BETTING_MS = 15_000
-export const CRASH_GROWTH_K = 0.42 // growth rate per second (exponential)
+// A calmer curve keeps the flight readable on a phone: 2× takes ~3 seconds,
+// rather than jumping there almost immediately.
+export const CRASH_GROWTH_K = 0.22 // growth rate per second (exponential)
 
 export function sharedRoundStart(now = Date.now()): number {
   return Math.floor(now / CRASH_ROUND_MS) * CRASH_ROUND_MS

@@ -48,7 +48,9 @@ function rollCrashPoint(roundId: number, edge = 0.9): number {
   const hash = crypto.createHmac("sha256", crashSecret()).update(`crash:${roundId}`).digest()
   const r = hash.readUInt32BE(0) / 0x1_0000_0000
   const point = edge / (1 - r)
-  return Math.max(1.0, Math.floor(point * 100) / 100)
+  // The flight window is 15 seconds. Cap the visible round so every rocket
+  // resolves before the next betting lobby opens.
+  return Math.min(20, Math.max(1.0, Math.floor(point * 100) / 100))
 }
 
 export type CrashBoard = {
@@ -95,7 +97,10 @@ export async function getCrashBoard(): Promise<CrashBoard> {
       const status = meta.status === "cashed" || meta.status === "bust" ? meta.status : "bet"
       return { name: row.username ? `@${row.username}` : row.firstName || "Player", bet: Number(row.bet), result: Number(row.result), status }
     }),
-    recent: Array.from(new Map(rows.map((row) => {
+    recent: Array.from(new Map(rows.filter((row) => {
+      const status = (row.meta as Record<string, unknown> | null)?.status
+      return status === "cashed" || status === "bust"
+    }).map((row) => {
       const meta = (row.meta ?? {}) as Record<string, unknown>
       const id = Number(meta.roundId)
       const point = Number(meta.crashPoint)

@@ -31,26 +31,20 @@ export function CrashRocket({
 
   // Time-based liftoff so the rocket visibly launches on every round (even the
   // low crash points) instead of staying glued to the pad.
-  const [liftoff, setLiftoff] = useState(0)
+  const [liftoff, setLiftoff] = useState(false)
   useEffect(() => {
     if (!running) {
-      setLiftoff(0)
+      setLiftoff(false)
       return
     }
-    const start = Date.now()
-    let raf = 0
-    const tick = () => {
-      setLiftoff(Math.min(1, (Date.now() - start) / 800))
-      raf = requestAnimationFrame(tick)
-    }
-    raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
+    const id = window.setTimeout(() => setLiftoff(true), 60)
+    return () => window.clearTimeout(id)
   }, [running])
 
   // Rocket position: climbs from bottom-left toward top-right. Blend a small
   // time-based liftoff with the multiplier-based climb so it always leaves the pad.
   const multClimb = Math.min(1, Math.log(Math.max(1, multiplier)) / Math.log(15))
-  const climb = running ? Math.max(liftoff * 0.28, multClimb) : phase === "cashed" ? multClimb : 0
+  const climb = running ? Math.max(liftoff ? 0.08 : 0, multClimb) : phase === "cashed" ? multClimb : 0
   const x = 12 + climb * 62 // %
   const y = 82 - climb * 64 // % (from top)
   const angle = -32 - climb * 12
@@ -123,7 +117,7 @@ export function CrashRocket({
       {/* rocket + payload */}
       {(running || phase === "cashed") && (
         <div
-          className="absolute z-10 transition-all duration-100 ease-out"
+          className="absolute z-10 transition-all duration-200 ease-out"
           style={{ left: `${x}%`, top: `${y}%`, transform: `translate(-50%,-50%) rotate(${angle}deg)` }}
         >
           <div className="relative">
@@ -164,15 +158,18 @@ export function CrashRocket({
 
 function Rocket() {
   return (
-    <svg width="34" height="34" viewBox="0 0 24 24" fill="none" aria-hidden>
+    <svg width="46" height="46" viewBox="0 0 48 48" fill="none" aria-hidden>
+      <path d="M15 31 8 38l5 2 2 5 7-7" fill="#7B4B9A" stroke="#351A53" strokeWidth="2.5" strokeLinejoin="round" />
+      <path d="M33 31 40 38l-5 2-2 5-7-7" fill="#7B4B9A" stroke="#351A53" strokeWidth="2.5" strokeLinejoin="round" />
       <path
-        d="M12 2c3.5 2 5 5.5 5 9 0 2-.5 3.5-1 4.5H8c-.5-1-1-2.5-1-4.5 0-3.5 1.5-7 5-9Z"
-        fill="#E6F4FF"
-        stroke="#8CC7FF"
-        strokeWidth="0.8"
+        d="M24 4c9 5 13 13 13 22 0 5-1.3 8.8-3.5 12H14.5C12.3 34.8 11 31 11 26c0-9 4-17 13-22Z"
+        fill="#FFDE6A"
+        stroke="#351A53"
+        strokeWidth="2.5"
       />
-      <circle cx="12" cy="9" r="1.8" fill="#0098EA" />
-      <path d="M8 15c-1.5.5-2.5 1.8-3 3.5 1.8 0 3-.5 3.8-1.2M16 15c1.5.5 2.5 1.8 3 3.5-1.8 0-3-.5-3.8-1.2" fill="#FF7A45" />
+      <circle cx="24" cy="20" r="6.5" fill="#77DDF5" stroke="#351A53" strokeWidth="2.5" />
+      <circle cx="22" cy="18" r="1.6" fill="#fff" />
+      <path d="M18 38h12l-6 8-6-8Z" fill="#FF7B57" stroke="#351A53" strokeWidth="2.5" strokeLinejoin="round" />
     </svg>
   )
 }
@@ -182,7 +179,7 @@ function Starfield({ running }: { running: boolean }) {
   const [stars, setStars] = useState<{ left: number; top: number; size: number; delay: number }[]>([])
   useEffect(() => {
     setStars(
-      Array.from({ length: 28 }, () => ({
+      Array.from({ length: 12 }, () => ({
         left: Math.random() * 100,
         top: Math.random() * 100,
         size: Math.random() * 1.6 + 0.6,

@@ -311,6 +311,23 @@ export async function openCase(caseId: number): Promise<{
   })
 }
 
+/** Open up to five paid cases in one user action. Each item uses the same
+ * authoritative settlement as a normal single opening. */
+export async function openCases(caseId: number, count: number): Promise<{
+  results: { won: GiftDTO; inventoryId: number | null }[]
+  balance: number
+}> {
+  const safeCount = Math.max(1, Math.min(5, Math.floor(count)))
+  const results: { won: GiftDTO; inventoryId: number | null }[] = []
+  let balance = 0
+  for (let i = 0; i < safeCount; i++) {
+    const opened = await openCase(caseId)
+    results.push({ won: opened.won, inventoryId: opened.inventoryId })
+    balance = opened.balance
+  }
+  return { results, balance }
+}
+
 export async function getHomeStats(): Promise<{ online: number; wonToday: number }> {
   const startOfDay = new Date()
   startOfDay.setHours(0, 0, 0, 0)

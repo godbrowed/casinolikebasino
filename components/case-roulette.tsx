@@ -5,93 +5,58 @@ import type { GiftDTO } from "@/app/actions/cases"
 import { rarityOf } from "@/lib/format"
 import { cn } from "@/lib/utils"
 
-const ITEM_W = 104 // px, incl. gap
-const REEL_LEN = 60
-const WIN_INDEX = 50
+const ITEM_W = 88
+const REEL_LEN = 40
+const WIN_INDEX = 31
 
-type Props = {
-  pool: GiftDTO[]
-  spinning: boolean
-  result: GiftDTO | null
-  onSettled: () => void
-}
+type Props = { pool: GiftDTO[]; spinning: boolean; results: GiftDTO[]; onSettled: () => void }
 
-// Build a reel that ends on the winning item at WIN_INDEX.
-function buildReel(pool: GiftDTO[], result: GiftDTO | null): GiftDTO[] {
-  const reel: GiftDTO[] = []
-  for (let i = 0; i < REEL_LEN; i++) {
-    reel.push(pool[Math.floor(Math.random() * pool.length)])
-  }
+function makeReel(pool: GiftDTO[], result?: GiftDTO): GiftDTO[] {
+  const reel = Array.from({ length: REEL_LEN }, () => pool[Math.floor(Math.random() * pool.length)])
   if (result) reel[WIN_INDEX] = result
   return reel
 }
 
-export function CaseRoulette({ pool, spinning, result, onSettled }: Props) {
-  const [reel, setReel] = useState<GiftDTO[]>(() => buildReel(pool, null))
-  const [offset, setOffset] = useState(0)
-  const [animating, setAnimating] = useState(false)
-  const containerRef = useRef<HTMLDivElement>(null)
-
+export function CaseRoulette({ pool, spinning, results, onSettled }: Props) {
+  const shown = results.length ? results : [undefined]
+  const finishRef = useRef<number | null>(null)
   useEffect(() => {
-    if (spinning && result) {
-      const newReel = buildReel(pool, result)
-      setReel(newReel)
-      setAnimating(false)
-      setOffset(0)
+    if (!spinning) return
+    finishRef.current = window.setTimeout(onSettled, 4600)
+    return () => { if (finishRef.current) window.clearTimeout(finishRef.current) }
+  }, [onSettled, spinning, results.length])
 
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          const width = containerRef.current?.offsetWidth ?? 360
-          const center = width / 2
-          const jitter = ITEM_W * 0.28 * (Math.random() - 0.5)
-          const target = WIN_INDEX * ITEM_W + ITEM_W / 2 - center + jitter
-          setAnimating(true)
-          setOffset(-target)
-        })
-      })
-    }
-  }, [spinning, result, pool])
+  return <section className="relative overflow-hidden rounded-[30px] border border-white/15 bg-[linear-gradient(145deg,#38225d,#1b1330)] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,.16),0_12px_0_-7px_rgba(25,12,47,.9)]">
+    <div className="mb-3 flex items-center justify-between px-1"><div><div className="text-[9px] font-black uppercase tracking-[.2em] text-primary">Giftlys case machine</div><div className="font-display text-lg font-black">{spinning ? "Finding your drops…" : "Tap open to start"}</div></div><div className="rounded-2xl bg-white/8 px-3 py-1.5 text-[10px] font-black text-white/65">{shown.length} DROP{shown.length > 1 ? "S" : ""}</div></div>
+    <div className={cn("grid gap-2", shown.length > 1 ? "grid-cols-2" : "grid-cols-1")}>{shown.map((gift, index) => <Reel key={`${gift?.slug ?? "preview"}-${index}-${spinning}`} pool={pool} result={gift} spinning={spinning} />)}</div>
+  </section>
+}
 
-  return (
-    <div ref={containerRef} className="relative overflow-hidden rounded-[28px] border border-white/15 bg-[radial-gradient(ellipse_at_center,rgba(255,222,106,.12),transparent_56%),linear-gradient(135deg,#2e1b4d,#171124)] px-1 py-5 shadow-[inset_0_1px_0_rgba(255,255,255,.13),0_10px_0_-5px_rgba(30,12,58,.82)]">
-      <div className="pointer-events-none absolute left-1/2 top-2 z-20 -translate-x-1/2 rounded-full border border-primary/40 bg-primary/20 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-primary">Drop zone</div>
-      {/* center marker */}
-      <div className="pointer-events-none absolute inset-y-0 left-1/2 z-20 w-0.5 -translate-x-1/2 bg-primary shadow-[0_0_16px_2px] shadow-primary/70" />
-      <div className="pointer-events-none absolute left-1/2 top-8 z-20 -translate-x-1/2 border-x-9 border-t-9 border-x-transparent border-t-primary" />
-      <div className="pointer-events-none absolute bottom-1 left-1/2 z-20 -translate-x-1/2 border-x-8 border-b-8 border-x-transparent border-b-primary" />
-      {/* fade edges */}
-      <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-16 bg-gradient-to-r from-black/70 to-transparent" />
-      <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-16 bg-gradient-to-l from-black/70 to-transparent" />
-
-      <div
-        className="flex gap-2 px-2 will-change-transform"
-        style={{
-          transform: `translateX(${offset}px)`,
-          transition: animating ? "transform 5.2s cubic-bezier(0.12, 0.63, 0.1, 1)" : "none",
-        }}
-        onTransitionEnd={() => {
-          if (animating) onSettled()
-        }}
-      >
-        {reel.map((g, i) => {
-          const r = rarityOf(g.rarity)
-          const isWin = animating && i === WIN_INDEX
-          return (
-            <div
-              key={i}
-              className={cn(
-                "flex h-24 w-24 shrink-0 flex-col items-center justify-center rounded-2xl border border-white/12 bg-card ring-1 shadow-[0_5px_0_-3px_rgba(15,8,31,.8)]",
-                r.ring,
-                isWin && `${r.glow} scale-105`,
-              )}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={g.imageUrl || "/images/nft-gift.png"} alt="" className="h-14 w-14 object-contain" />
-              <span className={cn("mt-1 font-mono text-[10px]", r.text)}>{g.value.toLocaleString()}</span>
-            </div>
-          )
-        })}
-      </div>
+function Reel({ pool, result, spinning }: { pool: GiftDTO[]; result?: GiftDTO; spinning: boolean }) {
+  const [reel, setReel] = useState(() => makeReel(pool))
+  const [offset, setOffset] = useState(0)
+  const [moving, setMoving] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!spinning || !result) return
+    setReel(makeReel(pool, result)); setMoving(false); setOffset(0)
+    const one = requestAnimationFrame(() => requestAnimationFrame(() => {
+      const width = ref.current?.offsetWidth ?? 180
+      setMoving(true)
+      setOffset(-(WIN_INDEX * ITEM_W + ITEM_W / 2 - width / 2))
+    }))
+    return () => cancelAnimationFrame(one)
+  }, [pool, result, spinning])
+  return <div ref={ref} className="relative overflow-hidden rounded-2xl border border-white/10 bg-black/25 py-3">
+    <div className="pointer-events-none absolute inset-y-0 left-1/2 z-20 w-1 -translate-x-1/2 rounded-full bg-primary shadow-[0_0_14px_2px_rgba(255,222,106,.9)]" />
+    <div className="pointer-events-none absolute left-1/2 top-0 z-20 -translate-x-1/2 border-x-7 border-t-7 border-x-transparent border-t-primary" />
+    <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-gradient-to-r from-[#1b1330] to-transparent" /><div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-[#1b1330] to-transparent" />
+    <div className="flex gap-2 px-1 will-change-transform" style={{ transform: `translateX(${offset}px)`, transition: moving ? "transform 4.5s cubic-bezier(.12,.68,.08,1)" : "none" }}>
+      {reel.map((gift, index) => {
+        const rarity = rarityOf(gift.rarity)
+        const won = moving && index === WIN_INDEX
+        return <div key={index} className={cn("flex h-[74px] w-20 shrink-0 flex-col items-center justify-center rounded-xl border border-white/10 bg-card/90", rarity.ring, won && "scale-105 shadow-[0_0_22px_rgba(255,222,106,.7)]")}><img src={gift.imageUrl || "/images/nft-gift.png"} alt="" className="h-11 w-11 object-contain" /><span className={cn("mt-0.5 font-mono text-[9px] font-bold", rarity.text)}>{gift.value.toLocaleString()}</span></div>
+      })}
     </div>
-  )
+  </div>
 }

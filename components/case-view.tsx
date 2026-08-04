@@ -107,7 +107,7 @@ export function CaseView({ c }: { c: CaseDTO }) {
           </span>
         </div>
 
-        <CaseRoulette pool={c.items} spinning={spinning} result={result} onSettled={handleSettled} />
+        <CaseRoulette pool={c.items} spinning={spinning} results={batchResults} onSettled={handleSettled} />
 
         {error && (
           <p className="text-center text-xs font-medium text-destructive">{error}</p>

@@ -48,7 +48,8 @@ export async function POST(req: Request) {
       const photo = await tg("sendPhoto", {
         chat_id: message.chat.id,
         // New filename prevents Telegram from serving a previously cached banner.
-        photo: `${url}/images/giftlys-welcome.png`,
+        // Versioned path avoids Telegram serving an older cached TON banner.
+        photo: `${url}/images/giftlys-start-v3.png`,
         caption: `✨ Welcome to Giftlys, ${firstName}!\n\nChoose a game, collect rare gifts and make every round count.`,
         reply_markup: {
           inline_keyboard: [[{ text: "🎮 Play Giftlys", web_app: { url } }]],

@@ -12,7 +12,7 @@ export function AppHeader({ title }: { title?: string }) {
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-white/[.055] bg-[#1a1c20]/94 px-3 py-2 backdrop-blur-xl">
-      <div className="relative mx-auto flex w-full max-w-[560px] flex-col items-center gap-2">
+      <div className="relative mx-auto flex w-full max-w-[620px] flex-col items-center gap-2">
         <div className="flex items-center gap-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <span className="pug-logo-mark relative flex h-8 w-8 items-center justify-center rounded-full border border-[#376fff] bg-[#071126] shadow-[0_0_16px_rgba(47,112,255,.45)]"><img src="/images/puggift-bot-avatar-web-v2.webp" alt="PugGift" className="h-full w-full rounded-full object-cover" /><i className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-amber-300 shadow-[0_0_8px_#fcd34d]" /></span>

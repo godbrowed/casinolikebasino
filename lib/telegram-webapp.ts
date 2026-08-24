@@ -3,9 +3,13 @@
 type WebApp = {
   initData: string
   version?: string
+  isFullscreen?: boolean
   isVersionAtLeast?: (version: string) => boolean
   ready: () => void
   expand: () => void
+  requestFullscreen?: () => void
+  exitFullscreen?: () => void
+  lockOrientation?: () => void
   disableVerticalSwipes?: () => void
   setHeaderColor?: (color: string) => void
   setBackgroundColor?: (color: string) => void
@@ -34,11 +38,28 @@ export function initWebApp() {
   try {
     wa.ready()
     wa.expand()
-    wa.disableVerticalSwipes?.()
-    wa.setHeaderColor?.("#0b0e17")
-    wa.setBackgroundColor?.("#0b0e17")
+    if ((wa.isVersionAtLeast?.("8.0") ?? false) && !wa.isFullscreen) {
+      wa.requestFullscreen?.()
+    }
+    if (wa.isVersionAtLeast?.("7.7") ?? false) wa.disableVerticalSwipes?.()
+    if (wa.isVersionAtLeast?.("6.1") ?? false) {
+      wa.setHeaderColor?.("#0b0e17")
+      wa.setBackgroundColor?.("#0b0e17")
+    }
   } catch {
     // ignore
+  }
+}
+
+export function requestAppFullscreen() {
+  const wa = getWebApp()
+  if (!wa) return false
+  try {
+    wa.expand()
+    if ((wa.isVersionAtLeast?.("8.0") ?? false) && !wa.isFullscreen) wa.requestFullscreen?.()
+    return true
+  } catch {
+    return false
   }
 }
 

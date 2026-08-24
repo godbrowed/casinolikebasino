@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Package, TrendingUp, Rocket, Gift, Swords, Send, Loader2, Shield } from "lucide-react"
+import { Package, TrendingUp, Rocket, Gift, Swords, Send, Loader2, Shield, WalletCards, History, Layers3, Plus, ChevronRight } from "lucide-react"
 import Link from "next/link"
 import { sellGift, sellAll } from "@/app/actions/user"
 import { requestGiftWithdraw } from "@/app/actions/gifts-transfer"
@@ -106,124 +106,101 @@ export function ProfileView({ me, inventory, history }: { me: Me; inventory: Ite
   const lvl = levelProgress(me?.xp ?? 0)
 
   return (
-    <>
+    <div className="flex flex-col gap-4">
       {toast && (
-        <div className="fixed inset-x-4 top-16 z-50 rounded-xl bg-primary/15 px-4 py-2.5 text-center text-xs font-medium text-primary shadow-lg ring-1 ring-primary/30 backdrop-blur">
+        <div className="fixed inset-x-4 top-20 z-50 mx-auto max-w-md rounded-2xl bg-[#2f70ff] px-4 py-3 text-center text-xs font-bold text-white shadow-2xl">
           {toast}
         </div>
       )}
 
-      {/* Level */}
-      <div className="relative overflow-hidden rounded-[30px] bg-[#393c43] p-5 ring-1 ring-white/10">
-        <img src="/images/puggift-bot-avatar-web-v2.webp" alt="" className="absolute -bottom-12 -right-10 h-40 w-40 rounded-full object-cover opacity-[.1]" />
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <img src={me?.photoUrl || "/images/puggift-bot-avatar-web-v2.webp"} alt="" className="h-12 w-12 rounded-full border-2 border-[#2f70ff] object-cover" />
-            <div>
-              <div className="font-display text-lg font-black leading-none">{me?.firstName || me?.username || "PugGift player"}</div>
-              <div className="mt-0.5 text-xs text-muted-foreground">
-                Level {lvl.level} · {fmt(Math.round(lvl.into))} / {fmt(Math.round(lvl.span))} XP
-              </div>
-            </div>
-          </div>
-          <div className="text-right text-xs text-muted-foreground">
-            {fmt(Math.round(lvl.span - lvl.into))} XP to
-            <br />
-            Level {lvl.level + 1}
-          </div>
+      <section className="relative overflow-hidden rounded-[34px] bg-[#30343c] p-5 ring-1 ring-white/[.08] md:p-6">
+        <div className="absolute -right-16 -top-20 h-64 w-64 rounded-full bg-[#2f70ff]/15 blur-3xl" />
+        <img src="/images/puggift-bot-avatar-web-v2.webp" alt="" className="absolute -bottom-16 -right-12 h-52 w-52 rounded-full object-cover opacity-[.07]" />
+        <div className="relative flex items-center gap-4">
+          <div className="relative"><img src={me?.photoUrl || "/images/puggift-bot-avatar-web-v2.webp"} alt="" className="h-20 w-20 rounded-full border-[3px] border-[#2f70ff] object-cover shadow-[0_0_30px_rgba(47,112,255,.3)]" /><i className="absolute bottom-1 right-1 h-4 w-4 rounded-full border-[3px] border-[#30343c] bg-emerald-400" /></div>
+          <div className="min-w-0 flex-1"><div className="text-[9px] font-black uppercase tracking-[.18em] text-[#75a0ff]">PugGift player</div><h1 className="mt-1 truncate font-display text-2xl font-black">{me?.firstName || me?.username || "Player"}</h1><div className="mt-1 flex items-center gap-2"><span className="truncate text-xs text-white/40">@{me?.username || "puggift"}</span><span className="rounded-full bg-white/10 px-2 py-1 text-[9px] font-black">LVL {lvl.level}</span></div></div>
         </div>
-        <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-secondary">
-          <div
-            className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-fuchsia-400 transition-all"
-            style={{ width: `${Math.min(100, lvl.pct)}%` }}
-          />
-        </div>
-      </div>
 
-      <div className="grid grid-cols-3 gap-1.5 rounded-3xl border border-white/10 bg-[#282b32] p-1.5">
-        {(["collection", "activity", "wallet"] as const).map((item) => <button key={item} onClick={() => setView(item)} className={cn("rounded-2xl py-2.5 text-[11px] font-black capitalize transition-colors", view === item ? "bg-primary text-white shadow-[0_4px_0_#1938a8]" : "text-muted-foreground")}>{item}</button>)}
+        <div className="relative mt-5 grid grid-cols-3 gap-2">
+          <ProfileMetric label="Balance" value={fmt(me?.balance ?? 0)} icon={<Coin className="h-4 w-4" />} />
+          <ProfileMetric label="Gifts" value={String(items.length)} icon={<Gift className="h-4 w-4 text-[#6e96ff]" />} />
+          <ProfileMetric label="Value" value={fmt(invValue)} icon={<Coin className="h-4 w-4" />} />
+        </div>
+
+        <div className="relative mt-4 rounded-2xl bg-[#242830] p-3"><div className="flex items-center justify-between text-[10px]"><span className="font-bold text-white/65">Level {lvl.level}</span><span className="text-white/35">{fmt(Math.round(lvl.into))} / {fmt(Math.round(lvl.span))} XP</span></div><div className="mt-2 h-2 overflow-hidden rounded-full bg-black/25"><div className="h-full rounded-full bg-[linear-gradient(90deg,#2f70ff,#79a1ff)] shadow-[0_0_10px_rgba(47,112,255,.6)]" style={{ width: `${Math.min(100, lvl.pct)}%` }} /></div></div>
+
+        <div className="relative mt-4 grid grid-cols-2 gap-2"><Link href="/deposit" className="flex items-center justify-center gap-2 rounded-[18px] bg-[#2f70ff] py-3 text-sm font-black shadow-[0_4px_0_#1945b9]"><Plus className="h-4 w-4" />Top up</Link><button onClick={() => setView("wallet")} className="flex items-center justify-center gap-2 rounded-[18px] bg-white/10 py-3 text-sm font-black text-white/75"><WalletCards className="h-4 w-4" />Wallet</button></div>
+      </section>
+
+      <div className="grid grid-cols-3 gap-1 rounded-[24px] bg-[#30343b] p-1.5 ring-1 ring-white/[.06]">
+        <ProfileTab active={view === "collection"} onClick={() => setView("collection")} icon={Layers3} label="Gifts" />
+        <ProfileTab active={view === "activity"} onClick={() => setView("activity")} icon={History} label="Activity" />
+        <ProfileTab active={view === "wallet"} onClick={() => setView("wallet")} icon={WalletCards} label="Wallet" />
       </div>
 
       {view === "wallet" && <TonWalletCard linkedAddress={me?.tonWalletAddress ?? null} />}
 
       {me?.isAdmin && (
-        <Link href="/admin" className="flex items-center justify-between rounded-2xl border border-primary/30 bg-primary/10 p-4 text-primary">
+        <Link href="/admin" className="flex items-center justify-between rounded-[24px] border border-primary/30 bg-primary/10 p-4 text-primary">
           <span className="flex items-center gap-2 font-display font-bold"><Shield className="h-5 w-5" /> Admin panel</span>
           <span className="text-xs font-semibold">Open</span>
         </Link>
       )}
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-2xl border border-border bg-card p-4">
-          <div className="text-xs text-muted-foreground">Balance</div>
-          <div className="mt-1 flex items-center gap-1.5">
-            <Coin className="h-5 w-5" />
-            <span className="font-display text-2xl font-black">{fmt(me?.balance ?? 0)}</span>
-          </div>
-        </div>
-        <div className="rounded-2xl border border-border bg-card p-4">
-          <div className="text-xs text-muted-foreground">Inventory value</div>
-          <div className="mt-1 flex items-center gap-1.5">
-            <Coin className="h-5 w-5" />
-            <span className="font-display text-2xl font-black">{fmt(invValue)}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Inventory */}
-      {view === "collection" && <section>
-        <div className="mb-2 flex items-center justify-between">
-          <h2 className="font-display text-lg font-bold">Inventory</h2>
+      {view === "collection" && <section className="rounded-[30px] bg-[#292d34] p-4 ring-1 ring-white/[.06]">
+        <div className="mb-4 flex items-center justify-between">
+          <div><div className="text-[9px] font-black uppercase tracking-[.16em] text-[#6e96ff]">Collection</div><h2 className="font-display text-xl font-black">Your gifts · {items.length}</h2></div>
           {items.length > 0 && (
             <button
               onClick={handleSellAll}
               disabled={busy}
-              className="rounded-full bg-secondary px-3 py-1.5 text-xs font-bold transition-colors hover:bg-secondary/70 disabled:opacity-50"
+              className="rounded-full bg-white/10 px-3 py-2 text-[10px] font-black text-white/65 transition hover:bg-white/15 disabled:opacity-50"
             >
               Sell all · {fmt(invValue)}
             </button>
           )}
         </div>
         {items.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 rounded-2xl border border-border bg-card p-8 text-center">
-            <Package className="h-8 w-8 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">No gifts yet. Open a case to win some!</p>
+          <div className="flex flex-col items-center gap-3 rounded-[24px] border border-dashed border-white/10 bg-black/10 p-8 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-white/[.06]"><Package className="h-6 w-6 text-white/30" /></div>
+            <p className="text-sm text-white/40">No gifts yet. Open a case to build your collection.</p><Link href="/cases" className="rounded-2xl bg-[#2f70ff] px-4 py-2.5 text-xs font-black">Open cases</Link>
           </div>
         ) : (
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
             {items.map((it) => {
               const r = rarityOf(it.rarity)
               return (
                 <div
                   key={it.id}
-                  className={cn("flex flex-col rounded-xl border border-border bg-card p-2 text-center ring-1", r.ring)}
+                  className={cn("group flex min-w-0 flex-col rounded-[22px] bg-[#363a42] p-2.5 text-center ring-1", r.ring)}
                 >
-                  <div className="relative mx-auto h-14 w-14">
+                  <div className="relative mx-auto h-20 w-20">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={it.imageUrl || "/images/nft-gift.png"} alt={it.name} className="h-full w-full object-contain" />
                   </div>
-                  <div className={cn("mt-1 truncate text-[11px] font-semibold", r.text)}>{it.name}</div>
+                  <div className={cn("mt-1 truncate text-xs font-black", r.text)}>{it.name}</div><div className="mt-1 flex items-center justify-center gap-1 text-[10px] text-white/50"><Coin className="h-3 w-3" />{fmt(it.value)}</div>
+                  <div className="mt-2 grid grid-cols-2 gap-1">
                   <button
                     onClick={() => handleSell(it.id)}
                     disabled={busy || withdrawing === it.id}
-                    className="mt-1 flex items-center justify-center gap-1 rounded-lg bg-secondary py-1 text-[11px] font-bold transition-colors hover:bg-secondary/70 disabled:opacity-50"
+                    className="flex items-center justify-center gap-1 rounded-xl bg-white/10 py-2 text-[9px] font-black transition hover:bg-white/15 disabled:opacity-50"
                   >
-                    Sell <Coin className="h-2.5 w-2.5" /> {fmt(it.value)}
+                    Sell
                   </button>
                   <button
                     onClick={() => handleWithdraw(it.id, it.name)}
                     disabled={busy || withdrawing === it.id}
-                    className="mt-1 flex items-center justify-center gap-1 rounded-lg border border-primary/40 bg-primary/10 py-1 text-[11px] font-bold text-primary transition-colors hover:bg-primary/20 disabled:opacity-50"
+                    className="flex items-center justify-center gap-1 rounded-xl bg-[#2f70ff] py-2 text-[9px] font-black text-white transition hover:bg-[#3e7aff] disabled:opacity-50"
                   >
                     {withdrawing === it.id ? (
                       <Loader2 className="h-2.5 w-2.5 animate-spin" />
                     ) : (
                       <>
-                        <Send className="h-2.5 w-2.5" /> Withdraw
+                        <Send className="h-2.5 w-2.5" /> Send
                       </>
                     )}
                   </button>
+                  </div>
                 </div>
               )
             })}
@@ -231,9 +208,8 @@ export function ProfileView({ me, inventory, history }: { me: Me; inventory: Ite
         )}
       </section>}
 
-      {/* History */}
-      {view === "activity" && <section>
-        <h2 className="mb-2 font-display text-lg font-bold">Recent activity</h2>
+      {view === "activity" && <section className="rounded-[30px] bg-[#292d34] p-4 ring-1 ring-white/[.06]">
+        <div className="mb-4"><div className="text-[9px] font-black uppercase tracking-[.16em] text-[#6e96ff]">Timeline</div><h2 className="font-display text-xl font-black">Recent activity</h2></div>
         {history.length === 0 ? (
           <p className="text-xs text-muted-foreground">No games played yet.</p>
         ) : (
@@ -244,17 +220,17 @@ export function ProfileView({ me, inventory, history }: { me: Me; inventory: Ite
               return (
                 <div
                   key={h.id}
-                  className="flex items-center gap-3 rounded-xl border border-border bg-card px-3 py-2"
+                  className="flex items-center gap-3 rounded-[20px] bg-[#363a42] px-3 py-3 ring-1 ring-white/[.05]"
                 >
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-secondary">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-white/[.07]">
                     <Icon className="h-4 w-4 text-muted-foreground" />
                   </div>
                   <div className="flex-1 leading-tight">
-                    <div className="text-xs font-semibold capitalize">{h.game}</div>
+                    <div className="text-xs font-black capitalize">{h.game}</div>
                     <div className="text-[11px] text-muted-foreground">
                       Bet <span className="font-mono">{fmt(h.bet)}</span>
                     </div>
-                  </div>
+                  </div><ChevronRight className="h-4 w-4 text-white/20" />
                   <div
                     className={cn(
                       "flex items-center gap-1 font-mono text-sm font-bold",
@@ -271,6 +247,14 @@ export function ProfileView({ me, inventory, history }: { me: Me; inventory: Ite
           </div>
         )}
       </section>}
-    </>
+    </div>
   )
+}
+
+function ProfileMetric({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
+  return <div className="min-w-0 rounded-[18px] bg-[#242830] p-3 text-center"><div className="flex items-center justify-center gap-1 text-[9px] font-bold text-white/35">{icon}{label}</div><div className="mt-1 truncate font-display text-base font-black">{value}</div></div>
+}
+
+function ProfileTab({ active, onClick, icon: Icon, label }: { active: boolean; onClick: () => void; icon: typeof Layers3; label: string }) {
+  return <button onClick={onClick} className={cn("flex items-center justify-center gap-1.5 rounded-[18px] py-3 text-[11px] font-black transition", active ? "bg-[#2f70ff] text-white shadow-[0_4px_0_#1945b9]" : "text-white/42 hover:text-white/65")}><Icon className="h-4 w-4" />{label}</button>
 }

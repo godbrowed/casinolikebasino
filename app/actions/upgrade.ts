@@ -72,7 +72,7 @@ export async function upgradeGift(
       game: "upgrade",
       bet: String(sourceValue),
       result: success ? String(targetValue) : "0",
-      meta: { targetName: target.name, chance: Math.round(chance * 100), success },
+      meta: { targetName: target.name, imageUrl: target.imageUrl, rarity: target.rarity, chance: Math.round(chance * 100), success },
     })
 
     revalidatePath("/profile")

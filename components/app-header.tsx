@@ -15,7 +15,7 @@ export function AppHeader({ title }: { title?: string }) {
       <div className="relative mx-auto flex w-full max-w-[560px] flex-col items-center gap-2">
         <div className="flex items-center gap-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/images/puggift-mascot-web-v1.webp" alt="PugGift" className="h-7 w-7 rounded-full border border-[#376fff] object-cover shadow-[0_0_14px_rgba(47,112,255,.4)]" />
+          <span className="pug-logo-mark relative flex h-8 w-8 items-center justify-center rounded-full border border-[#376fff] bg-[#071126] shadow-[0_0_16px_rgba(47,112,255,.45)]"><img src="/images/puggift-mascot-web-v1.webp" alt="PugGift" className="h-full w-full rounded-full object-cover" /><i className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-amber-300 shadow-[0_0_8px_#fcd34d]" /></span>
           <div className="font-display text-base font-black tracking-tight">Pug<span className="text-[#4d7bff]">Gift</span></div>
         </div>
 
@@ -27,7 +27,7 @@ export function AppHeader({ title }: { title?: string }) {
           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#2f70ff] text-white"><Plus className="h-4 w-4" strokeWidth={3} /></span>
         </Link>
 
-        {title && <div className="absolute left-0 top-1 text-[10px] font-black uppercase tracking-[.14em] text-white/35">{title}</div>}
+        {title && <div className="absolute left-0 top-1 text-[10px] font-black uppercase tracking-[.14em] text-white/35 md:hidden">{title}</div>}
       </div>
     </header>
   )

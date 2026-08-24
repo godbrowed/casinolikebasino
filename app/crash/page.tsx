@@ -7,7 +7,7 @@ export default function CrashPage() {
   return (
     <>
       <AppHeader title="Crash" />
-      <main className="flex w-full flex-1 flex-col gap-4 pt-2">
+      <main className="flex w-full flex-1 flex-col bg-[#071126]">
         <CrashModes />
       </main>
     </>

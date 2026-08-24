@@ -273,4 +273,19 @@
   }
   .pug-loader { animation: pug-loader-bob 1.6s ease-in-out infinite; }
   .pug-loader-dot { animation: pug-loader-dot .8s ease-in-out infinite; }
+
+  @keyframes pug-logo-alive {
+    0%, 88%, 100% { transform: rotate(0) scale(1); }
+    92% { transform: rotate(-8deg) scale(1.08); }
+    96% { transform: rotate(7deg) scale(1.08); }
+  }
+  .pug-logo-mark { animation: pug-logo-alive 4.6s ease-in-out infinite; transform-origin: 50% 70%; }
+
+  @keyframes pug-fall {
+    0% { opacity: 0; transform: translate3d(0,-36px,0) rotate(-8deg) scale(.76); }
+    28% { opacity: 1; transform: translate3d(-8px,0,0) rotate(7deg) scale(1); }
+    62% { transform: translate3d(8px,12px,0) rotate(-5deg) scale(.98); }
+    100% { opacity: .94; transform: translate3d(-3px,28px,0) rotate(4deg) scale(.94); }
+  }
+  .animate-pug-fall { animation: pug-fall 1.8s cubic-bezier(.2,.75,.25,1) both; will-change: transform, opacity; }
 }

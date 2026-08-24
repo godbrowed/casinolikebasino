@@ -1,15 +1,13 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 import { cn } from "@/lib/utils"
 
 type Phase = "idle" | "running" | "cashed" | "crashed"
 
-/**
- * Animated crash stage: a rocket climbs as the multiplier grows, trailing an
- * optional NFT gift and scooping up floating gifts along the way. Explodes on
- * crash. Pure presentational — parent owns game state.
- */
+/** Lightweight, full-bleed crash scene. Game state stays in the parent; this
+ * component only animates transforms and opacity so it remains smooth on
+ * Telegram's mobile webview. */
 export function CrashRocket({
   phase,
   multiplier,
@@ -19,189 +17,81 @@ export function CrashRocket({
 }: {
   phase: Phase
   multiplier: number
-  /** Gift that rides with the rocket (gift crash mode). */
   payloadImage?: string | null
-  /** Floating gifts the rocket collects as it climbs. */
   collectImages?: string[]
-  /** Center overlay (multiplier readout etc.). */
-  children?: React.ReactNode
+  children?: ReactNode
 }) {
   const running = phase === "running"
   const crashed = phase === "crashed"
-
-  // Time-based liftoff so the rocket visibly launches on every round (even the
-  // low crash points) instead of staying glued to the pad.
   const [liftoff, setLiftoff] = useState(false)
+
   useEffect(() => {
     if (!running) {
       setLiftoff(false)
       return
     }
-    const id = window.setTimeout(() => setLiftoff(true), 60)
+    const id = window.setTimeout(() => setLiftoff(true), 40)
     return () => window.clearTimeout(id)
   }, [running])
 
-  // Rocket position: climbs from bottom-left toward top-right. Blend a small
-  // time-based liftoff with the multiplier-based climb so it always leaves the pad.
-  const multClimb = Math.min(1, Math.log(Math.max(1, multiplier)) / Math.log(15))
-  // Keep the rocket at the actual end point after a crash. Resetting it to
-  // the launch pad made a finished shared round look as if it was still flying.
-  const climb = running ? Math.max(liftoff ? 0.08 : 0, multClimb) : (phase === "cashed" || phase === "crashed") ? multClimb : 0
-  const x = 12 + climb * 62 // %
-  const y = 82 - climb * 64 // % (from top)
-  const angle = -3 - climb * 4
+  const climbByMultiplier = Math.min(1, Math.log(Math.max(1, multiplier)) / Math.log(20))
+  const climb = running ? Math.max(liftoff ? 0.035 : 0, climbByMultiplier) : phase === "cashed" ? climbByMultiplier : 0
+  const x = 45 + climb * 15
+  const y = 61 - climb * 31
+  const thresholds = [1.35, 1.75, 2.4, 3.5, 5]
 
-  // Which floating gifts have been "collected" (multiplier thresholds).
-  const thresholds = [1.5, 2.5, 4, 7, 11]
+  return <div className="crash-space-stage relative min-h-[360px] w-full overflow-hidden bg-[#071126] md:min-h-[420px] lg:min-h-[440px]">
+    <Starfield moving={running} />
 
-  return (
-    <div
-      className={cn(
-        "relative flex aspect-[3/4] min-h-[420px] w-full flex-col items-center justify-center overflow-hidden rounded-[30px] border bg-[#071126] md:aspect-auto md:min-h-[540px] md:rounded-none md:border-x-0 lg:min-h-[620px]",
-        crashed ? "border-rose-500/50" : running ? "border-primary/40" : "border-border",
-      )}
-    >
-      {/* Deep-space board: deliberately transform-only animation, so phones do not reflow it every frame. */}
-      <Starfield running={running} />
-      <div className="absolute inset-0 opacity-70 [background:radial-gradient(circle_at_18%_15%,rgba(96,165,250,.32),transparent_18%),radial-gradient(circle_at_85%_72%,rgba(168,85,247,.22),transparent_24%)]" />
-      <MeteorField running={running} />
-      <div
-        className={cn(
-          "absolute inset-0 transition-opacity duration-500",
-          crashed
-            ? "bg-[radial-gradient(ellipse_at_bottom_left,rgba(251,113,133,0.35),transparent_60%)] opacity-100"
-            : running
-              ? "bg-[radial-gradient(ellipse_at_bottom_left,rgba(34,211,238,0.28),transparent_60%)] opacity-100"
-              : "opacity-0",
-        )}
-      />
+    {(running || phase === "cashed") && <>
+      <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-50" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
+        <defs><linearGradient id="pug-trail" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stopColor="rgba(89,146,255,0)" /><stop offset="1" stopColor="rgba(126,179,255,.7)" /></linearGradient></defs>
+        <path d={`M 38 80 Q 43 66, ${x} ${y}`} fill="none" stroke="url(#pug-trail)" strokeWidth=".65" strokeLinecap="round" />
+      </svg>
 
-      {/* trajectory trail */}
-      {(running || phase === "cashed" || crashed) && (
-        <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-          <defs>
-            <linearGradient id="trail" x1="0" y1="1" x2="1" y2="0">
-              <stop offset="0" stopColor="rgba(34,211,238,0)" />
-              <stop offset="1" stopColor="rgba(34,211,238,0.7)" />
-            </linearGradient>
-          </defs>
-          <path
-            d={`M 12 82 Q ${(12 + x) / 2} ${82}, ${x} ${y}`}
-            fill="none"
-            stroke="url(#trail)"
-            strokeWidth="1.2"
-            strokeLinecap="round"
-          />
-        </svg>
-      )}
-
-      {/* floating collectible gifts */}
-      {(running || phase === "cashed" || phase === "idle") &&
-        collectImages.slice(0, 5).map((img, i) => {
-          const gx = 26 + i * 15
-          const gy = 20 + ((i % 3) * 16)
-          const collected = (running || phase === "cashed") && multiplier >= thresholds[i]
-          return (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              key={i}
-              src={img || "/images/nft-gift.png"}
-              alt=""
-              aria-hidden
-              className={cn(
-                "absolute h-8 w-8 object-contain transition-all duration-500",
-                collected ? "scale-0 opacity-0" : "animate-float opacity-90",
-              )}
-              style={{ left: `${gx}%`, top: `${gy}%`, animationDelay: `${i * 0.4}s` }}
-            />
-          )
-        })}
-
-      {/* rocket + payload */}
-      {(running || phase === "cashed" || crashed) && (
-        <div
-          className="absolute z-10 transition-all duration-200 ease-out"
-          style={{ left: `${x}%`, top: `${y}%`, transform: `translate(-50%,-50%) rotate(${angle}deg)` }}
-        >
-          <div className="relative">
-            <Rocket />
-            {/* payload gift trailing behind */}
-            {payloadImage && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={payloadImage || "/images/nft-gift.png"}
-                alt=""
-                aria-hidden
-                className="absolute -left-6 top-1 h-7 w-7 object-contain"
-              />
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* explosion */}
-      {crashed && (
-        <div
-          className="absolute z-10"
-          style={{ left: `${x}%`, top: `${y}%`, transform: "translate(-50%,-50%)" }}
-        >
-          <div className="h-16 w-16 animate-pop-in rounded-full bg-[radial-gradient(circle,rgba(251,146,60,0.9),rgba(251,113,133,0.5),transparent_70%)] blur-[2px]" />
-        </div>
-      )}
-
-      {/* center overlay */}
-      <div className="relative z-20 flex flex-col items-center text-center">{children}</div>
-    </div>
-  )
-}
-
-function Rocket() {
-  return (
-    // The dark background is deliberately identical to the stage, allowing a
-    // detailed raster mascot without an expensive per-frame alpha effect.
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src="/images/puggift-rocket-web-v1.webp" alt="" aria-hidden className="h-28 w-28 rounded-[28%] object-contain md:h-48 md:w-48" />
-  )
-}
-
-function Starfield({ running }: { running: boolean }) {
-  // Generate on the client only to avoid SSR hydration mismatch from Math.random.
-  const [stars, setStars] = useState<{ left: number; top: number; size: number; delay: number }[]>([])
-  useEffect(() => {
-    setStars(
-      Array.from({ length: 12 }, () => ({
-        left: Math.random() * 100,
-        top: Math.random() * 100,
-        size: Math.random() * 1.6 + 0.6,
-        delay: Math.random() * 3,
-      })),
-    )
-  }, [])
-  const ref = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    if (ref.current) ref.current.style.transform = running ? "translateY(6%)" : "translateY(0)"
-  }, [running])
-  return (
-    <div ref={ref} className="absolute inset-0 transition-transform duration-1000">
-      {stars.map((s, i) => (
-        <span
-          key={i}
-          className="absolute rounded-full bg-white/70"
-          style={{
-            left: `${s.left}%`,
-            top: `${s.top}%`,
-            width: `${s.size}px`,
-            height: `${s.size}px`,
-            animation: `twinkle 2.5s ease-in-out ${s.delay}s infinite`,
-          }}
+      {collectImages.slice(0, 5).map((src, index) => {
+        const collected = multiplier >= thresholds[index]
+        return <img
+          key={`${src}-${index}`}
+          src={src || "/images/nft-gift.png"}
+          alt=""
+          aria-hidden
+          className={cn("absolute h-8 w-8 object-contain transition duration-300 md:h-10 md:w-10", collected ? "scale-0 opacity-0" : "animate-float opacity-80")}
+          style={{ left: `${18 + index * 16}%`, top: `${25 + (index % 2) * 30}%`, animationDelay: `${index * .35}s` }}
         />
-      ))}
-    </div>
-  )
+      })}
+
+      <div className="absolute z-10 transition-[left,top,transform] duration-200 ease-out" style={{ left: `${x}%`, top: `${y}%`, transform: `translate(-50%,-50%) rotate(${-8 + climb * 5}deg)` }}>
+        <div className="relative">
+          <img src="/images/puggift-rocket-web-v1.webp" alt="PugGift rocket" className="h-36 w-36 object-contain md:h-52 md:w-52" style={{ WebkitMaskImage: "radial-gradient(ellipse 55% 55% at center, #000 64%, transparent 100%)", maskImage: "radial-gradient(ellipse 55% 55% at center, #000 64%, transparent 100%)" }} />
+          {payloadImage && <img src={payloadImage} alt="" aria-hidden className="absolute -bottom-1 -left-2 h-9 w-9 object-contain drop-shadow-lg md:h-11 md:w-11" />}
+        </div>
+      </div>
+    </>}
+
+    {crashed && <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center pt-16">
+      <span className="absolute h-40 w-40 animate-ping rounded-full border border-rose-300/15" />
+      <img
+        src="/images/puggift-falling-web-v1.webp"
+        alt="Pug falling after the crash"
+        className="animate-pug-fall w-[min(82vw,430px)] object-contain"
+        style={{ WebkitMaskImage: "radial-gradient(ellipse 58% 64% at center, #000 58%, transparent 100%)", maskImage: "radial-gradient(ellipse 58% 64% at center, #000 58%, transparent 100%)" }}
+      />
+    </div>}
+
+    <div className="pointer-events-none absolute inset-x-0 top-[12%] z-20 flex flex-col items-center px-4 text-center md:top-[10%]">{children}</div>
+  </div>
 }
 
-function MeteorField({ running }: { running: boolean }) {
-  return <div className="pointer-events-none absolute inset-0 overflow-hidden opacity-70">
-    {[12, 31, 54, 76].map((top, index) => <span key={top} className={cn("absolute h-px w-24 -rotate-45 bg-gradient-to-r from-transparent via-blue-100 to-transparent", running && "animate-pulse")} style={{ top: `${top}%`, left: `${(index * 29) - 12}%`, animationDelay: `${index * .25}s` }} />)}
+function Starfield({ moving }: { moving: boolean }) {
+  const stars = Array.from({ length: 54 }, (_, index) => ({
+    left: (index * 37 + 11) % 100,
+    top: (index * 61 + 7) % 100,
+    size: index % 8 === 0 ? 3 : index % 3 === 0 ? 2 : 1,
+    delay: (index % 9) * .23,
+  }))
+
+  return <div className={cn("absolute -inset-y-[10%] inset-x-0 transition-transform duration-[1800ms] ease-linear", moving && "translate-y-[8%]")} aria-hidden>
+    {stars.map((star, index) => <span key={index} className="absolute bg-white/80" style={{ left: `${star.left}%`, top: `${star.top}%`, width: star.size, height: star.size, animation: `twinkle 2.5s ease-in-out ${star.delay}s infinite` }} />)}
   </div>
 }

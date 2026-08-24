@@ -26,7 +26,7 @@ export function HomeLobby({ online }: { online: number }) {
     </div>
 
     <div className="flex flex-col gap-3">
-      <GameRow href="#cases" title="Cases" subtitle="Open fresh Telegram gift drops" art="/gifts/giftbox.png" tone="from-[#17419d] via-[#235fce] to-[#3475ef]" badge="18 CASES" iconTone="bg-[#2e66d9]" />
+      <GameRow href="/cases" title="Cases" subtitle="Open fresh Telegram gift drops" art="/gifts/giftbox.png" tone="from-[#17419d] via-[#235fce] to-[#3475ef]" badge="OPEN" iconTone="bg-[#2e66d9]" />
       <GameRow href="/upgrade" title="Upgrade" subtitle="Turn your gift into something bigger" art="/gifts/crown.png" tone="from-[#3b176b] via-[#6324a9] to-[#8135cc]" badge="NEW" iconTone="bg-[#582097]" />
       <GameRow href="/crash" title="Crash" subtitle="Fly with the pug — one round for everyone" art="/images/puggift-rocket-web-v1.webp" tone="from-[#06132e] via-[#0b2250] to-[#12377e]" badge="ONLINE" iconTone="bg-[#071126]" />
       <GameRow href="/battles" title="PvP" subtitle="Join a stake session and take the bank" art="/images/puggift-mascot-web-v1.webp" tone="from-[#681254] via-[#9b1d70] to-[#cb347f]" badge="LIVE" iconTone="bg-[#0b2d8c]" />

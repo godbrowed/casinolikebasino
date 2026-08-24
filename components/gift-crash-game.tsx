@@ -1,9 +1,9 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import useSWR from "swr"
-import { getCrashGifts, getGiftImages, startGiftCrash, cashoutGiftCrash, settleGiftBust, type OwnedGift } from "@/app/actions/crash"
-import { multiplierAtElapsed, timeToNextCrashRound } from "@/lib/crash-shared"
+import { cashoutGiftCrash, getCrashBoard, getCrashGifts, getGiftImages, settleGiftBust, startGiftCrash, type CrashBoard, type OwnedGift } from "@/app/actions/crash"
+import { multiplierAtElapsed } from "@/lib/crash-shared"
 import { Coin } from "@/components/coin"
 import { CrashRocket } from "@/components/crash-rocket"
 import { useUser } from "@/components/user-provider"
@@ -12,264 +12,120 @@ import { haptic, hapticNotify } from "@/lib/telegram-webapp"
 import { cn } from "@/lib/utils"
 import { playGameSound } from "@/lib/game-sound"
 
-type Phase = "select" | "running" | "cashed" | "crashed"
+type LocalPhase = "select" | "queued" | "running" | "cashed" | "crashed"
 
 export function GiftCrashGame() {
   const { refresh } = useUser()
-  const { data: gifts, mutate, isLoading } = useSWR<OwnedGift[]>("crash-gifts", () => getCrashGifts())
-  const { data: rewardImages } = useSWR<string[]>("gift-crash-rewards", () => getGiftImages())
+  const { data: gifts, mutate: mutateGifts, isLoading } = useSWR<OwnedGift[]>("crash-gifts", getCrashGifts)
+  const { data: rewardImages } = useSWR<string[]>("gift-crash-rewards", getGiftImages)
+  const { data: board, mutate: mutateBoard } = useSWR<CrashBoard>("shared-crash-board", getCrashBoard, { refreshInterval: 650, revalidateOnFocus: true })
   const [selected, setSelected] = useState<OwnedGift | null>(null)
-  const [phase, setPhase] = useState<Phase>("select")
-  const [multiplier, setMultiplier] = useState(1)
+  const [localPhase, setLocalPhase] = useState<LocalPhase>("select")
   const [won, setWon] = useState<OwnedGift | null>(null)
+  const [wonAt, setWonAt] = useState(1)
   const [error, setError] = useState<string | null>(null)
-  const [roundClock, setRoundClock] = useState(timeToNextCrashRound())
-
+  const [clock, setClock] = useState(Date.now())
   const tokenRef = useRef<string | null>(null)
-  const startRef = useRef<number>(0)
-  const crashRef = useRef<number>(999)
-  const rafRef = useRef<number | null>(null)
-  const phaseRef = useRef<Phase>("select")
+  const settling = useRef(false)
+
+  const boardPhase = board?.phase === "crashed" ? "crashed" : board && clock >= board.flightStart ? "flying" : "betting"
+  const multiplier = boardPhase === "flying" && board ? multiplierAtElapsed(clock - board.flightStart) : board?.multiplier ?? 1
+  const countdown = boardPhase === "betting" ? Math.max(0, Math.ceil(((board?.flightStart ?? clock) - clock) / 1000)) : 0
+  const hasWager = Boolean(tokenRef.current)
+  const canJoin = boardPhase === "betting" && localPhase === "select" && Boolean(selected)
 
   useEffect(() => {
-    phaseRef.current = phase
-  }, [phase])
-
-  useEffect(() => {
-    const id = window.setInterval(() => setRoundClock(timeToNextCrashRound()), 250)
+    const id = window.setInterval(() => setClock(Date.now()), 100)
     return () => window.clearInterval(id)
   }, [])
 
   useEffect(() => {
-    return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current)
-    }
-  }, [])
+    if (localPhase === "queued" && boardPhase === "flying") setLocalPhase("running")
+  }, [boardPhase, localPhase])
 
-  const endCrashed = useCallback(async () => {
-    const alreadyCashed = phaseRef.current === "cashed"
-    phaseRef.current = "crashed"
-    setPhase("crashed")
-    if (!alreadyCashed) hapticNotify("error")
-    if (!alreadyCashed) playGameSound("crash")
-    if (tokenRef.current) {
-      try {
-        await settleGiftBust(tokenRef.current)
-      } catch {
-        // ignore
-      }
-    }
-    tokenRef.current = null
-    setSelected(null)
-    mutate()
-    refresh()
-  }, [mutate, refresh])
-
-  const loop = useCallback(() => {
-    const elapsed = Date.now() - startRef.current
-    const m = multiplierAtElapsed(elapsed)
-    if (m >= crashRef.current && elapsed >= 900) {
-      setMultiplier(crashRef.current)
-      endCrashed()
-      return
-    }
-    setMultiplier(Math.min(m, crashRef.current))
-    rafRef.current = requestAnimationFrame(loop)
-  }, [endCrashed])
+  useEffect(() => {
+    if (boardPhase !== "crashed" || !tokenRef.current || settling.current || localPhase === "cashed") return
+    settling.current = true
+    const token = tokenRef.current
+    void settleGiftBust(token).finally(() => {
+      tokenRef.current = null
+      settling.current = false
+      setLocalPhase("crashed")
+      setSelected(null)
+      hapticNotify("error")
+      playGameSound("crash")
+      mutateGifts()
+      mutateBoard()
+      refresh()
+    })
+  }, [boardPhase, localPhase, mutateBoard, mutateGifts, refresh])
 
   async function handleStart() {
-    if (!selected || phase === "running") return
+    if (!selected || !canJoin) return
     setError(null)
     setWon(null)
     haptic("medium")
     playGameSound("bet")
     try {
-      const res = await startGiftCrash(selected.id)
-      tokenRef.current = res.token
-      startRef.current = res.startTime
-      // The shared board keeps the authoritative crash point server-side.
-      // Gift cashout still verifies it on the server; this only caps legacy
-      // local animation if the player leaves the page mid-round.
-      crashRef.current = 999
-      setMultiplier(1)
-      phaseRef.current = "running"
-      setPhase("running")
-      rafRef.current = requestAnimationFrame(loop)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Error")
+      const result = await startGiftCrash(selected.id)
+      tokenRef.current = result.token
+      setLocalPhase("queued")
+      mutateBoard()
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : "Could not place gift"
+      setError(message === "BETTING_CLOSED" ? "Wait for the next 5 second countdown." : message)
     }
   }
 
   async function handleCashout() {
-    if (phase !== "running" || !tokenRef.current) return
+    if (localPhase !== "running" || !tokenRef.current) return
     haptic("heavy")
     try {
-      const res = await cashoutGiftCrash(tokenRef.current)
-      if (res.success && res.gift) {
-        phaseRef.current = "cashed"
-        setPhase("cashed")
-        setMultiplier(res.multiplier)
-        setWon(res.gift)
+      const result = await cashoutGiftCrash(tokenRef.current)
+      tokenRef.current = null
+      if (result.success && result.gift) {
+        setWon(result.gift)
+        setWonAt(result.multiplier)
+        setLocalPhase("cashed")
         hapticNotify("success")
         playGameSound("cashout")
       } else {
-        setMultiplier(res.crashPoint)
-        crashRef.current = res.crashPoint
-        phaseRef.current = "crashed"
-        setPhase("crashed")
+        setLocalPhase("crashed")
+        setSelected(null)
         hapticNotify("error")
         playGameSound("crash")
       }
+      mutateGifts()
+      mutateBoard()
+      refresh()
     } catch {
       setError("Cashout failed")
-    } finally {
-      tokenRef.current = null
-      if (phaseRef.current !== "cashed") setSelected(null)
-      mutate()
-      refresh()
     }
   }
 
   function reset() {
-    setPhase("select")
-    setMultiplier(1)
-    setWon(null)
+    setLocalPhase("select")
     setSelected(null)
+    setWon(null)
     setError(null)
   }
 
-  const running = phase === "running"
+  const lostThisRound = boardPhase === "crashed" && (localPhase === "queued" || localPhase === "running" || localPhase === "crashed")
+  const stagePhase = lostThisRound ? "crashed" : localPhase === "running" ? "running" : localPhase === "cashed" ? "cashed" : "idle"
   const target = selected ? selected.value * multiplier : 0
 
-  return (
-    <div className="flex flex-col gap-4">
-      {/* Rocket stage */}
-      <CrashRocket
-        phase={running ? "running" : phase === "cashed" ? "cashed" : phase === "crashed" ? "crashed" : "idle"}
-        multiplier={multiplier}
-        payloadImage={(running || phase === "cashed") ? selected?.imageUrl : null}
-        collectImages={rewardImages ?? []}
-      >
-        {phase === "cashed" && won ? (
-          <div className="animate-pop-in flex flex-col items-center">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={won.imageUrl || "/images/nft-gift.png"} alt={won.name} className="h-24 w-24 object-contain drop-shadow-[0_8px_20px_rgba(0,0,0,0.5)]" />
-            <div className={cn("mt-1 font-display text-lg font-black", rarityOf(won.rarity).text)}>{won.name}</div>
-            <div className="flex items-center gap-1 text-sm font-bold text-emerald-400">
-              {fmt(won.value)} <Coin className="h-3.5 w-3.5" /> · {multiplier.toFixed(2)}×
-            </div>
-          </div>
-        ) : (
-          <>
-            {selected && phase === "select" && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={selected.imageUrl || "/images/nft-gift.png"}
-                alt={selected.name}
-                className="mb-2 h-16 w-16 object-contain"
-              />
-            )}
-            <div
-              className={cn(
-                "font-display text-6xl font-black tabular-nums transition-colors",
-                phase === "crashed" ? "text-rose-400 neon-text-magenta" : "text-foreground neon-text-cyan",
-              )}
-            >
-              {multiplier.toFixed(2)}×
-            </div>
-            {phase === "crashed" && <div className="mt-1 font-display text-sm font-bold text-rose-400">GIFT LOST</div>}
-            {running && (
-              <div className="mt-1 flex items-center justify-center gap-1 text-xs text-muted-foreground">
-                upgrade to ~{fmt(Math.round(target))} <Coin className="h-3 w-3" />
-              </div>
-            )}
-            {phase === "select" && !selected && (
-              <div className="mt-1 text-xs text-muted-foreground">Pick a gift to wager</div>
-            )}
-          </>
-        )}
-      </CrashRocket>
+  return <div className="flex min-h-[calc(100dvh-130px)] w-full flex-col bg-[#071126] pb-6">
+    <CrashRocket phase={stagePhase} multiplier={multiplier} payloadImage={hasWager ? selected?.imageUrl : null} collectImages={rewardImages ?? []}>
+      {localPhase === "cashed" && won ? <div className="flex flex-col items-center rounded-3xl bg-[#071126]/70 px-5 py-3 backdrop-blur-sm"><img src={won.imageUrl || "/images/nft-gift.png"} alt={won.name} className="h-16 w-16 object-contain" /><b className={cn("mt-1 text-sm", rarityOf(won.rarity).text)}>{won.name}</b><span className="text-[10px] font-bold text-emerald-300">collected at {wonAt.toFixed(2)}× · flight {multiplier.toFixed(2)}×</span></div> : boardPhase === "betting" ? <><div className="font-display text-[82px] font-black leading-none text-white">{countdown || 1}</div><div className="mt-2 text-[10px] font-black uppercase tracking-[.25em] text-white/45">gift launch</div></> : localPhase === "running" ? <><div className="font-display text-5xl font-black text-white md:text-7xl">{multiplier.toFixed(2)}×</div><div className="mt-1 flex items-center gap-1 text-xs font-bold text-white/45">possible value {fmt(target)} <Coin className="h-3 w-3" /></div></> : lostThisRound ? <div className="rounded-full bg-[#071126]/75 px-4 py-2 font-display text-xl font-black text-rose-300">GIFT LOST · {multiplier.toFixed(2)}×</div> : <div className="font-display text-xl font-black text-white/55">ROUND IN FLIGHT</div>}
+    </CrashRocket>
 
-      <div className="-mt-2 text-center text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
-        Shared round · next launch in {Math.ceil(roundClock / 1000)}s
-      </div>
+    <div className="no-scrollbar flex gap-2 overflow-x-auto border-y border-white/[.06] bg-[#0a152a] px-3 py-3">{board?.recent.map((round, index) => <span key={index} className={cn("shrink-0 rounded-full px-4 py-2 font-mono text-xs font-black", round.multiplier >= 10 ? "bg-[#bd3f24]" : round.multiplier >= 2 ? "bg-[#2461d3]" : "bg-[#202a3f]")}>{round.multiplier.toFixed(2)}×</span>)}</div>
 
-      {error && <p className="text-center text-xs font-medium text-destructive">{error}</p>}
+    <div className="mx-auto flex w-full max-w-[560px] flex-col gap-3 px-3 pt-4 md:px-0">
+      {error && <p className="text-center text-xs font-bold text-rose-300">{error}</p>}
+      {localPhase === "running" ? <button onClick={handleCashout} className="w-full rounded-2xl bg-emerald-400 py-4 font-display text-lg font-black text-emerald-950">Cash out gift · {multiplier.toFixed(2)}×</button> : localPhase === "queued" ? <button disabled className="w-full rounded-2xl bg-white/10 py-4 font-display text-lg font-black text-white/40">GIFT ACCEPTED · LAUNCH IN {countdown}s</button> : localPhase === "cashed" || localPhase === "crashed" ? <button onClick={reset} className="w-full rounded-2xl bg-[#2f70ff] py-4 font-display text-lg font-black">PLAY AGAIN</button> : <button onClick={handleStart} disabled={!canJoin} className="w-full rounded-2xl bg-[#2f70ff] py-4 font-display text-lg font-black disabled:bg-white/10 disabled:text-white/35">{boardPhase === "betting" ? selected ? "PLACE GIFT" : "SELECT A GIFT" : "NEXT ROUND"}</button>}
 
-      {/* Controls */}
-      {running ? (
-        <button
-          onClick={handleCashout}
-          className="w-full rounded-2xl bg-emerald-500 py-4 font-display text-base font-black text-emerald-950 shadow-[0_0_28px_-4px] shadow-emerald-500/60 transition-transform active:scale-[0.98]"
-        >
-          Cash out gift · {multiplier.toFixed(2)}×
-        </button>
-      ) : phase === "cashed" ? (
-        <div className="rounded-2xl border border-emerald-400/25 bg-emerald-400/10 py-3 text-center text-sm font-bold text-emerald-300">
-          Gift collected — keep watching possible rewards
-        </div>
-      ) : phase === "crashed" ? (
-        <button
-          onClick={reset}
-          className="w-full rounded-2xl bg-primary py-4 font-display text-base font-black text-primary-foreground shadow-[0_0_28px_-4px] shadow-primary/60 transition-transform active:scale-[0.98]"
-        >
-          Play again
-        </button>
-      ) : (
-        <button
-          onClick={handleStart}
-          disabled={!selected}
-          className="w-full rounded-2xl bg-primary py-4 font-display text-base font-black text-primary-foreground shadow-[0_0_28px_-4px] shadow-primary/60 transition-transform active:scale-[0.98] disabled:opacity-40 disabled:shadow-none"
-        >
-          {selected ? `Wager ${selected.name}` : "Select a gift"}
-        </button>
-      )}
-
-      {/* Inventory picker */}
-      {(phase === "select" || phase === "cashed" || phase === "crashed") && (
-        <div>
-          <div className="mb-2 flex items-center justify-between">
-            <h2 className="font-display text-sm font-bold text-muted-foreground">Your gifts</h2>
-            {gifts && gifts.length > 0 && <span className="text-xs text-muted-foreground">{gifts.length} owned</span>}
-          </div>
-          {isLoading ? (
-            <p className="py-6 text-center text-xs text-muted-foreground">Loading…</p>
-          ) : !gifts || gifts.length === 0 ? (
-            <div className="rounded-2xl border border-border bg-card p-6 text-center text-sm text-muted-foreground">
-              No gifts yet. Open a case to get one, then wager it here.
-            </div>
-          ) : (
-            <div className="grid grid-cols-3 gap-2">
-              {gifts.map((g) => {
-                const r = rarityOf(g.rarity)
-                const active = selected?.id === g.id && phase === "select"
-                return (
-                  <button
-                    key={g.id}
-                    onClick={() => {
-                      if (phase !== "select") return
-                      haptic("light")
-                      setSelected(g)
-                    }}
-                    className={cn(
-                      "card-premium relative flex flex-col items-center rounded-xl border p-2 transition-all",
-                      active ? "border-primary ring-2 ring-primary" : "border-border",
-                    )}
-                  >
-                    <div className={cn("absolute inset-x-0 top-0 h-8 rounded-t-xl bg-gradient-to-b to-transparent", r.bg)} />
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={g.imageUrl || "/images/nft-gift.png"} alt={g.name} className="relative z-10 h-14 w-14 object-contain" />
-                    <span className="relative z-10 mt-1 line-clamp-1 text-[10px] font-medium">{g.name}</span>
-                    <span className="relative z-10 flex items-center gap-0.5 text-[10px] font-bold text-muted-foreground">
-                      {fmt(g.value)} <Coin className="h-2.5 w-2.5" />
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
-          )}
-        </div>
-      )}
+      {localPhase === "select" && <section className="rounded-[28px] bg-[#202a3f] p-3 ring-1 ring-white/[.07]"><div className="mb-2 flex items-center justify-between"><h2 className="font-display text-sm font-black">Your gifts</h2><span className="text-[10px] text-white/40">{gifts?.length ?? 0} owned</span></div>{isLoading ? <p className="py-6 text-center text-xs text-white/40">Loading…</p> : !gifts?.length ? <p className="py-6 text-center text-xs text-white/40">Open a case to get a gift first.</p> : <div className="no-scrollbar flex gap-2 overflow-x-auto">{gifts.map((gift) => { const rarity = rarityOf(gift.rarity); return <button key={gift.id} onClick={() => { haptic("light"); setSelected(gift) }} className={cn("flex w-24 shrink-0 flex-col items-center rounded-2xl bg-[#171e30] p-2 ring-1", selected?.id === gift.id ? "ring-2 ring-[#6f96ff]" : rarity.ring)}><img src={gift.imageUrl || "/images/nft-gift.png"} alt={gift.name} className="h-14 w-14 object-contain" /><span className={cn("mt-1 w-full truncate text-[10px] font-bold", rarity.text)}>{gift.name}</span><span className="mt-0.5 flex items-center gap-1 text-[9px] text-white/45"><Coin className="h-2.5 w-2.5" />{fmt(gift.value)}</span></button> })}</div>}</section>}
     </div>
-  )
+  </div>
 }

@@ -94,18 +94,17 @@ export async function getCrashBoard(): Promise<CrashBoard> {
     secondsLeft: Math.max(0, Math.ceil(((phase === "betting" ? flightStart : sharedRoundStart(now) + CRASH_ROUND_MS) - now) / 1000)),
     players: rows.filter((row) => Number((row.meta as Record<string, unknown> | null)?.roundId) === roundId).map((row) => {
       const meta = (row.meta ?? {}) as Record<string, unknown>
-      const status = meta.status === "cashed" || meta.status === "bust" ? meta.status : "bet"
+      const status = meta.status === "cashed" || meta.status === "bust" ? meta.status : crashed ? "bust" : "bet"
       return { name: row.username ? `@${row.username}` : row.firstName || "Player", bet: Number(row.bet), result: Number(row.result), status }
     }),
-    recent: Array.from(new Map(rows.filter((row) => {
-      const status = (row.meta as Record<string, unknown> | null)?.status
-      return status === "cashed" || status === "bust"
-    }).map((row) => {
-      const meta = (row.meta ?? {}) as Record<string, unknown>
-      const id = Number(meta.roundId)
-      const point = Number(meta.crashPoint)
-      return [id, { multiplier: Number.isFinite(point) && point > 0 ? point : 1, won: meta.status === "cashed" }] as const
-    })).values()).filter((row) => row.multiplier > 0).slice(0, 12),
+    // These are the actual deterministic results of completed shared rounds,
+    // so history is present even when a round had no wagers. No fake LIVE
+    // players or random client-only numbers are injected.
+    recent: Array.from({ length: 18 }, (_, index) => {
+      const latestCompleted = crashed ? roundId : roundId - 1
+      const multiplier = rollCrashPoint(latestCompleted - index)
+      return { multiplier, won: multiplier >= 2 }
+    }),
   }
 }
 
@@ -311,7 +310,7 @@ export async function cashoutGiftCrash(token: string): Promise<{
       .set({ giftId: chosen.id, value: String(Number(chosen.value)), source: "crash", status: "owned" })
       .where(eq(inventory.id, round.inventoryId))
 
-    await tx.update(gameHistory).set({ result: String(Number(chosen.value)), meta: { roundId: round.roundId, mode: "gift", crashPoint, status: "cashed", multiplier: mult, giftName: chosen.name } }).where(eq(gameHistory.id, round.historyId))
+    await tx.update(gameHistory).set({ result: String(Number(chosen.value)), meta: { roundId: round.roundId, mode: "gift", crashPoint, status: "cashed", multiplier: mult, giftName: chosen.name, imageUrl: chosen.imageUrl, rarity: chosen.rarity } }).where(eq(gameHistory.id, round.historyId))
 
     revalidatePath("/profile")
     return {

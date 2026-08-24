@@ -1,6 +1,6 @@
 "use server"
 
-import { and, asc, desc, eq, isNull, lte, or, sql } from "drizzle-orm"
+import { and, asc, desc, eq, inArray, isNull, lte, or, sql } from "drizzle-orm"
 import crypto from "crypto"
 import { revalidatePath } from "next/cache"
 import { db } from "@/lib/db"
@@ -355,22 +355,33 @@ export async function getHomeStats(): Promise<{ online: number; wonToday: number
 export async function getLiveDrops(): Promise<
   { id: number; name: string; rarity: string; imageUrl: string; value: number }[]
 > {
-  const rows = await db
-    .select()
-    .from(gameHistory)
-    .where(eq(gameHistory.game, "case"))
-    .orderBy(desc(gameHistory.createdAt))
-    .limit(20)
-  return rows
-    .map((r) => {
-      const m = (r.meta ?? {}) as Record<string, string>
-      return {
-        id: r.id,
-        name: m.giftName ?? "Gift",
-        rarity: m.rarity ?? "common",
-        imageUrl: m.imageUrl ?? "/images/nft-gift.png",
-        value: Number(r.result),
-      }
-    })
-    .filter((r) => r.imageUrl)
+  try {
+    const rows = await db
+      .select()
+      .from(gameHistory)
+      .where(inArray(gameHistory.game, ["case", "upgrade", "crash"]))
+      .orderBy(desc(gameHistory.createdAt))
+      .limit(20)
+    return rows
+      .map((r) => {
+        const m = (r.meta ?? {}) as Record<string, unknown>
+        const isUpgradeWin = r.game === "upgrade" && m.success === true
+        const isCrashWin = r.game === "crash" && m.status === "cashed"
+        if (r.game === "upgrade" && !isUpgradeWin) return null
+        if (r.game === "crash" && !isCrashWin) return null
+        const fallbackImage = isCrashWin ? "/images/puggift-star.svg" : "/images/nft-gift.png"
+        return {
+          id: r.id,
+          name: String(m.giftName ?? m.targetName ?? (isCrashWin ? `Crash ${Number(m.multiplier ?? 1).toFixed(2)}×` : "Gift")),
+          rarity: String(m.rarity ?? "common"),
+          imageUrl: String(m.imageUrl ?? fallbackImage),
+          value: Number(r.result),
+        }
+      })
+      .filter((r): r is { id: number; name: string; rarity: string; imageUrl: string; value: number } => Boolean(r?.imageUrl))
+  } catch {
+    // LIVE is real data only; during a short database reconnect it disappears
+    // instead of substituting fabricated drops or crashing the lobby.
+    return []
+  }
 }

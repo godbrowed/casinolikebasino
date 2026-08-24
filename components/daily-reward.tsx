@@ -11,6 +11,8 @@ import { fmt } from "@/lib/format"
 import { haptic, hapticNotify } from "@/lib/telegram-webapp"
 import { cn } from "@/lib/utils"
 
+const dailyChannel = (process.env.NEXT_PUBLIC_DAILY_CHANNEL_USERNAME || "puggift").trim().replace(/^@+/, "")
+
 export function DailyReward() {
   const { setBalance, refresh } = useUser()
   const { data, mutate, isLoading } = useSWR<RewardState>("reward-state", () => getRewardState())
@@ -40,7 +42,7 @@ export function DailyReward() {
       const message = error instanceof Error ? error.message : ""
       setClaimError(
         message.includes("SUBSCRIPTION_REQUIRED")
-          ? "Subscribe to @giftlysnft, then check again."
+          ? `Subscribe to @${dailyChannel}, then check again.`
           : "Could not verify your subscription. Try again.",
       )
       hapticNotify("error")
@@ -50,7 +52,7 @@ export function DailyReward() {
   }
 
   return (
-    <section className="px-4">
+    <section className="mx-auto w-full max-w-[560px] px-3 md:px-4">
       <button
         onClick={() => {
           haptic("light")
@@ -136,10 +138,10 @@ export function DailyReward() {
             {data.canClaim && claimed == null && (
               <div className="mt-4 rounded-xl border border-primary/30 bg-primary/5 p-3">
                 <p className="text-xs leading-relaxed text-muted-foreground">
-                  Daily rewards are available to subscribers of <span className="font-bold text-foreground">@giftlysnft</span>.
+                  Daily rewards are available to subscribers of <span className="font-bold text-foreground">@{dailyChannel}</span>.
                 </p>
                 <a
-                  href="https://t.me/giftlysnft"
+                  href={`https://t.me/${dailyChannel}`}
                   target="_blank"
                   rel="noreferrer"
                   className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg bg-secondary py-2 text-xs font-bold text-foreground"

@@ -2,15 +2,15 @@
 
 import Link from "next/link"
 import useSWR from "swr"
-import { ArrowRight, Gift, Rocket, Swords, TrendingUp, Users } from "lucide-react"
+import { ArrowRight, Users } from "lucide-react"
 import { getLiveDrops } from "@/app/actions/cases"
 import { Coin } from "@/components/coin"
 
 export function HomeLobby({ online }: { online: number }) {
   const { data: drops } = useSWR("home-live-drops", getLiveDrops, { refreshInterval: 12_000 })
 
-  return <section className="mx-auto flex w-full max-w-[620px] flex-col gap-3 px-3 md:px-4">
-    {drops && drops.length > 0 && <div className="overflow-hidden rounded-[24px] bg-[#34373e] py-2.5 ring-1 ring-white/10">
+  return <section className="mx-auto flex w-full max-w-[560px] flex-col gap-3 px-3 md:px-4">
+    {drops && drops.length > 0 && <div className="relative left-1/2 w-screen -translate-x-1/2 overflow-hidden bg-[#34373e] py-2.5 ring-1 ring-white/10">
       <div className="no-scrollbar flex items-center gap-3 overflow-x-auto px-3">
         <span className="flex shrink-0 items-center gap-2 pr-1 text-[11px] font-black uppercase tracking-[.12em]"><i className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_10px_#4ade80]" />LIVE</span>
         {drops.map((drop) => <div key={drop.id} className="group relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-black/10">
@@ -21,15 +21,15 @@ export function HomeLobby({ online }: { online: number }) {
     </div>}
 
     <div className="flex items-end justify-between px-1 pb-1 pt-2">
-      <div><div className="text-[10px] font-black uppercase tracking-[.18em] text-[#6f8dff]">Giftlys arcade</div><h1 className="font-display text-2xl font-black">Choose a game</h1></div>
+      <div><div className="text-[10px] font-black uppercase tracking-[.18em] text-[#6f8dff]">PugGift arcade</div><h1 className="font-display text-2xl font-black">Choose a game</h1></div>
       <div className="flex items-center gap-1 rounded-full bg-emerald-400/10 px-2.5 py-1.5 text-[10px] font-bold text-emerald-300"><Users className="h-3.5 w-3.5" />{online} online</div>
     </div>
 
     <div className="flex flex-col gap-3">
-      <GameRow href="/crash" title="Crash" subtitle="One live flight for every player" icon={Rocket} tone="from-[#071532] via-[#0c2353] to-[#153a87]" badge="ONLINE" iconTone="bg-[#3068ff]" />
-      <GameRow href="/battles" title="PvP" subtitle="Join a stake session and take the bank" icon={Swords} tone="from-[#6e125f] via-[#9e176f] to-[#d42883]" badge="LIVE" iconTone="bg-[#fa3c96]" />
-      <GameRow href="/upgrade" title="Upgrade" subtitle="Turn your gift into something bigger" icon={TrendingUp} tone="from-[#32125b] via-[#6122a7] to-[#8a36d4]" badge="NEW" iconTone="bg-[#8c3be5]" />
-      <GameRow href="#cases" title="Cases" subtitle="Open fresh Telegram gift drops" icon={Gift} tone="from-[#153b91] via-[#205dcc] to-[#3475ef]" badge="18 CASES" iconTone="bg-[#3579ff]" />
+      <GameRow href="#cases" title="Cases" subtitle="Open fresh Telegram gift drops" art="/gifts/giftbox.png" tone="from-[#17419d] via-[#235fce] to-[#3475ef]" badge="18 CASES" iconTone="bg-[#2e66d9]" />
+      <GameRow href="/upgrade" title="Upgrade" subtitle="Turn your gift into something bigger" art="/gifts/crown.png" tone="from-[#3b176b] via-[#6324a9] to-[#8135cc]" badge="NEW" iconTone="bg-[#582097]" />
+      <GameRow href="/crash" title="Crash" subtitle="Fly with the pug — one round for everyone" art="/images/puggift-rocket-web-v1.webp" tone="from-[#06132e] via-[#0b2250] to-[#12377e]" badge="ONLINE" iconTone="bg-[#071126]" />
+      <GameRow href="/battles" title="PvP" subtitle="Join a stake session and take the bank" art="/images/puggift-mascot-web-v1.webp" tone="from-[#681254] via-[#9b1d70] to-[#cb347f]" badge="LIVE" iconTone="bg-[#0b2d8c]" />
     </div>
 
     <Link href="/deposit" className="group flex items-center justify-between rounded-[24px] bg-[#393c43] px-4 py-3 ring-1 ring-white/10 transition hover:bg-[#41454e]">
@@ -39,10 +39,10 @@ export function HomeLobby({ online }: { online: number }) {
   </section>
 }
 
-function GameRow({ href, title, subtitle, icon: Icon, tone, badge, iconTone }: { href: string; title: string; subtitle: string; icon: typeof Rocket; tone: string; badge: string; iconTone: string }) {
+function GameRow({ href, title, subtitle, art, tone, badge, iconTone }: { href: string; title: string; subtitle: string; art: string; tone: string; badge: string; iconTone: string }) {
   return <Link href={href} className={`lobby-card group relative flex min-h-[104px] items-center gap-4 overflow-hidden rounded-[30px] bg-gradient-to-r ${tone} px-4 py-3 shadow-[0_8px_0_-5px_rgba(0,0,0,.7)] ring-1 ring-white/10 md:min-h-[112px] md:px-5`}>
     <span className="absolute -right-6 -top-12 h-40 w-40 rounded-full bg-white/10 blur-3xl" />
-    <span className={`relative flex h-16 w-16 shrink-0 items-center justify-center rounded-[22px] ${iconTone} shadow-[inset_0_1px_0_rgba(255,255,255,.35),0_10px_24px_rgba(0,0,0,.25)]`}><Icon className="h-9 w-9 drop-shadow-lg" strokeWidth={1.8} /></span>
+    <span className={`relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-[22px] ${iconTone} shadow-[inset_0_1px_0_rgba(255,255,255,.35),0_10px_24px_rgba(0,0,0,.25)]`}><img src={art} alt="" className="h-[86%] w-[86%] object-contain drop-shadow-[0_8px_12px_rgba(0,0,0,.45)] transition-transform group-hover:scale-110" /></span>
     <span className="relative min-w-0 flex-1"><span className="font-display text-xl font-black md:text-2xl">{title}</span><span className="mt-1 block truncate text-xs text-white/65 md:text-sm">{subtitle}</span></span>
     <span className="relative flex flex-col items-end gap-3"><span className="rounded-full bg-white/15 px-2 py-1 text-[8px] font-black tracking-wide">{badge}</span><ArrowRight className="h-5 w-5 text-white/60 transition-transform group-hover:translate-x-1" /></span>
   </Link>

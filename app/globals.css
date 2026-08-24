@@ -80,6 +80,7 @@
   }
   body {
     @apply bg-background text-foreground;
+    overflow-x: hidden;
     background-image: linear-gradient(180deg, #1c1e20 0%, #22242a 100%);
     background-attachment: fixed;
   }
@@ -261,4 +262,15 @@
       opacity: 1;
     }
   }
+
+  @keyframes pug-loader-bob {
+    0%, 100% { transform: translateY(0) rotate(-2deg); }
+    50% { transform: translateY(-9px) rotate(2deg); }
+  }
+  @keyframes pug-loader-dot {
+    0%, 100% { opacity: .3; transform: translateY(0); }
+    50% { opacity: 1; transform: translateY(-4px); }
+  }
+  .pug-loader { animation: pug-loader-bob 1.6s ease-in-out infinite; }
+  .pug-loader-dot { animation: pug-loader-dot .8s ease-in-out infinite; }
 }

@@ -11,7 +11,7 @@ const COOKIE = "casino_session"
 function sessionSecret(): string {
   const configured = process.env.SESSION_SECRET || process.env.TELEGRAM_BOT_TOKEN
   if (configured) return configured
-  if (process.env.NODE_ENV !== "production") return "giftlys-local-development-only-secret"
+  if (process.env.NODE_ENV !== "production") return "puggift-local-development-only-secret"
   throw new Error("SESSION_SECRET is required in production")
 }
 

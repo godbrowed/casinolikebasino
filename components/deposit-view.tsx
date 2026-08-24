@@ -146,23 +146,21 @@ export function DepositView({
 
   return (
     <>
-      {/* Balance card */}
-      <div className="relative overflow-hidden rounded-[30px] border border-blue-300/20 bg-[linear-gradient(145deg,#2458d3,#13255c)] p-5 shadow-[0_9px_0_-5px_rgba(0,0,0,.6)]">
-        <div className="absolute -right-8 -top-8 h-28 w-28 rounded-full bg-white/10 blur-2xl" />
-        <div className="relative text-[10px] font-black uppercase tracking-[.16em] text-white/55">Current balance</div>
-        <div className="mt-1 flex items-center gap-2">
-          <Coin className="h-6 w-6" />
-          <span className="font-display text-3xl font-black tabular-nums">{fmt(me?.balance ?? 0)}</span>
-          <span className="mb-0.5 self-end text-sm font-bold text-white/60">STARS</span>
+      <div className="flex flex-col items-center gap-4 pt-2">
+        <h1 className="font-display text-2xl font-black">Balance replenishment</h1>
+        <div className={cn("grid w-full max-w-[560px] gap-1 rounded-3xl bg-[#3a3d43] p-1.5", me?.isDemo ? "grid-cols-4" : "grid-cols-3")}>
+          <Tab active={method === "stars"} onClick={() => setMethod("stars")} icon={Sparkles} label="Stars" />
+          <Tab active={method === "ton"} onClick={() => setMethod("ton")} icon={Gem} label="TON" />
+          <Tab active={method === "gifts"} onClick={() => setMethod("gifts")} icon={GiftIcon} label="Gifts" />
+          {me?.isDemo && <Tab active={method === "demo"} onClick={() => setMethod("demo")} icon={Zap} label="Demo" />}
         </div>
       </div>
 
-      {/* Method tabs */}
-      <div className={cn("grid gap-1.5 rounded-3xl border border-white/10 bg-[#282b32] p-1.5", me?.isDemo ? "grid-cols-4" : "grid-cols-3")}>
-        <Tab active={method === "stars"} onClick={() => setMethod("stars")} icon={Sparkles} label="Stars" />
-        <Tab active={method === "ton"} onClick={() => setMethod("ton")} icon={Gem} label="TON" />
-        <Tab active={method === "gifts"} onClick={() => setMethod("gifts")} icon={GiftIcon} label="Gifts" />
-        {me?.isDemo && <Tab active={method === "demo"} onClick={() => setMethod("demo")} icon={Zap} label="Demo" />}
+      <div className="relative flex min-h-48 flex-col items-center justify-center overflow-hidden rounded-[30px] bg-[#23262b] ring-1 ring-white/8">
+        <img src="/images/puggift-mascot-web-v1.webp" alt="" className="absolute -bottom-14 -right-10 h-44 w-44 rounded-full object-cover opacity-[.09]" />
+        <div className="relative rounded-full bg-white/8 px-3 py-1 text-[10px] font-black uppercase tracking-[.14em] text-white/45">Current balance</div>
+        <div className="relative mt-3 flex items-center gap-2"><span className="font-display text-6xl font-black tabular-nums">{fmt(me?.balance ?? 0)}</span><Coin className="h-12 w-12" /></div>
+        <div className="relative mt-1 text-xs font-bold text-white/35">PugGift Stars</div>
       </div>
 
       <div className="flex items-center justify-between rounded-2xl border border-blue-300/15 bg-blue-400/8 px-3 py-2 text-[10px]"><span className="flex items-center gap-1.5 font-bold text-blue-200"><ShieldCheck className="h-3.5 w-3.5" />Transparent rate</span><span className="text-white/60">1 TON = {fmt(tonRate)} Stars</span></div>

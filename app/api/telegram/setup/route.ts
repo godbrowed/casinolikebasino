@@ -46,20 +46,21 @@ export async function GET(req: Request) {
     allowed_updates: ["message", "pre_checkout_query", "business_connection"],
   })
   const commands = await tg("setMyCommands", {
-    commands: [{ command: "start", description: "Open Giftlys" }],
+    commands: [{ command: "start", description: "Open PugGift" }],
   })
   const menu = await tg("setChatMenuButton", {
     menu_button: { type: "web_app", text: "Open app", web_app: { url } },
   })
 
-  const channel = await tg("getChat", { chat_id: "@giftlysnft" })
+  const channelUsername = process.env.DAILY_CHANNEL_USERNAME?.trim().replace(/^@+/, "")
+  const channel = channelUsername ? await tg("getChat", { chat_id: `@${channelUsername}` }) : { ok: true, result: null }
 
   return NextResponse.json({
     ok: Boolean(webhook?.ok && commands?.ok && menu?.ok && bot?.ok && channel?.ok),
     appUrl: url,
     bot: bot?.result ? { id: bot.result.id, username: bot.result.username } : bot,
     requiredBotUsernameEnv: bot?.result?.username || null,
-    channel: channel?.result ? { id: channel.result.id, username: channel.result.username } : channel,
+    channel: channel?.result ? { id: channel.result.id, username: channel.result.username } : null,
     webhook,
     commands,
     menu,

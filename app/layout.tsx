@@ -5,9 +5,9 @@ import "./globals.css"
 import { AppProviders } from "@/components/app-providers"
 
 export const metadata: Metadata = {
-  title: "Giftlys — Telegram Gifts",
-  description: "Open cases, collect Telegram gifts, and play with friends in Giftlys.",
-  icons: { icon: "/images/giftlys-coin-v2.png", apple: "/images/giftlys-coin-v2.png" },
+  title: "PugGift — Telegram Gifts",
+  description: "Open cases, collect Telegram gifts, and play live games with the PugGift mascot.",
+  icons: { icon: "/images/puggift-mascot-share-v1.png", apple: "/images/puggift-mascot-share-v1.png" },
 }
 
 export const viewport: Viewport = {

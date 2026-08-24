@@ -8,7 +8,7 @@ export function normalizeTelegramUsername(value: string | undefined, fallback = 
 
 export async function isDailyChannelMember(telegramUserId: string): Promise<boolean> {
   const token = process.env.TELEGRAM_BOT_TOKEN
-  const channel = normalizeTelegramUsername(process.env.DAILY_CHANNEL_USERNAME, "giftlysnft")
+  const channel = normalizeTelegramUsername(process.env.DAILY_CHANNEL_USERNAME)
   if (!token || !channel) throw new Error("SUBSCRIPTION_CHECK_NOT_CONFIGURED")
 
   const url = new URL(`https://api.telegram.org/bot${token}/getChatMember`)
@@ -24,5 +24,5 @@ export async function isDailyChannelMember(telegramUserId: string): Promise<bool
 }
 
 export function dailyChannelUsername(): string {
-  return normalizeTelegramUsername(process.env.DAILY_CHANNEL_USERNAME, "giftlysnft")
+  return normalizeTelegramUsername(process.env.DAILY_CHANNEL_USERNAME)
 }

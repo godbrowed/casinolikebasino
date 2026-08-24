@@ -1,18 +1,19 @@
 import { cn } from "@/lib/utils"
 
-/** Giftlys in-game Stars balance used across every game surface. */
+/** PugGift in-game Stars balance used across every game surface. */
 export function Coin({ className, glow = false }: { className?: string; glow?: boolean }) {
   return (
-    <span
-      aria-hidden="true"
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src="/images/puggift-star.svg"
+      alt=""
+      aria-hidden
       className={cn(
-        "inline-flex shrink-0 items-center justify-center leading-none [font-family:'Apple_Color_Emoji','Segoe_UI_Emoji',sans-serif]",
+        "inline-block shrink-0 object-contain",
         glow && "drop-shadow-[0_0_8px_rgba(255,184,43,0.75)]",
         className,
       )}
-    >
-      ⭐
-    </span>
+    />
   )
 }
 

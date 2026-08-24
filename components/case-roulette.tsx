@@ -27,7 +27,7 @@ export function CaseRoulette({ pool, spinning, results, onSettled }: Props) {
   }, [onSettled, spinning, results.length])
 
   return <section className="relative overflow-hidden rounded-[30px] border border-blue-300/15 bg-[linear-gradient(145deg,#1b2f61,#101723)] p-3 shadow-[0_10px_0_-6px_rgba(0,0,0,.65)]">
-    <div className="absolute -right-12 -top-12 h-36 w-36 rounded-full bg-blue-400/15 blur-3xl" /><div className="relative mb-3 flex items-center justify-between px-1"><div><div className="text-[9px] font-black uppercase tracking-[.2em] text-[#7f9cff]">Giftlys case machine</div><div className="font-display text-lg font-black">{spinning ? "Finding your drops…" : "Tap open to start"}</div></div><div className="rounded-2xl bg-white/8 px-3 py-1.5 text-[10px] font-black text-white/65">{shown.length} DROP{shown.length > 1 ? "S" : ""}</div></div>
+    <div className="absolute -right-12 -top-12 h-36 w-36 rounded-full bg-blue-400/15 blur-3xl" /><div className="relative mb-3 flex items-center justify-between px-1"><div><div className="text-[9px] font-black uppercase tracking-[.2em] text-[#7f9cff]">PugGift case machine</div><div className="font-display text-lg font-black">{spinning ? "Finding your drops…" : "Tap open to start"}</div></div><div className="rounded-2xl bg-white/8 px-3 py-1.5 text-[10px] font-black text-white/65">{shown.length} DROP{shown.length > 1 ? "S" : ""}</div></div>
     <div className={cn("grid gap-2", shown.length > 1 ? "grid-cols-2" : "grid-cols-1")}>{shown.map((gift, index) => <Reel key={`${gift?.slug ?? "preview"}-${index}-${spinning}`} pool={pool} result={gift} spinning={spinning} />)}</div>
   </section>
 }

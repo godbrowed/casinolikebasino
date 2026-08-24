@@ -124,7 +124,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: true, ...result })
   } catch (err) {
     const message = err instanceof Error ? err.message : "Sync failed"
-    console.log("[giftlys] sync-prices error:", message)
+    console.log("[puggift] sync-prices error:", message)
     return NextResponse.json({ ok: false, error: message }, { status: 502 })
   }
 }

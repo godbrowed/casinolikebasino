@@ -1,4 +1,4 @@
-// Giftlys uses Stars as its single in-game balance.
+// PugGift uses Stars as its single in-game balance.
 // Reference deposit screen: 200 Stars ~= 1.77 TON, therefore 1 TON = 113 Stars.
 // Direct Telegram Stars payments credit the same number of in-game Stars.
 export const TON_TO_GRAM = 113

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import useSWR from "swr"
-import { Clock3, Loader2, Plus, ShieldCheck, Swords, Users, X } from "lucide-react"
+import { Clock3, Loader2, Plus, ShieldCheck, Users, X } from "lucide-react"
 import { getBattleSessions, getMatchState, joinBattle, leaveBattle, type BattleResult, type BattleSession, type MatchState } from "@/app/actions/battles"
 import { BattleArena } from "@/components/battle-arena"
 import { Coin } from "@/components/coin"
@@ -69,7 +69,7 @@ export function BattlesLobby() {
   return <div className="flex flex-col gap-4">
     <section className="relative overflow-hidden rounded-[32px] bg-[linear-gradient(135deg,#371349,#8d176a_55%,#db358a)] p-5 shadow-[0_18px_46px_-24px_rgba(219,53,138,.8)] ring-1 ring-white/10">
       <div className="absolute -right-12 -top-16 h-52 w-52 rounded-full bg-pink-200/15 blur-3xl" />
-      <div className="relative flex items-center gap-4"><span className="flex h-16 w-16 items-center justify-center rounded-[22px] bg-[#fa3f98] shadow-[inset_0_1px_0_rgba(255,255,255,.35),0_10px_28px_rgba(0,0,0,.28)]"><Swords className="h-9 w-9" /></span><div><div className="text-[9px] font-black uppercase tracking-[.2em] text-pink-100/65">Shared live sessions</div><h1 className="font-display text-3xl font-black">Stars PvP</h1><p className="mt-1 text-xs text-white/65">Second stake starts one 30-second clock for everyone.</p></div></div>
+      <div className="relative flex items-center gap-4"><span className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-[22px] bg-[#0d2b82] shadow-[inset_0_1px_0_rgba(255,255,255,.35),0_10px_28px_rgba(0,0,0,.28)]"><img src="/images/puggift-mascot-web-v1.webp" alt="" className="h-full w-full object-cover" /></span><div><div className="text-[9px] font-black uppercase tracking-[.2em] text-pink-100/65">Shared live sessions</div><h1 className="font-display text-3xl font-black">Stars PvP</h1><p className="mt-1 text-xs text-white/65">Second stake starts one 30-second clock for everyone.</p></div></div>
     </section>
 
     <section className="rounded-[28px] bg-[#30333a] p-4 ring-1 ring-white/10">

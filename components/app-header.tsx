@@ -1,7 +1,6 @@
 "use client"
 
 import Link from "next/link"
-import { useState } from "react"
 import { Plus } from "lucide-react"
 import { useUser } from "@/components/user-provider"
 import { Coin } from "@/components/coin"
@@ -10,50 +9,25 @@ import { LanguageSwitcher } from "@/components/language-switcher"
 
 export function AppHeader({ title }: { title?: string }) {
   const { me, isLoading } = useUser()
-  const [avatarFailed, setAvatarFailed] = useState(false)
-  const avatarUrl = !avatarFailed ? me?.photoUrl : null
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-white/[.06] bg-[#181a1e]/90 px-3 py-2 backdrop-blur-xl">
-      <div className="mx-auto flex w-full max-w-[620px] items-center justify-between px-1 py-1">
-        <div className="flex items-center gap-2.5">
-          {avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={avatarUrl}
-              alt=""
-              className="h-8 w-8 rounded-full ring-2 ring-white/20"
-              onError={() => setAvatarFailed(true)}
-            />
-          ) : (
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-xs font-bold text-muted-foreground">
-              {(me?.firstName?.[0] ?? "G").toUpperCase()}
-            </div>
-          )}
-          <div className="leading-tight">
-            <div className="font-display text-base font-black tracking-tight">{title ?? "Giftlys"}</div>
-            <div className="text-[10px] text-muted-foreground">
-              {me?.username ? `@${me.username}` : me?.firstName ?? "Guest"}
-              {me?.isDemo ? " · demo" : ""}
-            </div>
-          </div>
+    <header className="sticky top-0 z-40 w-full border-b border-white/[.055] bg-[#1a1c20]/94 px-3 py-2 backdrop-blur-xl">
+      <div className="relative mx-auto flex w-full max-w-[560px] flex-col items-center gap-2">
+        <div className="flex items-center gap-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/images/puggift-mascot-web-v1.webp" alt="PugGift" className="h-7 w-7 rounded-full border border-[#376fff] object-cover shadow-[0_0_14px_rgba(47,112,255,.4)]" />
+          <div className="font-display text-base font-black tracking-tight">Pug<span className="text-[#4d7bff]">Gift</span></div>
         </div>
 
-        <div className="flex items-center gap-2">
-        <LanguageSwitcher />
-        <Link
-          href="/deposit"
-          className="flex items-center gap-2 rounded-2xl border border-white/12 bg-secondary/75 py-1.5 pl-3 pr-1.5 transition-colors active:scale-95"
-        >
-          <Coin className="h-4 w-4" />
-          <span className="font-mono text-sm font-bold tabular-nums">
-            {isLoading ? "…" : fmt(me?.balance ?? 0)}
-          </span>
-          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground">
-            <Plus className="h-4 w-4" strokeWidth={3} />
-          </span>
+        <div className="absolute right-0 top-0"><LanguageSwitcher /></div>
+
+        <Link href="/deposit" className="flex items-center gap-2 rounded-full bg-[#383b42] py-1.5 pl-3 pr-1.5 ring-1 ring-white/8 transition active:scale-95">
+          <Coin className="h-5 w-5 text-[18px]" />
+          <span className="font-mono text-sm font-black tabular-nums">{isLoading ? "…" : fmt(me?.balance ?? 0)}</span>
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#2f70ff] text-white"><Plus className="h-4 w-4" strokeWidth={3} /></span>
         </Link>
-        </div>
+
+        {title && <div className="absolute left-0 top-1 text-[10px] font-black uppercase tracking-[.14em] text-white/35">{title}</div>}
       </div>
     </header>
   )

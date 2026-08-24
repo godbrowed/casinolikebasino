@@ -1,7 +1,6 @@
 "use client"
 
 import { ExternalLink, ShieldCheck } from "lucide-react"
-import { Coin } from "@/components/coin"
 
 type TelegramRequiredProps = {
   botUsername: string | null
@@ -17,12 +16,12 @@ export function TelegramRequired({ botUsername }: TelegramRequiredProps) {
   return (
     <main className="flex min-h-dvh items-center justify-center bg-background p-5 text-foreground">
       <section className="flex w-full max-w-sm flex-col items-center gap-5 rounded-3xl border border-border bg-card p-6 text-center shadow-2xl">
-        <div className="flex h-20 w-20 items-center justify-center rounded-3xl border border-primary/30 bg-primary/10 shadow-[0_0_32px_hsl(var(--primary)/0.18)]">
-          <Coin className="h-12 w-12" />
+        <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border-2 border-primary/60 bg-primary/10 shadow-[0_0_32px_hsl(var(--primary)/0.3)]">
+          <img src="/images/puggift-mascot-web-v1.webp" alt="PugGift" className="h-full w-full object-cover" />
         </div>
         <div className="flex flex-col gap-2">
           <p className="font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-primary">Telegram Mini App</p>
-          <h1 className="font-display text-3xl font-black text-balance">Open Giftlys in Telegram</h1>
+          <h1 className="font-display text-3xl font-black text-balance">Open PugGift in Telegram</h1>
           <p className="text-sm leading-relaxed text-muted-foreground">
             Your account is securely connected to your Telegram profile. Open the app through Telegram to continue.
           </p>

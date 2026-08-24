@@ -45,20 +45,20 @@ function starValue(value: string | number, floorTon: string | number | null | un
 function currencyRewards(price: number): GiftDTO[] {
   if (price > CURRENCY_CASE_LIMIT) return []
   return [
-    { id: -101, slug: `stars-small-${price}`, name: `${Math.round(price * 0.1)} Stars`, rarity: "common", imageUrl: "/images/giftlys-star.svg", value: price * 0.1, chance: 20, rewardType: "currency" },
-    { id: -102, slug: `stars-medium-${price}`, name: `${Math.round(price * 0.25)} Stars`, rarity: "rare", imageUrl: "/images/giftlys-star.svg", value: price * 0.25, chance: 12, rewardType: "currency" },
-    { id: -103, slug: `stars-large-${price}`, name: `${Math.round(price * 0.5)} Stars`, rarity: "epic", imageUrl: "/images/giftlys-star.svg", value: price * 0.5, chance: 6, rewardType: "currency" },
-    { id: -104, slug: `stars-jackpot-${price}`, name: `${Math.round(price)} Stars`, rarity: "legendary", imageUrl: "/images/giftlys-star.svg", value: price, chance: 2, rewardType: "currency" },
+    { id: -101, slug: `stars-small-${price}`, name: `${Math.round(price * 0.1)} Stars`, rarity: "common", imageUrl: "/images/puggift-star.svg", value: price * 0.1, chance: 20, rewardType: "currency" },
+    { id: -102, slug: `stars-medium-${price}`, name: `${Math.round(price * 0.25)} Stars`, rarity: "rare", imageUrl: "/images/puggift-star.svg", value: price * 0.25, chance: 12, rewardType: "currency" },
+    { id: -103, slug: `stars-large-${price}`, name: `${Math.round(price * 0.5)} Stars`, rarity: "epic", imageUrl: "/images/puggift-star.svg", value: price * 0.5, chance: 6, rewardType: "currency" },
+    { id: -104, slug: `stars-jackpot-${price}`, name: `${Math.round(price)} Stars`, rarity: "legendary", imageUrl: "/images/puggift-star.svg", value: price, chance: 2, rewardType: "currency" },
   ]
 }
 
 const FREE_CURRENCY_REWARDS: GiftDTO[] = [
-  { id: -1, slug: "stars-2", name: "2 Stars", rarity: "common", imageUrl: "/images/giftlys-star.svg", value: 2, chance: 45, rewardType: "currency" },
-  { id: -2, slug: "stars-5", name: "5 Stars", rarity: "common", imageUrl: "/images/giftlys-star.svg", value: 5, chance: 30, rewardType: "currency" },
-  { id: -3, slug: "stars-10", name: "10 Stars", rarity: "rare", imageUrl: "/images/giftlys-star.svg", value: 10, chance: 15, rewardType: "currency" },
-  { id: -4, slug: "stars-25", name: "25 Stars", rarity: "epic", imageUrl: "/images/giftlys-star.svg", value: 25, chance: 7, rewardType: "currency" },
-  { id: -5, slug: "stars-50", name: "50 Stars", rarity: "legendary", imageUrl: "/images/giftlys-star.svg", value: 50, chance: 2, rewardType: "currency" },
-  { id: -6, slug: "stars-100", name: "100 Stars", rarity: "mythic", imageUrl: "/images/giftlys-star.svg", value: 100, chance: 0.8, rewardType: "currency" },
+  { id: -1, slug: "stars-2", name: "2 Stars", rarity: "common", imageUrl: "/images/puggift-star.svg", value: 2, chance: 45, rewardType: "currency" },
+  { id: -2, slug: "stars-5", name: "5 Stars", rarity: "common", imageUrl: "/images/puggift-star.svg", value: 5, chance: 30, rewardType: "currency" },
+  { id: -3, slug: "stars-10", name: "10 Stars", rarity: "rare", imageUrl: "/images/puggift-star.svg", value: 10, chance: 15, rewardType: "currency" },
+  { id: -4, slug: "stars-25", name: "25 Stars", rarity: "epic", imageUrl: "/images/puggift-star.svg", value: 25, chance: 7, rewardType: "currency" },
+  { id: -5, slug: "stars-50", name: "50 Stars", rarity: "legendary", imageUrl: "/images/puggift-star.svg", value: 50, chance: 2, rewardType: "currency" },
+  { id: -6, slug: "stars-100", name: "100 Stars", rarity: "mythic", imageUrl: "/images/puggift-star.svg", value: 100, chance: 0.8, rewardType: "currency" },
 ]
 
 export async function getCases(): Promise<CaseDTO[]> {
@@ -222,7 +222,7 @@ export async function openCase(caseId: number): Promise<{
         slug: `stars-${currencyValue}`,
         name: `${currencyValue} Stars`,
         rarity: currencyValue >= 0.25 ? "rare" : "common",
-        imageUrl: "/images/giftlys-star.svg",
+        imageUrl: "/images/puggift-star.svg",
         value: currencyValue,
         rewardType: "currency",
       }
@@ -272,7 +272,7 @@ export async function openCase(caseId: number): Promise<{
         slug: `stars-${currencyValue}`,
         name: `${Math.round(currencyValue)} Stars`,
         rarity: currencyValue >= price ? "legendary" : currencyValue >= price * 0.5 ? "epic" : currencyValue >= price * 0.25 ? "rare" : "common",
-        imageUrl: "/images/giftlys-star.svg",
+        imageUrl: "/images/puggift-star.svg",
         value: currencyValue,
         rewardType: "currency",
       }

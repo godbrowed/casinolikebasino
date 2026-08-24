@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Package, TrendingUp, Rocket, Gift, Swords, Star, Send, Loader2, Shield } from "lucide-react"
+import { Package, TrendingUp, Rocket, Gift, Swords, Send, Loader2, Shield } from "lucide-react"
 import Link from "next/link"
 import { sellGift, sellAll } from "@/app/actions/user"
 import { requestGiftWithdraw } from "@/app/actions/gifts-transfer"
@@ -114,17 +114,15 @@ export function ProfileView({ me, inventory, history }: { me: Me; inventory: Ite
       )}
 
       {/* Level */}
-      <div className="relative overflow-hidden rounded-[30px] border border-emerald-300/15 bg-[linear-gradient(145deg,#176b61,#173146)] p-5 shadow-[0_9px_0_-5px_rgba(0,0,0,.6)]">
-        <div className="absolute -right-8 -top-8 h-28 w-28 rounded-full bg-emerald-300/15 blur-2xl" />
+      <div className="relative overflow-hidden rounded-[30px] bg-[#393c43] p-5 ring-1 ring-white/10">
+        <img src="/images/puggift-mascot-web-v1.webp" alt="" className="absolute -bottom-12 -right-10 h-40 w-40 rounded-full object-cover opacity-[.1]" />
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/15 text-primary">
-              <Star className="h-5 w-5 fill-primary" />
-            </div>
+            <img src={me?.photoUrl || "/images/puggift-mascot-web-v1.webp"} alt="" className="h-12 w-12 rounded-full border-2 border-[#2f70ff] object-cover" />
             <div>
-              <div className="font-display text-lg font-black leading-none">Level {lvl.level}</div>
+              <div className="font-display text-lg font-black leading-none">{me?.firstName || me?.username || "PugGift player"}</div>
               <div className="mt-0.5 text-xs text-muted-foreground">
-                {fmt(Math.round(lvl.into))} / {fmt(Math.round(lvl.span))} XP
+                Level {lvl.level} · {fmt(Math.round(lvl.into))} / {fmt(Math.round(lvl.span))} XP
               </div>
             </div>
           </div>

@@ -49,7 +49,7 @@ export function CrashRocket({
   const climb = running ? Math.max(liftoff ? 0.08 : 0, multClimb) : (phase === "cashed" || phase === "crashed") ? multClimb : 0
   const x = 12 + climb * 62 // %
   const y = 82 - climb * 64 // % (from top)
-  const angle = -32 - climb * 12
+  const angle = -3 - climb * 4
 
   // Which floating gifts have been "collected" (multiplier thresholds).
   const thresholds = [1.5, 2.5, 4, 7, 11]
@@ -125,10 +125,6 @@ export function CrashRocket({
         >
           <div className="relative">
             <Rocket />
-            {/* flame */}
-            {running && (
-              <div className="absolute left-1/2 top-full h-6 w-3 -translate-x-1/2 animate-pulse rounded-b-full bg-gradient-to-b from-amber-300 via-orange-500 to-transparent blur-[1px]" />
-            )}
             {/* payload gift trailing behind */}
             {payloadImage && (
               // eslint-disable-next-line @next/next/no-img-element
@@ -161,23 +157,10 @@ export function CrashRocket({
 
 function Rocket() {
   return (
-    <svg viewBox="0 0 96 96" fill="none" aria-hidden className="h-20 w-20 md:h-36 md:w-36">
-      <defs>
-        <linearGradient id="hull" x1="30" y1="20" x2="74" y2="74" gradientUnits="userSpaceOnUse"><stop stopColor="#F8FBFF" /><stop offset=".48" stopColor="#A7B7D5" /><stop offset="1" stopColor="#566785" /></linearGradient>
-        <linearGradient id="glass" x1="44" y1="28" x2="66" y2="51" gradientUnits="userSpaceOnUse"><stop stopColor="#CAFBFF" /><stop offset="1" stopColor="#3978F8" /></linearGradient>
-        <linearGradient id="fire" x1="25" y1="68" x2="5" y2="87" gradientUnits="userSpaceOnUse"><stop stopColor="#FFF3A4" /><stop offset=".45" stopColor="#FFAD32" /><stop offset="1" stopColor="#F04771" /></linearGradient>
-      </defs>
-      <path d="M33 65 15 78l13 4 4 13 15-19" fill="#7552D6" stroke="#18213C" strokeWidth="4" strokeLinejoin="round" />
-      <path d="m66 65 17 14-13 3-4 13-14-19" fill="#7552D6" stroke="#18213C" strokeWidth="4" strokeLinejoin="round" />
-      <path d="M48 9c20 11 30 28 30 47 0 11-3 19-9 26H27c-6-7-9-15-9-26C18 37 28 20 48 9Z" fill="url(#hull)" stroke="#18213C" strokeWidth="4" strokeLinejoin="round" />
-      <path d="M48 22c10 5 16 13 18 24H30c2-11 8-19 18-24Z" fill="url(#glass)" stroke="#18213C" strokeWidth="4" />
-      <path d="M39 30c4-4 8-6 12-6" stroke="white" strokeWidth="3" strokeLinecap="round" opacity=".8" />
-      <path d="M27 55h42" stroke="#42516D" strokeWidth="4" />
-      <circle cx="36" cy="66" r="4" fill="#FFCA45" stroke="#18213C" strokeWidth="3" />
-      <circle cx="60" cy="66" r="4" fill="#FFCA45" stroke="#18213C" strokeWidth="3" />
-      <path d="M37 80h22L48 94 37 80Z" fill="url(#fire)" stroke="#18213C" strokeWidth="4" strokeLinejoin="round" />
-      <path d="M48 82v8" stroke="#FFF3A4" strokeWidth="3" strokeLinecap="round" />
-    </svg>
+    // The dark background is deliberately identical to the stage, allowing a
+    // detailed raster mascot without an expensive per-frame alpha effect.
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src="/images/puggift-rocket-web-v1.webp" alt="" aria-hidden className="h-28 w-28 rounded-[28%] object-contain md:h-48 md:w-48" />
   )
 }
 

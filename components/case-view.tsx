@@ -93,7 +93,7 @@ export function CaseView({ c }: { c: CaseDTO }) {
   return (
     <>
       <AppHeader title={c.name} />
-      <main className="flex flex-col gap-5 px-4 pt-4">
+      <main className="mx-auto flex w-full max-w-[760px] flex-col gap-5 px-4 pt-4">
         <div className="flex items-center gap-2 rounded-3xl border border-white/12 bg-card/70 p-2 shadow-[0_7px_0_-5px_rgba(30,12,58,.75)]">
           <Link
             href="/"

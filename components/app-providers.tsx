@@ -5,6 +5,7 @@ import { TonConnectUIProvider } from "@tonconnect/ui-react"
 import { UserProvider } from "@/components/user-provider"
 import { BottomNav } from "@/components/bottom-nav"
 import { LanguageProvider } from "@/components/language-provider"
+import { PugIntro } from "@/components/pug-intro"
 
 export function AppProviders({ children }: { children: ReactNode }) {
   const manifestUrl =
@@ -13,6 +14,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
   return (
     <TonConnectUIProvider manifestUrl={manifestUrl}>
       <LanguageProvider><UserProvider>
+        <PugIntro />
         <div className="app-shell flex min-h-dvh w-full flex-col pb-24">{children}</div>
         <BottomNav />
       </UserProvider></LanguageProvider>

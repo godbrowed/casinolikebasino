@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { ArrowUp, Package, Sparkles, Target } from "lucide-react"
+import { Package, Sparkles, Target } from "lucide-react"
 import { upgradeGift } from "@/app/actions/upgrade"
 import { upgradeChance } from "@/lib/upgrade-shared"
 import { Coin } from "@/components/coin"
@@ -71,7 +71,7 @@ export function UpgradeGame({ inventory, targets }: { inventory: Item[]; targets
     <div className="flex flex-col gap-4">
       <div className="relative overflow-hidden rounded-[30px] border border-[#5d86ff]/30 bg-[linear-gradient(135deg,#122d78,#201249)] p-5 shadow-[0_10px_0_-6px_rgba(0,0,0,.55)]">
         <div className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-blue-300/20 blur-3xl" />
-        <div className="relative flex items-center gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/12"><ArrowUp className="h-6 w-6 text-cyan-100" /></span><div><h1 className="font-display text-xl font-black">Upgrade lab</h1><p className="mt-0.5 text-xs text-white/65">Put in a gift. Spin the orbit. Take the upgrade.</p></div></div>
+        <div className="relative flex items-center gap-3"><span className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-[#0c2c83]"><img src="/images/puggift-mascot-web-v1.webp" alt="" className="h-full w-full object-cover" /></span><div><h1 className="font-display text-xl font-black">Pug upgrade</h1><p className="mt-0.5 text-xs text-white/65">Put in a gift. Spin the orbit. Take the upgrade.</p></div></div>
       </div>
 
       <div className="relative grid grid-cols-[1fr_142px_1fr] items-center gap-2 rounded-[30px] border border-white/10 bg-[#272a32] p-3">

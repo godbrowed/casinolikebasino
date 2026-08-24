@@ -17,7 +17,7 @@ export function BottomNav() {
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-white/[.07] bg-[#15171b]/95 px-3 pb-[max(0.35rem,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur-xl">
-      <div className="mx-auto w-full max-w-[620px] px-2">
+      <div className="mx-auto w-full max-w-[560px] px-2">
         <ul className="flex items-center justify-between">
           {ITEMS.map((item) => {
             const active = pathname === item.href

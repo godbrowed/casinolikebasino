@@ -14,7 +14,7 @@ function crashSecret(): string {
   // The public board is rendered before a player can place a bet. Keep it
   // available on installations that have not yet configured a separate
   // session secret; production deployments should still set SESSION_SECRET.
-  return "giftlys-crash-fallback-secret-change-in-production"
+  return "puggift-crash-fallback-secret-change-in-production"
 }
 
 type RoundPayload = { userId: string; bet: number; roundId: number; startTime: number; historyId: number }

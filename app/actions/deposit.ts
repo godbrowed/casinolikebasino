@@ -49,7 +49,7 @@ export async function createStarsInvoice(stars: number): Promise<{ link: string 
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       title: `${stars} Stars`,
-      description: `Top up your Giftlys balance with ${credited} Stars`,
+      description: `Top up your PugGift balance with ${credited} Stars`,
       payload,
       currency: "XTR",
       prices: [{ label: `${stars} Stars`, amount: stars }],

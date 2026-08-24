@@ -12,8 +12,8 @@ export function HeroBanner({ online, wonToday }: { online: number; wonToday: num
 
           {/* premium welcome artwork */}
           <div className="relative flex min-h-40 items-center px-5 py-5">
-            <div className="relative z-10"><div className="text-[10px] font-black uppercase tracking-[.18em] text-[#ffe477]">Today in Giftlys</div><h2 className="mt-1 font-display text-3xl font-black leading-none tracking-tight">Play. Win.<br />Collect gifts.</h2><p className="mt-3 max-w-48 text-xs font-bold leading-relaxed text-white/80">A tiny arcade full of gifts, luck and live games.</p></div>
-            <div className="absolute right-2 top-2 text-8xl rotate-12 drop-shadow-[0_7px_0_rgba(81,42,111,.45)]">🎲</div>
+            <div className="relative z-10"><div className="text-[10px] font-black uppercase tracking-[.18em] text-[#ffe477]">Today in PugGift</div><h2 className="mt-1 font-display text-3xl font-black leading-none tracking-tight">Play. Win.<br />Collect gifts.</h2><p className="mt-3 max-w-48 text-xs font-bold leading-relaxed text-white/80">A tiny arcade full of gifts, luck and live games.</p></div>
+            <img src="/images/puggift-mascot-web-v1.webp" alt="" className="absolute -right-2 top-1 h-36 w-36 rotate-6 rounded-full object-cover drop-shadow-[0_9px_16px_rgba(34,20,60,.5)]" />
             <div className="absolute bottom-2 right-20 text-5xl -rotate-12">✨</div>
           </div>
 

@@ -47,12 +47,13 @@ export async function POST(req: Request) {
     if (isStart) {
       const photo = await tg("sendPhoto", {
         chat_id: message.chat.id,
-        // New filename prevents Telegram from serving a previously cached banner.
-        // Versioned path avoids Telegram serving an older cached TON banner.
-        photo: `${url}/images/puggift-mascot-share-v1.png`,
-        caption: `🐶 Welcome to PugGift, ${firstName}!\n\nOpen gifts, join live games and fly with our lucky pug.`,
+        photo: `${url}/images/puggift-start-banner-v2.jpg`,
+        caption: `⚡ Welcome to PugGift, ${firstName}!\n\n🎁 Open Telegram gifts\n🚀 Join one shared live Crash\n⚔️ Play real-player PvP\n💎 Upgrade your collection\n\nYour black pug is ready. Are you?`,
         reply_markup: {
-          inline_keyboard: [[{ text: "🎮 Play PugGift", web_app: { url } }]],
+          inline_keyboard: [
+            [{ text: "🎮 PLAY PUGGIFT", web_app: { url } }],
+            [{ text: "🚀 Crash", web_app: { url: `${url}/crash` } }, { text: "⚔️ PvP", web_app: { url: `${url}/battles` } }],
+          ],
         },
       })
       if (photo?.ok) return NextResponse.json({ ok: true })
@@ -60,7 +61,7 @@ export async function POST(req: Request) {
     await tg("sendMessage", {
       chat_id: message.chat.id,
       text: isStart
-        ? `🐶 Welcome to PugGift, ${firstName}!\n\nYour pug arcade is ready: open gifts and play synchronized live rounds.\n\nPress Play to enter.`
+        ? `⚡ Welcome to PugGift, ${firstName}!\n\nYour black-pug arcade is ready: gifts, upgrades, synchronized Crash and real-player PvP.\n\nPress PLAY to enter.`
         : `🎮 Your PugGift arcade is waiting — tap Play to continue.`,
       reply_markup: {
         inline_keyboard: [[{ text: "🎮 Play PugGift", web_app: { url } }]],

@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import useSWR from "swr"
-import { ArrowRight, Users } from "lucide-react"
+import { ArrowRight, Play, Users } from "lucide-react"
 import { getLiveDrops } from "@/app/actions/cases"
 import { Coin } from "@/components/coin"
 
@@ -20,16 +20,23 @@ export function HomeLobby({ online }: { online: number }) {
       </div>
     </div>}
 
+    <Link href="/crash" className="group relative mt-1 aspect-[2.45/1] min-h-[150px] overflow-hidden rounded-[30px] bg-[#091327] ring-1 ring-white/10">
+      <img src="/images/puggift-start-banner-v2.webp" alt="PugGift" className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-[1.025]" />
+      <span className="absolute inset-0 bg-[linear-gradient(90deg,rgba(3,8,19,.88),rgba(3,8,19,.22)_48%,rgba(3,8,19,.08))]" />
+      <span className="absolute left-4 top-4 flex items-center gap-1.5 rounded-full bg-emerald-400/15 px-2.5 py-1 text-[9px] font-black uppercase tracking-[.12em] text-emerald-300 backdrop-blur-md"><i className="h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_8px_#6ee7b7]" />{online} online</span>
+      <span className="absolute bottom-4 left-4 flex items-center gap-2 rounded-2xl bg-[#2f70ff] px-4 py-2.5 text-xs font-black shadow-[0_8px_24px_rgba(47,112,255,.4)]"><Play className="h-4 w-4 fill-current" />Play live</span>
+    </Link>
+
     <div className="flex items-end justify-between px-1 pb-1 pt-2">
       <div><div className="text-[10px] font-black uppercase tracking-[.18em] text-[#6f8dff]">PugGift arcade</div><h1 className="font-display text-2xl font-black">Choose a game</h1></div>
-      <div className="flex items-center gap-1 rounded-full bg-emerald-400/10 px-2.5 py-1.5 text-[10px] font-bold text-emerald-300"><Users className="h-3.5 w-3.5" />{online} online</div>
+      <div className="flex items-center gap-1 rounded-full bg-white/[.06] px-2.5 py-1.5 text-[10px] font-bold text-white/55"><Users className="h-3.5 w-3.5" />Live rooms</div>
     </div>
 
     <div className="flex flex-col gap-3">
-      <GameRow href="/cases" title="Cases" subtitle="Open fresh Telegram gift drops" art="/gifts/giftbox.png" tone="from-[#17419d] via-[#235fce] to-[#3475ef]" badge="OPEN" iconTone="bg-[#2e66d9]" />
-      <GameRow href="/upgrade" title="Upgrade" subtitle="Turn your gift into something bigger" art="/gifts/crown.png" tone="from-[#3b176b] via-[#6324a9] to-[#8135cc]" badge="NEW" iconTone="bg-[#582097]" />
-      <GameRow href="/crash" title="Crash" subtitle="Fly with the pug — one round for everyone" art="/images/puggift-rocket-web-v1.webp" tone="from-[#06132e] via-[#0b2250] to-[#12377e]" badge="ONLINE" iconTone="bg-[#071126]" />
-      <GameRow href="/battles" title="PvP" subtitle="Join a stake session and take the bank" art="/images/puggift-mascot-web-v1.webp" tone="from-[#681254] via-[#9b1d70] to-[#cb347f]" badge="LIVE" iconTone="bg-[#0b2d8c]" />
+      <GameRow href="/cases" title="Cases" subtitle="Open animated Telegram gift drops" art="/images/puggift-cases-card-v2.webp" tone="from-[#184fc2] via-[#246be3] to-[#193b8e]" badge="OPEN" />
+      <GameRow href="/upgrade" title="Upgrade" subtitle="Charge the gauge and level up a gift" art="/images/puggift-upgrade-card-v2.webp" tone="from-[#43206d] via-[#7131a6] to-[#291743]" badge="NEW" />
+      <GameRow href="/crash" title="Crash" subtitle="One shared flight for every player" art="/images/puggift-crash-card-v2.webp" tone="from-[#061738] via-[#0d3477] to-[#071127]" badge="ONLINE" />
+      <GameRow href="/battles" title="PvP" subtitle="Two real stakes. One winner." art="/images/puggift-pvp-card-v2.webp" tone="from-[#6b3512] via-[#bd6a16] to-[#39200d]" badge="LIVE" />
     </div>
 
     <Link href="/deposit" className="group flex items-center justify-between rounded-[24px] bg-[#393c43] px-4 py-3 ring-1 ring-white/10 transition hover:bg-[#41454e]">
@@ -39,11 +46,11 @@ export function HomeLobby({ online }: { online: number }) {
   </section>
 }
 
-function GameRow({ href, title, subtitle, art, tone, badge, iconTone }: { href: string; title: string; subtitle: string; art: string; tone: string; badge: string; iconTone: string }) {
-  return <Link href={href} className={`lobby-card group relative flex min-h-[104px] items-center gap-4 overflow-hidden rounded-[30px] bg-gradient-to-r ${tone} px-4 py-3 shadow-[0_8px_0_-5px_rgba(0,0,0,.7)] ring-1 ring-white/10 md:min-h-[112px] md:px-5`}>
-    <span className="absolute -right-6 -top-12 h-40 w-40 rounded-full bg-white/10 blur-3xl" />
-    <span className={`relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-[22px] ${iconTone} shadow-[inset_0_1px_0_rgba(255,255,255,.35),0_10px_24px_rgba(0,0,0,.25)]`}><img src={art} alt="" className="h-[86%] w-[86%] object-contain drop-shadow-[0_8px_12px_rgba(0,0,0,.45)] transition-transform group-hover:scale-110" /></span>
-    <span className="relative min-w-0 flex-1"><span className="font-display text-xl font-black md:text-2xl">{title}</span><span className="mt-1 block truncate text-xs text-white/65 md:text-sm">{subtitle}</span></span>
-    <span className="relative flex flex-col items-end gap-3"><span className="rounded-full bg-white/15 px-2 py-1 text-[8px] font-black tracking-wide">{badge}</span><ArrowRight className="h-5 w-5 text-white/60 transition-transform group-hover:translate-x-1" /></span>
+function GameRow({ href, title, subtitle, art, tone, badge }: { href: string; title: string; subtitle: string; art: string; tone: string; badge: string }) {
+  return <Link href={href} className={`lobby-card group relative flex min-h-[126px] items-center overflow-hidden rounded-[30px] bg-gradient-to-r ${tone} px-5 py-4 shadow-[0_10px_30px_-18px_rgba(0,0,0,.9)] ring-1 ring-white/10`}>
+    <img src={art} alt="" className="absolute right-0 top-0 h-full w-[54%] object-cover transition duration-500 [mask-image:linear-gradient(to_right,transparent_0%,black_34%)] group-hover:scale-105" />
+    <span className="absolute inset-0 bg-[linear-gradient(90deg,rgba(3,6,14,.18),transparent_65%)]" />
+    <span className="relative z-10 w-[64%] min-w-0"><span className="mb-2 inline-flex rounded-full bg-black/20 px-2 py-1 text-[8px] font-black tracking-[.12em] text-white/75 backdrop-blur-sm">{badge}</span><span className="block font-display text-2xl font-black md:text-[27px]">{title}</span><span className="mt-1 block text-[11px] leading-snug text-white/65 md:text-xs">{subtitle}</span></span>
+    <span className="absolute bottom-4 right-4 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/15 backdrop-blur-md"><ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" /></span>
   </Link>
 }

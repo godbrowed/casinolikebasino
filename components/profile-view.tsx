@@ -115,10 +115,10 @@ export function ProfileView({ me, inventory, history }: { me: Me; inventory: Ite
 
       {/* Level */}
       <div className="relative overflow-hidden rounded-[30px] bg-[#393c43] p-5 ring-1 ring-white/10">
-        <img src="/images/puggift-mascot-web-v1.webp" alt="" className="absolute -bottom-12 -right-10 h-40 w-40 rounded-full object-cover opacity-[.1]" />
+        <img src="/images/puggift-bot-avatar-web-v2.webp" alt="" className="absolute -bottom-12 -right-10 h-40 w-40 rounded-full object-cover opacity-[.1]" />
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <img src={me?.photoUrl || "/images/puggift-mascot-web-v1.webp"} alt="" className="h-12 w-12 rounded-full border-2 border-[#2f70ff] object-cover" />
+            <img src={me?.photoUrl || "/images/puggift-bot-avatar-web-v2.webp"} alt="" className="h-12 w-12 rounded-full border-2 border-[#2f70ff] object-cover" />
             <div>
               <div className="font-display text-lg font-black leading-none">{me?.firstName || me?.username || "PugGift player"}</div>
               <div className="mt-0.5 text-xs text-muted-foreground">

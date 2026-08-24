@@ -66,7 +66,7 @@ export function UpgradeGame({ inventory, targets }: { inventory: Item[]; targets
   return (
     <div className="flex flex-col gap-4">
       <section className="relative overflow-hidden rounded-[34px] bg-[#232731] p-4 ring-1 ring-white/[.08] md:p-6">
-        <div className="mb-3 flex items-center justify-between"><div><div className="text-[10px] font-black uppercase tracking-[.2em] text-[#7698ff]">PugGift lab</div><h1 className="font-display text-2xl font-black">Upgrade orbit</h1></div><span className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-[#071126] ring-1 ring-[#4d7bff]/50"><img src="/images/puggift-mascot-web-v1.webp" alt="" className="h-full w-full object-cover" /></span></div>
+        <div className="mb-3 flex items-center justify-between"><div><div className="text-[10px] font-black uppercase tracking-[.2em] text-[#7698ff]">PugGift lab</div><h1 className="font-display text-2xl font-black">Upgrade orbit</h1></div><span className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-[#071126] ring-1 ring-[#4d7bff]/50"><img src="/images/puggift-bot-avatar-web-v2.webp" alt="" className="h-full w-full object-cover" /></span></div>
 
         <div className="mx-auto w-full max-w-[360px]"><FlightMeter angle={angle} spinning={spinning} chance={chance} outcome={outcome} /></div>
 

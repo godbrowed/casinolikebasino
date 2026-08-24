@@ -17,7 +17,7 @@ export function TelegramRequired({ botUsername }: TelegramRequiredProps) {
     <main className="flex min-h-dvh items-center justify-center bg-background p-5 text-foreground">
       <section className="flex w-full max-w-sm flex-col items-center gap-5 rounded-3xl border border-border bg-card p-6 text-center shadow-2xl">
         <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border-2 border-primary/60 bg-primary/10 shadow-[0_0_32px_hsl(var(--primary)/0.3)]">
-          <img src="/images/puggift-mascot-web-v1.webp" alt="PugGift" className="h-full w-full object-cover" />
+          <img src="/images/puggift-bot-avatar-web-v2.webp" alt="PugGift" className="h-full w-full object-cover" />
         </div>
         <div className="flex flex-col gap-2">
           <p className="font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-primary">Telegram Mini App</p>

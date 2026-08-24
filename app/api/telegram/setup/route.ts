@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server"
+import { readFile } from "node:fs/promises"
+import path from "node:path"
 
 const token = process.env.TELEGRAM_BOT_TOKEN
 
@@ -16,6 +18,15 @@ async function tg(method: string, body: unknown) {
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   })
+  return res.json()
+}
+
+async function setBotAvatar() {
+  const image = await readFile(path.join(process.cwd(), "public", "images", "puggift-bot-avatar-v2.png"))
+  const form = new FormData()
+  form.set("photo", JSON.stringify({ type: "static", photo: "attach://avatar" }))
+  form.set("avatar", new Blob([new Uint8Array(image)], { type: "image/png" }), "puggift-avatar-v2.png")
+  const res = await fetch(`https://api.telegram.org/bot${token}/setMyProfilePhoto`, { method: "POST", body: form })
   return res.json()
 }
 
@@ -49,14 +60,18 @@ export async function GET(req: Request) {
     commands: [{ command: "start", description: "Open PugGift" }],
   })
   const menu = await tg("setChatMenuButton", {
-    menu_button: { type: "web_app", text: "Open app", web_app: { url } },
+    menu_button: { type: "web_app", text: "🎮 Play PugGift", web_app: { url } },
   })
+  const name = await tg("setMyName", { name: "PugGift" })
+  const shortDescription = await tg("setMyShortDescription", { short_description: "Telegram gifts, live Crash and real-player PvP with the black pug." })
+  const description = await tg("setMyDescription", { description: "Open Telegram gifts, upgrade your collection, fly in synchronized Crash rounds and challenge real players in PvP. Enter the PugGift arcade below." })
+  const avatar = await setBotAvatar().catch((error) => ({ ok: false, description: error instanceof Error ? error.message : "Avatar upload failed" }))
 
   const channelUsername = process.env.DAILY_CHANNEL_USERNAME?.trim().replace(/^@+/, "")
   const channel = channelUsername ? await tg("getChat", { chat_id: `@${channelUsername}` }) : { ok: true, result: null }
 
   return NextResponse.json({
-    ok: Boolean(webhook?.ok && commands?.ok && menu?.ok && bot?.ok && channel?.ok),
+    ok: Boolean(webhook?.ok && commands?.ok && menu?.ok && bot?.ok && channel?.ok && name?.ok && shortDescription?.ok && description?.ok && avatar?.ok),
     appUrl: url,
     bot: bot?.result ? { id: bot.result.id, username: bot.result.username } : bot,
     requiredBotUsernameEnv: bot?.result?.username || null,
@@ -64,5 +79,6 @@ export async function GET(req: Request) {
     webhook,
     commands,
     menu,
+    profile: { name, shortDescription, description, avatar },
   })
 }

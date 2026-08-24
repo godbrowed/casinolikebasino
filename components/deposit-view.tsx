@@ -1,7 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { Sparkles, Gem, Zap, Loader2, Gift as GiftIcon, Copy, Check, ShieldCheck } from "lucide-react"
+import Link from "next/link"
+import { Sparkles, Gem, Zap, Loader2, Gift as GiftIcon, Copy, Check, ShieldCheck, X, WalletCards } from "lucide-react"
 import { useTonConnectUI, useTonWallet } from "@tonconnect/ui-react"
 import {
   addDemoBalance,
@@ -145,25 +146,28 @@ export function DepositView({
   }
 
   return (
-    <>
-      <div className="flex flex-col items-center gap-4 pt-2">
-        <h1 className="font-display text-2xl font-black">Balance replenishment</h1>
-        <div className={cn("grid w-full max-w-[560px] gap-1 rounded-3xl bg-[#3a3d43] p-1.5", me?.isDemo ? "grid-cols-4" : "grid-cols-3")}>
+    <div className="flex flex-col gap-4">
+      <section className="relative overflow-hidden rounded-[34px] border border-white/10 bg-[#23262d] p-4 pt-7 shadow-[0_28px_70px_-34px_rgba(0,0,0,.95)]">
+        <i className="absolute left-1/2 top-2 h-1 w-12 -translate-x-1/2 rounded-full bg-white/20" />
+        <div className="flex items-center justify-between"><span className="w-10" /><h1 className="font-display text-xl font-black">Balance</h1><Link href="/" className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white/70"><X className="h-5 w-5" /></Link></div>
+        <div className="mt-3 grid grid-cols-2 gap-2 rounded-[22px] bg-[#1b1e24] p-1.5"><button className="rounded-[17px] bg-[#3477e8] py-3 text-sm font-black shadow-[0_4px_0_#1e4eac]">Top up</button><Link href="/profile" className="flex items-center justify-center rounded-[17px] py-3 text-sm font-black text-white/55">Withdraw</Link></div>
+
+        <div className={cn("mt-3 grid w-full gap-1 rounded-[22px] bg-[#343840] p-1.5", me?.isDemo ? "grid-cols-4" : "grid-cols-3")}>
           <Tab active={method === "stars"} onClick={() => setMethod("stars")} icon={Sparkles} label="Stars" />
           <Tab active={method === "ton"} onClick={() => setMethod("ton")} icon={Gem} label="TON" />
           <Tab active={method === "gifts"} onClick={() => setMethod("gifts")} icon={GiftIcon} label="Gifts" />
           {me?.isDemo && <Tab active={method === "demo"} onClick={() => setMethod("demo")} icon={Zap} label="Demo" />}
         </div>
-      </div>
 
-      <div className="relative flex min-h-48 flex-col items-center justify-center overflow-hidden rounded-[30px] bg-[#23262b] ring-1 ring-white/8">
-        <img src="/images/puggift-mascot-web-v1.webp" alt="" className="absolute -bottom-14 -right-10 h-44 w-44 rounded-full object-cover opacity-[.09]" />
-        <div className="relative rounded-full bg-white/8 px-3 py-1 text-[10px] font-black uppercase tracking-[.14em] text-white/45">Current balance</div>
-        <div className="relative mt-3 flex items-center gap-2"><span className="font-display text-6xl font-black tabular-nums">{fmt(me?.balance ?? 0)}</span><Coin className="h-12 w-12" /></div>
-        <div className="relative mt-1 text-xs font-bold text-white/35">PugGift Stars</div>
-      </div>
+        <div className="relative mt-3 flex min-h-44 flex-col items-center justify-center overflow-hidden rounded-[26px] bg-[#2b2f37] ring-1 ring-white/[.06]">
+          <img src="/images/puggift-bot-avatar-web-v2.webp" alt="" className="absolute -bottom-12 -right-8 h-40 w-40 rounded-full object-cover opacity-[.08]" />
+          <div className="relative flex items-center gap-2"><span className="font-display text-6xl font-black tabular-nums">{fmt(me?.balance ?? 0)}</span><Coin className="h-12 w-12" /></div>
+          <div className="relative mt-1 text-[10px] font-black uppercase tracking-[.16em] text-white/35">Current PugGift balance</div>
+          <div className="relative mt-4 flex items-center gap-1.5 rounded-full bg-[#1f232a] px-3 py-1.5 text-[10px] text-white/55"><WalletCards className="h-3.5 w-3.5 text-blue-300" />Payments verified before credit</div>
+        </div>
+      </section>
 
-      <div className="flex items-center justify-between rounded-2xl border border-blue-300/15 bg-blue-400/8 px-3 py-2 text-[10px]"><span className="flex items-center gap-1.5 font-bold text-blue-200"><ShieldCheck className="h-3.5 w-3.5" />Transparent rate</span><span className="text-white/60">1 TON = {fmt(tonRate)} Stars</span></div>
+      <div className="flex items-center justify-between rounded-2xl border border-blue-300/15 bg-blue-400/8 px-3 py-2 text-[10px]"><span className="flex items-center gap-1.5 font-bold text-blue-200"><ShieldCheck className="h-3.5 w-3.5" />Fixed transparent rate</span><span className="text-white/60">1 TON = {fmt(tonRate)} Stars</span></div>
 
       {msg && (
         <div
@@ -333,7 +337,7 @@ export function DepositView({
           <Route icon="🎁" title="Telegram gifts" text={relayer.username ? `Sent to @${relayer.username} with your unique code${relayer.automated ? "; detection is automatic." : "; confirmation is currently manual."}` : "A RELAYER_USERNAME must be configured before real gift deposits can be accepted."} />
         </div>
       </section>
-    </>
+    </div>
   )
 }
 

@@ -1,6 +1,6 @@
-// Reward for each day of the 7-day streak cycle (GRAM).
+// Reward for each day of the 7-day streak cycle (Stars).
 // Small on purpose — a light daily nudge, not a payout.
-export const DAILY_REWARDS = [0.1, 0.15, 0.25, 0.4, 0.6, 1, 2]
+export const DAILY_REWARDS = [1, 2, 3, 5, 8, 12, 20]
 
 export type RewardState = {
   canClaim: boolean

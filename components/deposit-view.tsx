@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Sparkles, Gem, Zap, Loader2, Gift as GiftIcon, Copy, Check } from "lucide-react"
+import { Sparkles, Gem, Zap, Loader2, Gift as GiftIcon, Copy, Check, ShieldCheck } from "lucide-react"
 import { useTonConnectUI, useTonWallet } from "@tonconnect/ui-react"
 import {
   addDemoBalance,
@@ -19,7 +19,7 @@ import { useUser } from "@/components/user-provider"
 import { rarityOf, fmt } from "@/lib/format"
 import { getWebApp, haptic, hapticNotify } from "@/lib/telegram-webapp"
 import { cn } from "@/lib/utils"
-import { starsToGram } from "@/lib/deposit-shared"
+import { starsToGram, tonToStars } from "@/lib/deposit-shared"
 
 type Method = "stars" | "ton" | "gifts" | "demo"
 
@@ -153,7 +153,7 @@ export function DepositView({
         <div className="mt-1 flex items-center gap-2">
           <Coin className="h-6 w-6" />
           <span className="font-display text-3xl font-black tabular-nums">{fmt(me?.balance ?? 0)}</span>
-          <span className="mb-0.5 self-end text-sm font-bold text-muted-foreground">GRAM</span>
+          <span className="mb-0.5 self-end text-sm font-bold text-white/60">STARS</span>
         </div>
       </div>
 
@@ -164,6 +164,8 @@ export function DepositView({
         <Tab active={method === "gifts"} onClick={() => setMethod("gifts")} icon={GiftIcon} label="Gifts" />
         {me?.isDemo && <Tab active={method === "demo"} onClick={() => setMethod("demo")} icon={Zap} label="Demo" />}
       </div>
+
+      <div className="flex items-center justify-between rounded-2xl border border-blue-300/15 bg-blue-400/8 px-3 py-2 text-[10px]"><span className="flex items-center gap-1.5 font-bold text-blue-200"><ShieldCheck className="h-3.5 w-3.5" />Transparent rate</span><span className="text-white/60">1 TON = {fmt(tonRate)} Stars</span></div>
 
       {msg && (
         <div
@@ -185,8 +187,8 @@ export function DepositView({
                 <Coin className="h-4 w-4" />
                 {fmt(s)}
               </span>
-              <span className="text-[11px] text-muted-foreground">{s} Stars</span>
-              <span className="flex items-center gap-1 text-[11px] text-cyan-300"><Coin className="h-3 w-3" />+{fmt(starsToGram(s))}</span>
+              <span className="text-[11px] text-muted-foreground">Telegram invoice</span>
+              <span className="flex items-center gap-1 text-[11px] text-amber-300">+{fmt(starsToGram(s))} balance</span>
             </PackButton>
           ))}
         </Grid>
@@ -198,7 +200,7 @@ export function DepositView({
             {wallet ? (
               <span className="text-emerald-300">Wallet connected — pick an amount</span>
             ) : (
-              "Connect your TON wallet to deposit GRAM"
+              "Connect your TON wallet to buy Stars"
             )}
           </div>
           <Grid>
@@ -206,8 +208,8 @@ export function DepositView({
               <PackButton key={t} onClick={() => handleTon(t)} disabled={busy}>
                 <Gem className="h-5 w-5 text-cyan-300" />
                 <span className="font-display text-lg font-black">{t} TON</span>
-                <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                  <Coin className="h-3 w-3" />+{fmt(Math.round(t * tonRate))}
+                <span className="flex items-center gap-1 text-[11px] text-amber-300">
+                  <Coin className="h-3 w-3" />+{fmt(tonToStars(t))} Stars
                 </span>
               </PackButton>
             ))}
@@ -235,7 +237,7 @@ export function DepositView({
                   <span className="inline-flex items-center gap-0.5 font-bold text-foreground">
                     {fmt(giftIntent.value)} <Coin className="h-3 w-3" />
                   </span>
-                  .
+                  Stars.
                 </p>
               </div>
               <button
@@ -265,7 +267,7 @@ export function DepositView({
           ) : (
             <>
               <div className="rounded-xl border border-border bg-secondary/40 p-3 text-center text-xs text-muted-foreground">
-                Deposit a real Telegram NFT gift and get its value in GRAM. Pick the gift you&apos;re sending.
+                Deposit a real Telegram NFT gift and receive its live value in Stars. Pick the gift you&apos;re sending.
               </div>
               {giftCatalog.length === 0 ? (
                 <p className="py-6 text-center text-xs text-muted-foreground">No gifts available yet.</p>
@@ -324,8 +326,21 @@ export function DepositView({
           <Loader2 className="h-4 w-4 animate-spin" /> Processing…
         </div>
       )}
+
+      <section className="rounded-[28px] border border-white/10 bg-[#282b32] p-4">
+        <h2 className="font-display text-sm font-black">Where your deposit goes</h2>
+        <div className="mt-3 flex flex-col gap-2 text-[11px] text-muted-foreground">
+          <Route icon="⭐" title="Telegram Stars" text="Paid through an official Telegram invoice. The bot webhook credits the balance after Telegram confirms payment." />
+          <Route icon="💎" title="TON" text="Sent from TON Connect to the project treasury configured in TON_RECEIVER_ADDRESS and verified on-chain before credit." />
+          <Route icon="🎁" title="Telegram gifts" text={relayer.username ? `Sent to @${relayer.username} with your unique code${relayer.automated ? "; detection is automatic." : "; confirmation is currently manual."}` : "A RELAYER_USERNAME must be configured before real gift deposits can be accepted."} />
+        </div>
+      </section>
     </>
   )
+}
+
+function Route({ icon, title, text }: { icon: string; title: string; text: string }) {
+  return <div className="flex gap-3 rounded-2xl bg-[#20232a] p-3"><span className="text-xl">{icon}</span><div><div className="font-bold text-white">{title}</div><div className="mt-0.5 leading-relaxed">{text}</div></div></div>
 }
 
 function Tab({

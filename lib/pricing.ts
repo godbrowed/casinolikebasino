@@ -1,6 +1,6 @@
-// In-game GRAM value of a gift = floor price (TON) * GIFT_VALUE_PER_TON.
-// 1:1 — 1 TON of floor equals 1 GRAM.
-export const GIFT_VALUE_PER_TON = 1
+// Gifts and cases are priced in the same Stars balance used by every game.
+// 1 TON of live floor value maps to 113 in-game Stars.
+export const GIFT_VALUE_PER_TON = 113
 
 export const PORTALS_API = "https://portal-market.com/api/collections?limit=500"
 

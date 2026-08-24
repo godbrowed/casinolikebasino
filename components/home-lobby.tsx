@@ -31,7 +31,7 @@ export function HomeLobby({ online }: { online: number }) {
       <ModeCard href="/battles" title="Battles" subtitle="Win the whole pot" icon={Swords} tone="bg-[linear-gradient(145deg,#b51a78,#521139)]" tag="PVP" />
       <Link href="#cases" className="lobby-card col-span-2 flex items-center gap-4 rounded-[28px] border border-white/10 bg-[linear-gradient(120deg,#265ee0,#192e76)] p-4 shadow-[0_8px_0_-5px_rgba(0,0,0,.65)]"><span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/12"><Gift className="h-8 w-8" /></span><div className="flex-1"><div className="font-display text-xl font-black">Open cases</div><div className="text-xs text-white/60">Fresh Telegram gifts</div></div><span className="text-2xl text-white/60">›</span></Link>
     </div>
-    <Link href="/deposit" className="flex items-center justify-between rounded-3xl border border-white/10 bg-[#30333d] px-4 py-3"><span className="flex items-center gap-2 text-sm font-bold"><Coin className="h-5 w-5" />Need more GRAM?</span><span className="rounded-xl bg-primary px-3 py-1.5 text-xs font-black text-primary-foreground">Top up</span></Link>
+    <Link href="/deposit" className="flex items-center justify-between rounded-3xl border border-white/10 bg-[#30333d] px-4 py-3"><span className="flex items-center gap-2 text-sm font-bold"><Coin className="h-5 w-5" />Need more Stars?</span><span className="rounded-xl bg-primary px-3 py-1.5 text-xs font-black text-primary-foreground">Top up</span></Link>
   </section>
 }
 

@@ -7,6 +7,7 @@ import { db } from "@/lib/db"
 import { users, gifts, inventory, transactions } from "@/lib/db/schema"
 import { requireUserId } from "@/lib/session"
 import { relayerConfigured, relayerUsername } from "@/lib/telegram-gifts"
+import { GIFT_VALUE_PER_TON } from "@/lib/pricing"
 
 export type DepositGift = {
   slug: string
@@ -25,10 +26,11 @@ export async function getDepositGiftCatalog(): Promise<DepositGift[]> {
       rarity: gifts.rarity,
       imageUrl: gifts.imageUrl,
       value: gifts.value,
+      floorTon: gifts.floorTon,
     })
     .from(gifts)
     .orderBy(desc(gifts.value))
-  return rows.map((r) => ({ ...r, value: Number(r.value) }))
+  return rows.map(({ floorTon, ...r }) => ({ ...r, value: Number(floorTon) > 0 ? Math.round(Number(floorTon) * GIFT_VALUE_PER_TON) : Number(r.value) }))
 }
 
 export type RelayerInfo = {
@@ -57,8 +59,9 @@ export async function createGiftDepositIntent(giftSlug: string): Promise<{
   const userId = await requireUserId()
   const gift = (await db.select().from(gifts).where(eq(gifts.slug, giftSlug)).limit(1))[0]
   if (!gift) throw new Error("Unknown gift")
+  const starValue = Number(gift.floorTon) > 0 ? Math.round(Number(gift.floorTon) * GIFT_VALUE_PER_TON) : Number(gift.value)
 
-  const code = `GRAM-${crypto.randomBytes(3).toString("hex").toUpperCase()}`
+  const code = `GFT-${crypto.randomBytes(3).toString("hex").toUpperCase()}`
   const row = await db
     .insert(transactions)
     .values({
@@ -66,7 +69,7 @@ export async function createGiftDepositIntent(giftSlug: string): Promise<{
       type: "gift_deposit",
       currency: "nft",
       amount: "0",
-      credited: String(Number(gift.value)),
+      credited: String(starValue),
       status: "pending",
       externalId: code,
       meta: { giftId: gift.id, giftSlug: gift.slug, giftName: gift.name },
@@ -79,14 +82,14 @@ export async function createGiftDepositIntent(giftSlug: string): Promise<{
     relayerUsername: relayerUsername(),
     automated: relayerConfigured(),
     giftName: gift.name,
-    value: Number(gift.value),
+    value: starValue,
   }
 }
 
 /**
  * Request to withdraw an owned inventory gift to the user's Telegram account.
  * Locks the item and creates a pending withdrawal for the relayer to fulfill via
- * transferGift (or an admin manually). A small GRAM network fee can be applied.
+ * transferGift (or an admin manually). A small Stars network fee can be applied.
  */
 export async function requestGiftWithdraw(inventoryId: number): Promise<{ ok: true }> {
   const userId = await requireUserId()

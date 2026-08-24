@@ -1,5 +1,6 @@
 "use server"
 
+import crypto from "node:crypto"
 import { eq, sql, desc, and, gt, lte, asc } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { db } from "@/lib/db"
@@ -233,24 +234,14 @@ export type MatchState = {
 }
 
 export async function joinBattle(input: {
-  caseId: number
+  bet: number
   capacity: number
-  rounds: number
 }): Promise<{ roomId: number }> {
   const userId = await requireUserId()
   const capacity = Math.min(4, Math.max(2, Math.floor(input.capacity)))
-  const rounds = Math.min(3, Math.max(1, Math.floor(input.rounds)))
-
-  const caseRow = (await db.select().from(cases).where(eq(cases.id, input.caseId)).limit(1))[0]
-  if (!caseRow) throw new Error("Case not found")
-  if (caseRow.isFree) throw new Error("FREE_CASE_NOT_ALLOWED")
-  const caseHasItems = await db
-    .select({ id: caseItems.id })
-    .from(caseItems)
-    .where(eq(caseItems.caseId, input.caseId))
-    .limit(1)
-  if (caseHasItems.length === 0) throw new Error("EMPTY_CASE")
-  const entryCost = Number(caseRow.price) * rounds
+  const entryCost = Math.round(Number(input.bet))
+  const rounds = 1
+  if (!Number.isFinite(entryCost) || entryCost < 10 || entryCost > 100_000) throw new Error("INVALID_BET")
 
   return db.transaction(async (tx) => {
     const u = (await tx.select().from(users).where(eq(users.id, userId)).limit(1))[0]
@@ -265,9 +256,10 @@ export async function joinBattle(input: {
       .where(
         and(
           eq(battleRooms.status, "waiting"),
-          eq(battleRooms.caseId, input.caseId),
+          eq(battleRooms.caseId, 0),
           eq(battleRooms.capacity, capacity),
           eq(battleRooms.rounds, rounds),
+          eq(battleRooms.entryCost, entryCost.toFixed(2)),
         ),
       )
       .orderBy(asc(battleRooms.createdAt))
@@ -286,7 +278,7 @@ export async function joinBattle(input: {
       const created = await tx
         .insert(battleRooms)
         .values({
-          caseId: input.caseId,
+          caseId: 0,
           capacity,
           rounds,
           entryCost: entryCost.toFixed(2),
@@ -298,7 +290,12 @@ export async function joinBattle(input: {
     }
 
     // Charge entry and take the lowest free slot.
-    await tx.update(users).set({ balance: sql`${users.balance} - ${entryCost}` }).where(eq(users.id, userId))
+    const charged = await tx
+      .update(users)
+      .set({ balance: sql`${users.balance} - ${entryCost}` })
+      .where(and(eq(users.id, userId), sql`${users.balance} >= ${entryCost}`))
+      .returning({ balance: users.balance })
+    if (charged.length === 0) throw new Error("INSUFFICIENT_FUNDS")
     const taken = await tx.select().from(battleSlots).where(eq(battleSlots.roomId, roomId))
     const used = new Set(taken.map((s) => s.slot))
     let slot = 0
@@ -331,15 +328,15 @@ export async function leaveBattle(roomId: number): Promise<void> {
     )[0]
     if (!mine) return
     await tx.delete(battleSlots).where(eq(battleSlots.id, mine.id))
+    await tx
+      .update(users)
+      .set({ balance: sql`${users.balance} + ${Number(room.entryCost)}` })
+      .where(eq(users.id, userId))
     const remaining = await tx.select({ id: battleSlots.id }).from(battleSlots).where(eq(battleSlots.roomId, roomId))
     if (remaining.length === 0) {
       await tx.delete(battleRooms).where(eq(battleRooms.id, roomId))
       return
     }
-    await tx
-      .update(users)
-      .set({ balance: sql`${users.balance} + ${Number(room.entryCost)}` })
-      .where(eq(users.id, userId))
   })
   revalidatePath("/battles")
 }
@@ -369,7 +366,7 @@ export async function getMatchState(roomId: number): Promise<MatchState> {
     capacity: fresh.capacity,
     rounds: fresh.rounds,
     entryCost: Number(fresh.entryCost),
-    caseName: caseRow?.name ?? "Case",
+    caseName: room.caseId === 0 ? "Stars PvP" : caseRow?.name ?? "Case",
     secondsLeft: Math.max(0, Math.ceil((fresh.startsAt.getTime() - Date.now()) / 1000)),
     slots: slots.map((s) => ({
       slot: s.slot,
@@ -438,6 +435,44 @@ async function resolveRoom(roomId: number): Promise<void> {
 
     const slots = await tx.select().from(battleSlots).where(eq(battleSlots.roomId, roomId)).orderBy(asc(battleSlots.slot))
     const caseRow = (await tx.select().from(cases).where(eq(cases.id, room.caseId)).limit(1))[0]
+
+    if (room.caseId === 0) {
+      const entryCost = Number(room.entryCost)
+      const grossBank = entryCost * room.capacity
+      // Equal-stake PvP with a 90% RTP: every occupied seat has the same
+      // probability and the winner receives 90% of the shared bank.
+      const payout = Math.max(entryCost, Math.floor(grossBank * 0.9))
+      const players: StoredResult["players"] = slots.map((s) => ({
+        slot: s.slot,
+        name: s.name,
+        photoUrl: s.photoUrl,
+        isBot: s.isBot,
+        userId: s.userId,
+        pulls: [],
+        total: entryCost,
+      }))
+      const winnerSlot = players[crypto.randomInt(players.length)].slot
+      const winner = players.find((p) => p.slot === winnerSlot)!
+
+      if (!winner.isBot && winner.userId) {
+        await tx.update(users).set({ balance: sql`${users.balance} + ${payout}` }).where(eq(users.id, winner.userId))
+      }
+      for (const p of players) {
+        if (p.isBot || !p.userId) continue
+        const youWon = p.slot === winnerSlot
+        await tx.update(users).set({ xp: sql`${users.xp} + ${entryCost}` }).where(eq(users.id, p.userId))
+        await tx.insert(gameHistory).values({
+          userId: p.userId,
+          game: "battle",
+          bet: String(entryCost),
+          result: String(youWon ? payout : 0),
+          meta: { roomId, mode: "stake", caseName: "Stars PvP", players: room.capacity, rounds: 1, winnerName: winner.name, winnerIsYou: youWon, pot: payout, grossBank },
+        })
+      }
+      const stored: StoredResult = { caseName: "Stars PvP", coverUrl: "", rounds: 1, pot: payout, winnerSlot, players }
+      await tx.update(battleRooms).set({ status: "done", result: stored }).where(eq(battleRooms.id, roomId))
+      return
+    }
 
     const list = await tx
       .select({

@@ -1,12 +1,16 @@
-// In-game currency is GRAM and is pegged to TON 1:1.
-// Price policy: 1,000 Telegram Stars represent $15.60. At a reference TON
-// price of about $1.46 this credits 10.68 TON / GRAM (no hidden bonus).
-export const TON_TO_GRAM = 1
-export const STARS_TO_GRAM = 0.01068
+// Giftlys uses Stars as its single in-game balance.
+// Reference deposit screen: 200 Stars ~= 1.77 TON, therefore 1 TON = 113 Stars.
+// Direct Telegram Stars payments credit the same number of in-game Stars.
+export const TON_TO_GRAM = 113
+export const STARS_TO_GRAM = 1
 
 export function starsToGram(stars: number): number {
-  return Math.round(stars * STARS_TO_GRAM * 10_000) / 10_000
+  return Math.round(stars * STARS_TO_GRAM)
+}
+
+export function tonToStars(ton: number): number {
+  return Math.max(1, Math.round((ton * TON_TO_GRAM) / 50) * 50)
 }
 
 export const STAR_PACKS = [50, 100, 250, 500, 1000, 2500]
-export const TON_PACKS = [1, 5, 10, 25, 50, 100]
+export const TON_PACKS = [1.77, 4.42, 8.85, 17.7, 44.25, 88.5]

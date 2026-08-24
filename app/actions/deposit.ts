@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache"
 import { db } from "@/lib/db"
 import { users, transactions } from "@/lib/db/schema"
 import { requireUserId, getCurrentUser } from "@/lib/session"
-import { TON_TO_GRAM, STAR_PACKS, starsToGram } from "@/lib/deposit-shared"
+import { STAR_PACKS, starsToGram, tonToStars } from "@/lib/deposit-shared"
 
 /** Demo-only instant top up so the preview is fully playable. */
 export async function addDemoBalance(amount: number): Promise<{ balance: number }> {
@@ -49,7 +49,7 @@ export async function createStarsInvoice(stars: number): Promise<{ link: string 
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       title: `${stars} Stars`,
-      description: `Top up your balance with ${stars} Telegram Stars (${credited} TON)`,
+      description: `Top up your Giftlys balance with ${credited} Stars`,
       payload,
       currency: "XTR",
       prices: [{ label: `${stars} Stars`, amount: stars }],
@@ -84,9 +84,11 @@ export async function createTonIntent(ton: number): Promise<{
   if (!receiver) throw new Error("TON deposits are not configured (missing TON_RECEIVER_ADDRESS)")
   if (!(ton > 0)) throw new Error("Invalid amount")
 
-  const memo = `dep_${crypto.randomBytes(5).toString("hex")}`
-  const credited = ton * TON_TO_GRAM
-  const amountNano = String(Math.round(ton * 1e9))
+  const credited = tonToStars(ton)
+  // TON Connect does not accept a plain-text comment as payload. Give every
+  // intent a unique nanoTON amount instead, so Toncenter can match it exactly.
+  const amountNano = String(Math.round(ton * 1e9) + crypto.randomInt(1, 1000))
+  const memo = ""
 
   const row = await db
     .insert(transactions)
@@ -97,7 +99,7 @@ export async function createTonIntent(ton: number): Promise<{
       amount: String(ton),
       credited: String(credited),
       status: "pending",
-      externalId: memo,
+      externalId: `nano:${amountNano}`,
     })
     .returning({ id: transactions.id })
 
@@ -132,15 +134,14 @@ export async function verifyTonDeposit(transactionId: number): Promise<{
   const data = await res.json().catch(() => null)
   const txs: any[] = data?.transactions ?? []
 
-  const memo = tx.externalId ?? ""
-  const expectedNano = Math.round(Number(tx.amount) * 1e9)
+  const storedNano = tx.externalId?.startsWith("nano:") ? Number(tx.externalId.slice(5)) : NaN
+  const expectedNano = Number.isSafeInteger(storedNano) ? storedNano : Math.round(Number(tx.amount) * 1e9)
 
   const match = txs.find((t) => {
     const inMsg = t.in_msg
     if (!inMsg) return false
-    const comment: string = inMsg.message_content?.decoded?.comment ?? inMsg.comment ?? ""
     const value = Number(inMsg.value ?? 0)
-    return comment.includes(memo) && value >= expectedNano * 0.98
+    return value === expectedNano
   })
 
   if (!match) return { status: "pending", balance: null }

@@ -1,17 +1,14 @@
-import { getCases } from "@/app/actions/cases"
 import { AppHeader } from "@/components/app-header"
 import { BattlesLobby } from "@/components/battles-lobby"
 
 export const dynamic = "force-dynamic"
 
-export default async function BattlesPage() {
-  const cases = await getCases()
-
+export default function BattlesPage() {
   return (
     <>
       <AppHeader title="Battles" />
       <main className="flex flex-col gap-4 px-4 pt-4">
-        <BattlesLobby cases={cases} />
+        <BattlesLobby />
       </main>
     </>
   )

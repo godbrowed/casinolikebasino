@@ -30,7 +30,7 @@ export async function creditBalance(targetUserId: string, amount: number) {
     await tx.insert(transactions).values({
       userId: target,
       type: "admin_credit",
-      currency: "gram",
+      currency: "stars",
       amount: String(normalizedAmount),
       credited: String(normalizedAmount),
       status: "completed",

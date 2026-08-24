@@ -102,7 +102,7 @@ export function DailyReward() {
               <X className="h-5 w-5" />
             </button>
             <h3 className="font-display text-lg font-black">Daily rewards</h3>
-            <p className="text-xs text-muted-foreground">Log in every day — the longer the streak, the bigger the GRAM.</p>
+            <p className="text-xs text-muted-foreground">Log in every day — the longer the streak, the more Stars.</p>
 
             <div className="mt-4 grid grid-cols-4 gap-2">
               {data.rewards.map((r, i) => {
@@ -153,7 +153,7 @@ export function DailyReward() {
 
             {claimed != null ? (
               <div className="mt-5 flex animate-pop-in items-center justify-center gap-2 rounded-xl bg-emerald-500/15 py-3 font-display text-lg font-black text-emerald-300">
-                <Coin className="h-6 w-6" />+{fmt(claimed)} GRAM
+                <Coin className="h-6 w-6" />+{fmt(claimed)} Stars
               </div>
             ) : (
               <button

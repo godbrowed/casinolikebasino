@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache"
 import { db } from "@/lib/db"
 import { cases, caseItems, gifts, users, inventory, gameHistory } from "@/lib/db/schema"
 import { getCurrentUserId, requireUserId } from "@/lib/session"
-import { BALANCE_REWARD_MAX_CASE_PRICE } from "@/lib/pricing"
+import { BALANCE_REWARD_MAX_CASE_PRICE, GIFT_VALUE_PER_TON, priceFromContents } from "@/lib/pricing"
 
 export type GiftDTO = {
   id: number
@@ -38,23 +38,27 @@ export type CaseDTO = {
 // cases settle in gifts only, keeping their economy predictable.
 const CURRENCY_CASE_LIMIT = BALANCE_REWARD_MAX_CASE_PRICE
 
+function starValue(value: string | number, floorTon: string | number | null | undefined): number {
+  return Number(floorTon) > 0 ? Math.round(Number(floorTon) * GIFT_VALUE_PER_TON * 100) / 100 : Number(value)
+}
+
 function currencyRewards(price: number): GiftDTO[] {
   if (price > CURRENCY_CASE_LIMIT) return []
   return [
-    { id: -101, slug: `gram-small-${price}`, name: `${(price * 0.1).toFixed(2)} GRAM`, rarity: "common", imageUrl: "/images/giftlys-coin-v2.png", value: price * 0.1, chance: 20, rewardType: "currency" },
-    { id: -102, slug: `gram-medium-${price}`, name: `${(price * 0.25).toFixed(2)} GRAM`, rarity: "rare", imageUrl: "/images/giftlys-coin-v2.png", value: price * 0.25, chance: 12, rewardType: "currency" },
-    { id: -103, slug: `gram-large-${price}`, name: `${(price * 0.5).toFixed(2)} GRAM`, rarity: "epic", imageUrl: "/images/giftlys-coin-v2.png", value: price * 0.5, chance: 6, rewardType: "currency" },
-    { id: -104, slug: `gram-jackpot-${price}`, name: `${price.toFixed(2)} GRAM`, rarity: "legendary", imageUrl: "/images/giftlys-coin-v2.png", value: price, chance: 2, rewardType: "currency" },
+    { id: -101, slug: `stars-small-${price}`, name: `${Math.round(price * 0.1)} Stars`, rarity: "common", imageUrl: "/images/giftlys-star.svg", value: price * 0.1, chance: 20, rewardType: "currency" },
+    { id: -102, slug: `stars-medium-${price}`, name: `${Math.round(price * 0.25)} Stars`, rarity: "rare", imageUrl: "/images/giftlys-star.svg", value: price * 0.25, chance: 12, rewardType: "currency" },
+    { id: -103, slug: `stars-large-${price}`, name: `${Math.round(price * 0.5)} Stars`, rarity: "epic", imageUrl: "/images/giftlys-star.svg", value: price * 0.5, chance: 6, rewardType: "currency" },
+    { id: -104, slug: `stars-jackpot-${price}`, name: `${Math.round(price)} Stars`, rarity: "legendary", imageUrl: "/images/giftlys-star.svg", value: price, chance: 2, rewardType: "currency" },
   ]
 }
 
 const FREE_CURRENCY_REWARDS: GiftDTO[] = [
-  { id: -1, slug: "gram-002", name: "0.02 GRAM", rarity: "common", imageUrl: "/images/giftlys-coin-v2.png", value: 0.02, chance: 45, rewardType: "currency" },
-  { id: -2, slug: "gram-005", name: "0.05 GRAM", rarity: "common", imageUrl: "/images/giftlys-coin-v2.png", value: 0.05, chance: 30, rewardType: "currency" },
-  { id: -3, slug: "gram-010", name: "0.10 GRAM", rarity: "rare", imageUrl: "/images/giftlys-coin-v2.png", value: 0.1, chance: 15, rewardType: "currency" },
-  { id: -4, slug: "gram-025", name: "0.25 GRAM", rarity: "epic", imageUrl: "/images/giftlys-coin-v2.png", value: 0.25, chance: 7, rewardType: "currency" },
-  { id: -5, slug: "gram-050", name: "0.50 GRAM", rarity: "legendary", imageUrl: "/images/giftlys-coin-v2.png", value: 0.5, chance: 2, rewardType: "currency" },
-  { id: -6, slug: "gram-100", name: "1.00 GRAM", rarity: "mythic", imageUrl: "/images/giftlys-coin-v2.png", value: 1, chance: 0.8, rewardType: "currency" },
+  { id: -1, slug: "stars-2", name: "2 Stars", rarity: "common", imageUrl: "/images/giftlys-star.svg", value: 2, chance: 45, rewardType: "currency" },
+  { id: -2, slug: "stars-5", name: "5 Stars", rarity: "common", imageUrl: "/images/giftlys-star.svg", value: 5, chance: 30, rewardType: "currency" },
+  { id: -3, slug: "stars-10", name: "10 Stars", rarity: "rare", imageUrl: "/images/giftlys-star.svg", value: 10, chance: 15, rewardType: "currency" },
+  { id: -4, slug: "stars-25", name: "25 Stars", rarity: "epic", imageUrl: "/images/giftlys-star.svg", value: 25, chance: 7, rewardType: "currency" },
+  { id: -5, slug: "stars-50", name: "50 Stars", rarity: "legendary", imageUrl: "/images/giftlys-star.svg", value: 50, chance: 2, rewardType: "currency" },
+  { id: -6, slug: "stars-100", name: "100 Stars", rarity: "mythic", imageUrl: "/images/giftlys-star.svg", value: 100, chance: 0.8, rewardType: "currency" },
 ]
 
 export async function getCases(): Promise<CaseDTO[]> {
@@ -84,6 +88,7 @@ export async function getCases(): Promise<CaseDTO[]> {
   return rows.map((c) => {
     const list = items.filter((i) => i.caseId === c.id)
     const totalW = list.reduce((s, i) => s + Number(i.weight), 0)
+    const livePrice = c.isFree ? 0 : priceFromContents(list.map((i) => ({ weight: Number(i.weight), value: starValue(i.value, i.floorTon) })))
     const nextFreeAt = c.isFree && lastFreeCaseAt
       ? new Date(lastFreeCaseAt.getTime() + (c.cooldownHours ?? 24) * 60 * 60 * 1000).toISOString()
       : null
@@ -92,14 +97,14 @@ export async function getCases(): Promise<CaseDTO[]> {
       slug: c.slug,
       name: c.name,
       coverUrl: c.isFree ? "/images/giftlys-free-case.png" : c.coverUrl,
-      price: Number(c.price),
+      price: livePrice || Number(c.price),
       accent: c.accent,
       isFree: c.isFree,
       cooldownHours: c.cooldownHours,
       nextFreeAt,
       items: c.isFree
         ? [
-            { id: 37, slug: "snakebox", name: "Snake Box NFT", rarity: "mythic", imageUrl: "https://storage.portal-market.com/portals-market/gifts/snakebox/models/png/aquarium.png", value: 2.48, chance: 0.2, rewardType: "gift" as const },
+            { id: 37, slug: "snakebox", name: "Snake Box NFT", rarity: "mythic", imageUrl: "https://storage.portal-market.com/portals-market/gifts/snakebox/models/png/aquarium.png", value: 280, chance: 0.2, rewardType: "gift" as const },
             ...FREE_CURRENCY_REWARDS,
           ]
         : [
@@ -110,14 +115,14 @@ export async function getCases(): Promise<CaseDTO[]> {
           name: i.name,
           rarity: i.rarity,
           imageUrl: i.imageUrl,
-          value: Number(i.value),
+          value: starValue(i.value, i.floorTon),
           floorTon: Number(i.floorTon),
           weight: Number(i.weight),
-          chance: totalW ? (Number(i.weight) / totalW) * (Number(c.price) <= CURRENCY_CASE_LIMIT ? 60 : 100) : 0,
+          chance: totalW ? (Number(i.weight) / totalW) * ((livePrice || Number(c.price)) <= CURRENCY_CASE_LIMIT ? 60 : 100) : 0,
           rewardType: "gift" as const,
         }))
         .sort((a, b) => b.value - a.value),
-          ...currencyRewards(Number(c.price)),
+          ...currencyRewards(livePrice || Number(c.price)),
         ],
     }
   })
@@ -147,8 +152,6 @@ export async function openCase(caseId: number): Promise<{
 
   const caseRow = (await db.select().from(cases).where(eq(cases.id, caseId)).limit(1))[0]
   if (!caseRow) throw new Error("Case not found")
-  const price = Number(caseRow.price)
-
   const list = await db
     .select({
       weight: caseItems.weight,
@@ -158,10 +161,13 @@ export async function openCase(caseId: number): Promise<{
       rarity: gifts.rarity,
       imageUrl: gifts.imageUrl,
       value: gifts.value,
+      floorTon: gifts.floorTon,
     })
     .from(caseItems)
     .innerJoin(gifts, eq(caseItems.giftId, gifts.id))
     .where(eq(caseItems.caseId, caseId))
+
+  const price = caseRow.isFree ? 0 : priceFromContents(list.map((item) => ({ weight: Number(item.weight), value: starValue(item.value, item.floorTon) }))) || Number(caseRow.price)
 
   if (!caseRow.isFree && list.length === 0) throw new Error("Empty case")
 
@@ -175,29 +181,30 @@ export async function openCase(caseId: number): Promise<{
       const cooldownMs = (caseRow.cooldownHours ?? 24) * 60 * 60 * 1000
       const eligibleBefore = new Date(now.getTime() - cooldownMs)
       const roll = crypto.randomInt(10_000)
-      const currencyValue = roll < 4500 ? 0.02 : roll < 7500 ? 0.05 : roll < 9000 ? 0.1 : roll < 9700 ? 0.25 : roll < 9900 ? 0.5 : 1
+      const currencyValue = roll < 4500 ? 2 : roll < 7500 ? 5 : roll < 9000 ? 10 : roll < 9700 ? 25 : roll < 9900 ? 50 : 100
       const wonGift = roll >= 9980
 
       if (wonGift) {
         const giftRows = await tx.select().from(gifts).where(eq(gifts.id, 37)).limit(1)
         const gift = giftRows[0]
         if (gift) {
+          const giftWinValue = starValue(gift.value, gift.floorTon)
           const claimed = await tx
             .update(users)
             .set({ lastFreeCaseAt: now })
             .where(and(eq(users.id, userId), or(isNull(users.lastFreeCaseAt), lte(users.lastFreeCaseAt, eligibleBefore))))
             .returning({ balance: users.balance })
           if (claimed.length === 0) throw new Error("FREE_CASE_COOLDOWN")
-          const inv = await tx.insert(inventory).values({ userId, giftId: gift.id, value: gift.value, source: "free-case" }).returning({ id: inventory.id })
+          const inv = await tx.insert(inventory).values({ userId, giftId: gift.id, value: String(giftWinValue), source: "free-case" }).returning({ id: inventory.id })
           await tx.insert(gameHistory).values({
             userId,
             game: "case",
             bet: "0",
-            result: gift.value,
+            result: String(giftWinValue),
             meta: { caseName: caseRow.name, giftName: gift.name, rarity: gift.rarity, imageUrl: gift.imageUrl, rewardType: "gift" },
           })
           return {
-            won: { id: gift.id, slug: gift.slug, name: gift.name, rarity: gift.rarity, imageUrl: gift.imageUrl, value: Number(gift.value), rewardType: "gift" },
+            won: { id: gift.id, slug: gift.slug, name: gift.name, rarity: gift.rarity, imageUrl: gift.imageUrl, value: giftWinValue, rewardType: "gift" },
             balance: Number(claimed[0].balance),
             inventoryId: inv[0].id,
           }
@@ -212,10 +219,10 @@ export async function openCase(caseId: number): Promise<{
       if (updated.length === 0) throw new Error("FREE_CASE_COOLDOWN")
       const won: GiftDTO = {
         id: -currencyValue,
-        slug: `gram-${currencyValue}`,
-        name: `${currencyValue} GRAM`,
+        slug: `stars-${currencyValue}`,
+        name: `${currencyValue} Stars`,
         rarity: currencyValue >= 0.25 ? "rare" : "common",
-        imageUrl: "/images/giftlys-coin-v2.png",
+        imageUrl: "/images/giftlys-star.svg",
         value: currencyValue,
         rewardType: "currency",
       }
@@ -244,7 +251,7 @@ export async function openCase(caseId: number): Promise<{
 
     const idx = weightedPick(list.map((i) => ({ weight: Number(i.weight) })))
     const won = list[idx]
-    const wonValue = Number(won.value)
+    const wonValue = starValue(won.value, won.floorTon)
 
     const updated = await tx
       .update(users)
@@ -262,10 +269,10 @@ export async function openCase(caseId: number): Promise<{
     if (isCurrencyReward) {
       const currencyWon: GiftDTO = {
         id: -1000 - currencyValue,
-        slug: `gram-${currencyValue}`,
-        name: `${currencyValue} GRAM`,
+        slug: `stars-${currencyValue}`,
+        name: `${Math.round(currencyValue)} Stars`,
         rarity: currencyValue >= price ? "legendary" : currencyValue >= price * 0.5 ? "epic" : currencyValue >= price * 0.25 ? "rare" : "common",
-        imageUrl: "/images/giftlys-coin-v2.png",
+        imageUrl: "/images/giftlys-star.svg",
         value: currencyValue,
         rewardType: "currency",
       }

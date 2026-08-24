@@ -24,13 +24,13 @@ export function BattleArena({ result, onDone }: { result: BattleResult; onDone: 
   }, [result, segment])
 
   const winner = result.players.find((player) => player.slot === result.winnerSlot)
-  return <div className="flex min-h-[600px] flex-col items-center gap-5 rounded-[30px] border border-white/10 bg-[radial-gradient(circle_at_50%_25%,#162a59,#0b1019_58%)] p-4">
+  return <div className="flex min-h-[calc(100dvh-170px)] flex-col items-center gap-5 overflow-hidden rounded-[32px] border border-white/10 bg-[radial-gradient(circle_at_50%_25%,#162a59,#0b1019_58%)] p-4 md:p-6">
     <div className="text-center"><div className="text-[9px] font-black uppercase tracking-[.18em] text-blue-300">Stars PvP</div><h1 className="font-display text-xl font-black">{done ? `${winner?.name ?? "Winner"} takes the bank` : "The wheel is spinning"}</h1></div>
 
-    <div className="relative mt-2 aspect-square w-full max-w-[340px]">
+    <div className="relative mt-2 aspect-square w-full max-w-[480px]">
       <div className="absolute left-1/2 top-[-10px] z-20 -translate-x-1/2 border-x-[13px] border-t-[22px] border-x-transparent border-t-white drop-shadow-[0_5px_8px_rgba(0,0,0,.7)]" />
       <div className="absolute inset-0 rounded-full border-[10px] border-[#252a34] shadow-[0_18px_40px_rgba(0,0,0,.55),inset_0_0_25px_rgba(0,0,0,.35)] transition-transform duration-[3000ms] ease-[cubic-bezier(.12,.72,.06,1)]" style={{ background: `conic-gradient(${wheel})`, transform: `rotate(${angle}deg)` }}>
-        {result.players.map((player, index) => { const middle = index * segment + segment / 2; return <div key={player.slot} className="absolute left-1/2 top-1/2 h-12 w-12" style={{ transform: `translate(-50%,-50%) rotate(${middle}deg) translateY(-118px) rotate(${-middle}deg)` }}><div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border-2 border-white bg-[#20242d] font-black shadow-lg">{player.photoUrl ? <img src={player.photoUrl} alt="" className="h-full w-full object-cover" /> : player.name.slice(0, 1).toUpperCase()}</div></div> })}
+        {result.players.map((player, index) => { const middle = index * segment + segment / 2; const rad = middle * Math.PI / 180; return <div key={player.slot} className="absolute h-12 w-12 -translate-x-1/2 -translate-y-1/2" style={{ left: `${50 + Math.sin(rad) * 39}%`, top: `${50 - Math.cos(rad) * 39}%` }}><div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border-2 border-white bg-[#20242d] font-black shadow-lg">{player.photoUrl ? <img src={player.photoUrl} alt="" className="h-full w-full object-cover" /> : player.name.slice(0, 1).toUpperCase()}</div></div> })}
       </div>
       <div className="absolute inset-[34%] flex flex-col items-center justify-center rounded-full border-8 border-[#252a34] bg-[#11151d] text-center shadow-[0_0_30px_rgba(0,0,0,.65)]"><span className="text-[9px] font-black uppercase text-white/40">Bank</span><span className="mt-1 flex items-center gap-1 font-display text-2xl font-black"><Coin className="h-6 w-6" />{fmt(result.pot)}</span></div>
     </div>

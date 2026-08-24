@@ -13,7 +13,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
   return (
     <TonConnectUIProvider manifestUrl={manifestUrl}>
       <LanguageProvider><UserProvider>
-        <div className="app-shell mx-auto flex min-h-dvh w-full max-w-[480px] flex-col pb-28">{children}</div>
+        <div className="app-shell flex min-h-dvh w-full flex-col pb-24">{children}</div>
         <BottomNav />
       </UserProvider></LanguageProvider>
     </TonConnectUIProvider>

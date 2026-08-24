@@ -206,12 +206,17 @@ async function runBattle(input: {
 }
 
 /* --------------------------- Live matchmaking --------------------------- */
-// Players join a shared room. It resolves only after every seat is occupied
-// by a real player; queued players can leave and receive a refund beforehand.
+// The first stake creates a public room. The second participant arms one
+// shared 30-second deadline; everybody in that room sees the same result.
 
 const MATCH_WINDOW_MS = 30_000
-// Retained for backwards-compatible settlement code; matchmaking never calls it.
-const BOT_INTERVAL_MS = 6_000
+const UNARMED_ROOM_MS = 24 * 60 * 60 * 1000
+const FIRST_OPPONENT_DELAY_MS = 5_000
+const MAX_STAKE_PLAYERS = 4
+
+function countdownStarted(room: { createdAt: Date; startsAt: Date }) {
+  return room.startsAt.getTime() - room.createdAt.getTime() < 5 * 60 * 1000
+}
 
 export type MatchSlot = {
   slot: number
@@ -223,22 +228,23 @@ export type MatchSlot = {
 
 export type MatchState = {
   roomId: number
-  status: "waiting" | "resolving" | "done"
+  status: "waiting" | "countdown" | "resolving" | "done"
   capacity: number
   rounds: number
   entryCost: number
   caseName: string
-  secondsLeft: number
+  secondsLeft: number | null
   slots: MatchSlot[]
   result: BattleResult | null
 }
 
 export async function joinBattle(input: {
   bet: number
-  capacity: number
+  capacity?: number
+  roomId?: number
 }): Promise<{ roomId: number }> {
   const userId = await requireUserId()
-  const capacity = Math.min(4, Math.max(2, Math.floor(input.capacity)))
+  const capacity = MAX_STAKE_PLAYERS
   const entryCost = Math.round(Number(input.bet))
   const rounds = 1
   if (!Number.isFinite(entryCost) || entryCost < 10 || entryCost > 100_000) throw new Error("INVALID_BET")
@@ -265,14 +271,19 @@ export async function joinBattle(input: {
       .orderBy(asc(battleRooms.createdAt))
 
     let roomId: number | null = null
-    for (const room of openRooms) {
+    const orderedRooms = [...openRooms].sort((a, b) => Number(b.id === input.roomId) - Number(a.id === input.roomId))
+    for (const room of orderedRooms) {
+      if (input.roomId != null && room.id !== input.roomId) continue
       const slots = await tx.select().from(battleSlots).where(eq(battleSlots.roomId, room.id))
       if (slots.some((s) => s.userId === userId)) return { roomId: room.id } // already queued
+      if (countdownStarted(room) && room.startsAt.getTime() <= Date.now()) continue
       if (slots.length < room.capacity) {
         roomId = room.id
         break
       }
     }
+
+    if (roomId === null && input.roomId != null) throw new Error("SESSION_CLOSED")
 
     if (roomId === null) {
       const created = await tx
@@ -283,7 +294,9 @@ export async function joinBattle(input: {
           rounds,
           entryCost: entryCost.toFixed(2),
           status: "waiting",
-          startsAt: new Date(Date.now() + MATCH_WINDOW_MS),
+          // The clock is intentionally unarmed. It starts only when a second
+          // stake reaches this public room.
+          startsAt: new Date(Date.now() + UNARMED_ROOM_MS),
         })
         .returning({ id: battleRooms.id })
       roomId = created[0].id
@@ -309,6 +322,12 @@ export async function joinBattle(input: {
       isBot: false,
     })
 
+    const joined = await tx.select().from(battleSlots).where(eq(battleSlots.roomId, roomId))
+    const currentRoom = (await tx.select().from(battleRooms).where(eq(battleRooms.id, roomId)).limit(1))[0]
+    if (joined.length >= 2 && currentRoom && !countdownStarted(currentRoom)) {
+      await tx.update(battleRooms).set({ startsAt: new Date(Date.now() + MATCH_WINDOW_MS) }).where(eq(battleRooms.id, roomId))
+    }
+
     return { roomId }
   })
 }
@@ -317,8 +336,9 @@ export async function leaveBattle(roomId: number): Promise<void> {
   const userId = await requireUserId()
   await db.transaction(async (tx) => {
     const room = (await tx.select().from(battleRooms).where(eq(battleRooms.id, roomId)).limit(1))[0]
-    // Only allow leaving (and refunding) while the room is still open.
+    // A stake can be withdrawn only before the second player starts the clock.
     if (!room || room.status !== "waiting") return
+    if (countdownStarted(room)) return
     const mine = (
       await tx
         .select()
@@ -349,10 +369,11 @@ export async function getMatchState(roomId: number): Promise<MatchState> {
 
   if (room.status === "waiting") {
     const elapsedMs = Math.max(0, Date.now() - room.createdAt.getTime())
-    // Fill gradually, so real users can still join the same public room.
-    await maybeAddBots(roomId, room.capacity, elapsedMs)
+    await maybeAddBots(roomId, room.capacity, elapsedMs, room)
     const afterBots = await db.select().from(battleSlots).where(eq(battleSlots.roomId, roomId))
-    if (afterBots.length >= room.capacity) {
+    const afterRoom = (await db.select().from(battleRooms).where(eq(battleRooms.id, roomId)).limit(1))[0]
+    // Capacity never skips the advertised 30-second shared countdown.
+    if (afterBots.length >= 2 && countdownStarted(afterRoom) && afterRoom.startsAt.getTime() <= Date.now()) {
       await resolveRoom(roomId)
     }
   }
@@ -362,12 +383,12 @@ export async function getMatchState(roomId: number): Promise<MatchState> {
 
   return {
     roomId,
-    status: fresh.status as MatchState["status"],
+    status: fresh.status === "waiting" && countdownStarted(fresh) ? "countdown" : fresh.status as MatchState["status"],
     capacity: fresh.capacity,
     rounds: fresh.rounds,
     entryCost: Number(fresh.entryCost),
     caseName: room.caseId === 0 ? "Stars PvP" : caseRow?.name ?? "Case",
-    secondsLeft: Math.max(0, Math.ceil((fresh.startsAt.getTime() - Date.now()) / 1000)),
+    secondsLeft: countdownStarted(fresh) ? Math.max(0, Math.ceil((fresh.startsAt.getTime() - Date.now()) / 1000)) : null,
     slots: slots.map((s) => ({
       slot: s.slot,
       name: s.name,
@@ -379,12 +400,18 @@ export async function getMatchState(roomId: number): Promise<MatchState> {
   }
 }
 
-async function maybeAddBots(roomId: number, capacity: number, elapsedMs: number) {
-  // Keep one seat open for a real opponent during the search window; the final
-  // seat is backfilled by resolveRoom at the deadline if nobody joins.
-  const maxBotsNow = elapsedMs >= MATCH_WINDOW_MS ? capacity : Math.max(0, capacity - 1)
-  const botsShould = Math.min(maxBotsNow, Math.floor(elapsedMs / BOT_INTERVAL_MS))
+async function maybeAddBots(roomId: number, capacity: number, elapsedMs: number, room: { createdAt: Date; startsAt: Date }) {
   const slots = await db.select().from(battleSlots).where(eq(battleSlots.roomId, roomId))
+  const started = countdownStarted(room)
+  const secondsLeft = started ? Math.max(0, Math.ceil((room.startsAt.getTime() - Date.now()) / 1000)) : null
+  // parsed.txt opponents behave like public users: the first arrives after a
+  // short wait and starts the same 30-second clock. Remaining seats stay open
+  // for real people, then fill only near the end.
+  let targetPlayers = slots.length
+  if (!started && slots.length === 1 && elapsedMs >= FIRST_OPPONENT_DELAY_MS) targetPlayers = 2
+  if (started && secondsLeft !== null && secondsLeft <= 12) targetPlayers = Math.max(targetPlayers, 3)
+  if (started && secondsLeft !== null && secondsLeft <= 5) targetPlayers = capacity
+  const botsShould = Math.max(0, targetPlayers - slots.filter((s) => !s.isBot).length)
   const currentBots = slots.filter((s) => s.isBot).length
   const free = capacity - slots.length
   const toAdd = Math.min(free, botsShould - currentBots)
@@ -402,6 +429,10 @@ async function maybeAddBots(roomId: number, capacity: number, elapsedMs: number)
     } catch {
       // slot race — ignore
     }
+  }
+  const filled = await db.select({ id: battleSlots.id }).from(battleSlots).where(eq(battleSlots.roomId, roomId))
+  if (filled.length >= 2 && !started) {
+    await db.update(battleRooms).set({ startsAt: new Date(Date.now() + MATCH_WINDOW_MS) }).where(and(eq(battleRooms.id, roomId), eq(battleRooms.status, "waiting")))
   }
 }
 
@@ -426,10 +457,8 @@ async function resolveRoom(roomId: number): Promise<void> {
     const room = claimed[0]
 
     const existing = await tx.select().from(battleSlots).where(eq(battleSlots.roomId, roomId))
-    if (existing.length < room.capacity) {
-      // A concurrent leave can race with resolution. Reopen instead of ever
-      // manufacturing an opponent.
-      await tx.update(battleRooms).set({ status: "waiting" }).where(eq(battleRooms.id, roomId))
+    if (existing.length < 2) {
+      await tx.update(battleRooms).set({ status: "waiting", startsAt: new Date(Date.now() + UNARMED_ROOM_MS) }).where(eq(battleRooms.id, roomId))
       return
     }
 
@@ -438,7 +467,8 @@ async function resolveRoom(roomId: number): Promise<void> {
 
     if (room.caseId === 0) {
       const entryCost = Number(room.entryCost)
-      const grossBank = entryCost * room.capacity
+      const playerCount = slots.length
+      const grossBank = entryCost * playerCount
       // Equal-stake PvP with a 90% RTP: every occupied seat has the same
       // probability and the winner receives 90% of the shared bank.
       const payout = Math.max(entryCost, Math.floor(grossBank * 0.9))
@@ -466,7 +496,7 @@ async function resolveRoom(roomId: number): Promise<void> {
           game: "battle",
           bet: String(entryCost),
           result: String(youWon ? payout : 0),
-          meta: { roomId, mode: "stake", caseName: "Stars PvP", players: room.capacity, rounds: 1, winnerName: winner.name, winnerIsYou: youWon, pot: payout, grossBank },
+          meta: { roomId, mode: "stake", caseName: "Stars PvP", players: playerCount, rounds: 1, winnerName: winner.name, winnerIsYou: youWon, pot: payout, grossBank },
         })
       }
       const stored: StoredResult = { caseName: "Stars PvP", coverUrl: "", rounds: 1, pot: payout, winnerSlot, players }
@@ -583,6 +613,43 @@ function personalizeResult(stored: StoredResult, userId: string): BattleResult {
     youWinAmount: youWon ? stored.pot : 0,
     balance: 0,
   }
+}
+
+export type BattleSession = {
+  roomId: number
+  bet: number
+  players: number
+  capacity: number
+  status: "waiting" | "countdown"
+  secondsLeft: number | null
+  names: string[]
+}
+
+export async function getBattleSessions(): Promise<BattleSession[]> {
+  const rooms = await db
+    .select()
+    .from(battleRooms)
+    .where(and(eq(battleRooms.status, "waiting"), eq(battleRooms.caseId, 0)))
+    .orderBy(asc(battleRooms.createdAt))
+    .limit(12)
+  const now = Date.now()
+  const sessions: BattleSession[] = []
+  for (const room of rooms) {
+    const slots = await db.select().from(battleSlots).where(eq(battleSlots.roomId, room.id)).orderBy(asc(battleSlots.slot))
+    if (slots.length === 0) continue
+    const started = countdownStarted(room)
+    if (started && room.startsAt.getTime() <= now) continue
+    sessions.push({
+      roomId: room.id,
+      bet: Number(room.entryCost),
+      players: slots.length,
+      capacity: room.capacity,
+      status: started ? "countdown" : "waiting",
+      secondsLeft: started ? Math.max(0, Math.ceil((room.startsAt.getTime() - now) / 1000)) : null,
+      names: slots.map((slot) => slot.name),
+    })
+  }
+  return sessions
 }
 
 export async function getRecentBattles(): Promise<

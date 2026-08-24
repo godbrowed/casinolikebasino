@@ -57,7 +57,7 @@ export function CrashRocket({
   return (
     <div
       className={cn(
-        "relative flex aspect-[3/4] min-h-[390px] w-full flex-col items-center justify-center overflow-hidden rounded-[30px] border bg-[#071126]",
+        "relative flex aspect-[3/4] min-h-[420px] w-full flex-col items-center justify-center overflow-hidden rounded-[30px] border bg-[#071126] md:aspect-auto md:min-h-[540px] md:rounded-none md:border-x-0 lg:min-h-[620px]",
         crashed ? "border-rose-500/50" : running ? "border-primary/40" : "border-border",
       )}
     >
@@ -161,7 +161,7 @@ export function CrashRocket({
 
 function Rocket() {
   return (
-    <svg width="78" height="78" viewBox="0 0 96 96" fill="none" aria-hidden>
+    <svg viewBox="0 0 96 96" fill="none" aria-hidden className="h-20 w-20 md:h-36 md:w-36">
       <defs>
         <linearGradient id="hull" x1="30" y1="20" x2="74" y2="74" gradientUnits="userSpaceOnUse"><stop stopColor="#F8FBFF" /><stop offset=".48" stopColor="#A7B7D5" /><stop offset="1" stopColor="#566785" /></linearGradient>
         <linearGradient id="glass" x1="44" y1="28" x2="66" y2="51" gradientUnits="userSpaceOnUse"><stop stopColor="#CAFBFF" /><stop offset="1" stopColor="#3978F8" /></linearGradient>

@@ -12,8 +12,8 @@ export function CrashModes() {
   const [mode, setMode] = useState<Mode>("stars")
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-2 gap-1 rounded-3xl border border-white/10 bg-[#282b32] p-1.5">
+    <div className="flex w-full flex-col gap-4">
+      <div className="mx-auto grid w-[calc(100%-1.5rem)] max-w-[560px] grid-cols-2 gap-1 rounded-3xl border border-white/10 bg-[#282b32] p-1.5">
         {(["stars", "gift"] as Mode[]).map((m) => (
           <button
             key={m}

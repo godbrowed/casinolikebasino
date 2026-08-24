@@ -10,7 +10,7 @@ export default async function UpgradePage() {
   return (
     <>
       <AppHeader title="Upgrade" />
-      <main className="flex flex-col gap-4 px-4 pt-4">
+      <main className="mx-auto flex w-full max-w-[760px] flex-col gap-4 px-3 pt-5 md:px-4">
         <UpgradeGame
           inventory={inventory.map((i) => ({
             id: i.id,

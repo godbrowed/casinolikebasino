@@ -9,7 +9,7 @@ export default async function ProfilePage() {
   return (
     <>
       <AppHeader title="Profile" />
-      <main className="flex flex-col gap-4 px-4 pt-4">
+      <main className="mx-auto flex w-full max-w-[620px] flex-col gap-4 px-3 pt-5 md:px-4">
         <ProfileView
           me={me}
           inventory={inventory.map((i) => ({

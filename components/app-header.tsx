@@ -14,8 +14,8 @@ export function AppHeader({ title }: { title?: string }) {
   const avatarUrl = !avatarFailed ? me?.photoUrl : null
 
   return (
-    <header className="sticky top-0 z-40 px-3 pt-2">
-      <div className="flex items-center justify-between rounded-3xl border border-white/10 bg-[#282b32]/95 px-3 py-2.5 shadow-[0_12px_28px_-18px_rgba(0,0,0,.95)] backdrop-blur-md">
+    <header className="sticky top-0 z-40 w-full border-b border-white/[.06] bg-[#181a1e]/90 px-3 py-2 backdrop-blur-xl">
+      <div className="mx-auto flex w-full max-w-[620px] items-center justify-between px-1 py-1">
         <div className="flex items-center gap-2.5">
           {avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element

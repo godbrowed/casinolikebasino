@@ -22,7 +22,7 @@ export default async function HomePage() {
       <main className="flex flex-col gap-6 pt-4">
         <HomeLobby online={stats.online} />
         <DailyReward />
-        <section id="cases" className="px-4">
+        <section id="cases" className="mx-auto w-full max-w-[980px] px-4">
           <div className="mb-4 flex items-end justify-between gap-3">
             <div>
               <div className="mb-1 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-primary">
@@ -35,7 +35,7 @@ export default async function HomePage() {
               <ShieldCheck className="h-3.5 w-3.5" /> 90% RTP
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
             {cases.map((c) => (
               <CaseCard key={c.id} c={c} />
             ))}

@@ -2,39 +2,48 @@
 
 import Link from "next/link"
 import useSWR from "swr"
-import { Gift, Rocket, Swords, TrendingUp, Users } from "lucide-react"
+import { ArrowRight, Gift, Rocket, Swords, TrendingUp, Users } from "lucide-react"
 import { getLiveDrops } from "@/app/actions/cases"
 import { Coin } from "@/components/coin"
 
 export function HomeLobby({ online }: { online: number }) {
   const { data: drops } = useSWR("home-live-drops", getLiveDrops, { refreshInterval: 12_000 })
-  return <section className="flex flex-col gap-3 px-4">
-    {drops && drops.length > 0 && <div className="overflow-hidden rounded-3xl border border-white/10 bg-[#282b32] py-2.5">
-      <div className="no-scrollbar flex items-center gap-2 overflow-x-auto px-3">
-        <span className="flex shrink-0 items-center gap-2 pr-1 text-[10px] font-black uppercase tracking-[.14em] text-emerald-300"><i className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_10px_#4ade80]" />Live drops</span>
-        {drops.map((drop) => <div key={drop.id} className="flex shrink-0 items-center gap-1.5 rounded-2xl bg-white/5 py-1 pl-1 pr-2.5">
+
+  return <section className="mx-auto flex w-full max-w-[620px] flex-col gap-3 px-3 md:px-4">
+    {drops && drops.length > 0 && <div className="overflow-hidden rounded-[24px] bg-[#34373e] py-2.5 ring-1 ring-white/10">
+      <div className="no-scrollbar flex items-center gap-3 overflow-x-auto px-3">
+        <span className="flex shrink-0 items-center gap-2 pr-1 text-[11px] font-black uppercase tracking-[.12em]"><i className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_10px_#4ade80]" />LIVE</span>
+        {drops.map((drop) => <div key={drop.id} className="group relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-black/10">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={drop.imageUrl} alt="" className="h-7 w-7 object-contain" />
-          <span className="max-w-20 truncate text-[10px] font-bold">{drop.name}</span>
+          <img src={drop.imageUrl} alt={drop.name} className="h-9 w-9 object-contain drop-shadow-[0_5px_7px_rgba(0,0,0,.45)] transition-transform group-hover:scale-110" />
         </div>)}
       </div>
     </div>}
-    <div className="flex items-center justify-between px-1"><div><div className="text-[10px] font-black uppercase tracking-[.18em] text-[#7392ff]">Giftlys arcade</div><h1 className="font-display text-2xl font-black">Choose a game</h1></div><div className="flex items-center gap-1 rounded-full bg-emerald-400/10 px-2.5 py-1.5 text-[10px] font-bold text-emerald-300"><Users className="h-3.5 w-3.5" />{online} online</div></div>
 
-    <div className="grid grid-cols-2 gap-3">
-      <Link href="/crash" className="lobby-card group row-span-2 flex min-h-64 flex-col justify-between overflow-hidden rounded-[30px] border border-blue-300/20 bg-[linear-gradient(160deg,#244fc5,#08142e)] p-4 shadow-[0_9px_0_-5px_rgba(0,0,0,.65)]">
-        <div className="flex items-center justify-between"><span className="rounded-full bg-emerald-300 px-2 py-1 text-[9px] font-black text-emerald-950">LIVE</span><span className="text-xs text-white/50">15s rounds</span></div>
-        <div className="relative flex flex-1 items-center justify-center"><span className="absolute h-28 w-28 rounded-full bg-blue-300/20 blur-2xl" /><Rocket className="lobby-float relative h-24 w-24 -rotate-12 fill-white/10 text-white drop-shadow-[0_16px_24px_rgba(0,0,0,.5)]" strokeWidth={1.5} /></div>
-        <div><div className="font-display text-2xl font-black">Crash</div><div className="mt-1 text-xs text-white/60">One flight for everyone</div></div>
-      </Link>
-      <ModeCard href="/upgrade" title="Upgrade" subtitle="Improve a gift" icon={TrendingUp} tone="bg-[linear-gradient(145deg,#7027b8,#32134e)]" tag="NEW" />
-      <ModeCard href="/battles" title="Battles" subtitle="Win the whole pot" icon={Swords} tone="bg-[linear-gradient(145deg,#b51a78,#521139)]" tag="PVP" />
-      <Link href="#cases" className="lobby-card col-span-2 flex items-center gap-4 rounded-[28px] border border-white/10 bg-[linear-gradient(120deg,#265ee0,#192e76)] p-4 shadow-[0_8px_0_-5px_rgba(0,0,0,.65)]"><span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/12"><Gift className="h-8 w-8" /></span><div className="flex-1"><div className="font-display text-xl font-black">Open cases</div><div className="text-xs text-white/60">Fresh Telegram gifts</div></div><span className="text-2xl text-white/60">›</span></Link>
+    <div className="flex items-end justify-between px-1 pb-1 pt-2">
+      <div><div className="text-[10px] font-black uppercase tracking-[.18em] text-[#6f8dff]">Giftlys arcade</div><h1 className="font-display text-2xl font-black">Choose a game</h1></div>
+      <div className="flex items-center gap-1 rounded-full bg-emerald-400/10 px-2.5 py-1.5 text-[10px] font-bold text-emerald-300"><Users className="h-3.5 w-3.5" />{online} online</div>
     </div>
-    <Link href="/deposit" className="flex items-center justify-between rounded-3xl border border-white/10 bg-[#30333d] px-4 py-3"><span className="flex items-center gap-2 text-sm font-bold"><Coin className="h-5 w-5" />Need more Stars?</span><span className="rounded-xl bg-primary px-3 py-1.5 text-xs font-black text-primary-foreground">Top up</span></Link>
+
+    <div className="flex flex-col gap-3">
+      <GameRow href="/crash" title="Crash" subtitle="One live flight for every player" icon={Rocket} tone="from-[#071532] via-[#0c2353] to-[#153a87]" badge="ONLINE" iconTone="bg-[#3068ff]" />
+      <GameRow href="/battles" title="PvP" subtitle="Join a stake session and take the bank" icon={Swords} tone="from-[#6e125f] via-[#9e176f] to-[#d42883]" badge="LIVE" iconTone="bg-[#fa3c96]" />
+      <GameRow href="/upgrade" title="Upgrade" subtitle="Turn your gift into something bigger" icon={TrendingUp} tone="from-[#32125b] via-[#6122a7] to-[#8a36d4]" badge="NEW" iconTone="bg-[#8c3be5]" />
+      <GameRow href="#cases" title="Cases" subtitle="Open fresh Telegram gift drops" icon={Gift} tone="from-[#153b91] via-[#205dcc] to-[#3475ef]" badge="18 CASES" iconTone="bg-[#3579ff]" />
+    </div>
+
+    <Link href="/deposit" className="group flex items-center justify-between rounded-[24px] bg-[#393c43] px-4 py-3 ring-1 ring-white/10 transition hover:bg-[#41454e]">
+      <span className="flex items-center gap-2 text-sm font-bold"><Coin className="h-6 w-6 text-[22px]" glow />Need more Stars?</span>
+      <span className="flex items-center gap-1 rounded-xl bg-[#2f70ff] px-3 py-2 text-xs font-black">Deposit <ArrowRight className="h-3.5 w-3.5" /></span>
+    </Link>
   </section>
 }
 
-function ModeCard({ href, title, subtitle, icon: Icon, tone, tag }: { href: string; title: string; subtitle: string; icon: typeof Rocket; tone: string; tag: string }) {
-  return <Link href={href} className={`lobby-card relative flex min-h-[122px] flex-col justify-between overflow-hidden rounded-[28px] border border-white/10 p-3 ${tone} shadow-[0_8px_0_-5px_rgba(0,0,0,.65)]`}><span className="absolute -right-3 -top-4 h-20 w-20 rounded-full bg-white/10 blur-xl" /><div className="relative flex items-start justify-between"><span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-black/20"><Icon className="h-5 w-5" /></span><span className="rounded-full bg-white/12 px-2 py-0.5 text-[8px] font-black">{tag}</span></div><div className="relative"><div className="font-display text-base font-black">{title}</div><div className="text-[10px] text-white/55">{subtitle}</div></div></Link>
+function GameRow({ href, title, subtitle, icon: Icon, tone, badge, iconTone }: { href: string; title: string; subtitle: string; icon: typeof Rocket; tone: string; badge: string; iconTone: string }) {
+  return <Link href={href} className={`lobby-card group relative flex min-h-[104px] items-center gap-4 overflow-hidden rounded-[30px] bg-gradient-to-r ${tone} px-4 py-3 shadow-[0_8px_0_-5px_rgba(0,0,0,.7)] ring-1 ring-white/10 md:min-h-[112px] md:px-5`}>
+    <span className="absolute -right-6 -top-12 h-40 w-40 rounded-full bg-white/10 blur-3xl" />
+    <span className={`relative flex h-16 w-16 shrink-0 items-center justify-center rounded-[22px] ${iconTone} shadow-[inset_0_1px_0_rgba(255,255,255,.35),0_10px_24px_rgba(0,0,0,.25)]`}><Icon className="h-9 w-9 drop-shadow-lg" strokeWidth={1.8} /></span>
+    <span className="relative min-w-0 flex-1"><span className="font-display text-xl font-black md:text-2xl">{title}</span><span className="mt-1 block truncate text-xs text-white/65 md:text-sm">{subtitle}</span></span>
+    <span className="relative flex flex-col items-end gap-3"><span className="rounded-full bg-white/15 px-2 py-1 text-[8px] font-black tracking-wide">{badge}</span><ArrowRight className="h-5 w-5 text-white/60 transition-transform group-hover:translate-x-1" /></span>
+  </Link>
 }

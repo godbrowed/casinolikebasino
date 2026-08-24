@@ -130,14 +130,14 @@ export function BattlesLobby({ cases, recent = [] }: { cases: CaseDTO[]; recent?
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-4">
       {/* intro */}
-      <div className="grad-border overflow-hidden rounded-2xl">
-        <div className="relative overflow-hidden rounded-2xl bg-card p-4">
-          <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-fuchsia-500/20 blur-3xl" />
+      <div className="overflow-hidden rounded-[30px] border border-fuchsia-300/20 bg-[linear-gradient(145deg,#6d218e,#301047)] shadow-[0_9px_0_-5px_rgba(0,0,0,.6)]">
+        <div className="relative overflow-hidden p-5">
+          <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-pink-300/20 blur-3xl" />
           <div className="flex items-center gap-2">
             <Swords className="h-5 w-5 text-fuchsia-300" />
-            <h1 className="font-display text-xl font-black">Case Battles</h1>
+            <h1 className="font-display text-xl font-black">Battle arena</h1>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
             Pick a paid case, find a match, and compete for the pot.
@@ -146,7 +146,7 @@ export function BattlesLobby({ cases, recent = [] }: { cases: CaseDTO[]; recent?
       </div>
 
       {/* case picker */}
-      <section>
+      <section className="rounded-[28px] border border-white/10 bg-[#282b32] p-3">
         <h2 className="mb-2 text-sm font-bold">Pick a case</h2>
         <div className="no-scrollbar -mx-4 flex gap-2.5 overflow-x-auto px-4 pb-1">
           {battleCases.map((c) => (
@@ -157,8 +157,8 @@ export function BattlesLobby({ cases, recent = [] }: { cases: CaseDTO[]; recent?
                 setCaseId(c.id)
               }}
               className={cn(
-                "card-premium flex w-24 shrink-0 flex-col items-center gap-1 rounded-2xl p-2 ring-1 transition-transform active:scale-95",
-                c.id === caseId ? "ring-2 ring-cyan-400" : "ring-border",
+                "flex w-24 shrink-0 flex-col items-center gap-1 rounded-2xl border bg-[#1f2229] p-2 transition-transform active:scale-95",
+                c.id === caseId ? "border-blue-300 ring-2 ring-blue-400/40" : "border-white/8",
               )}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -179,7 +179,7 @@ export function BattlesLobby({ cases, recent = [] }: { cases: CaseDTO[]; recent?
 
       {/* options */}
       <section className="grid grid-cols-2 gap-3">
-        <div className="card-premium rounded-2xl p-3 ring-1 ring-border">
+        <div className="rounded-3xl border border-white/10 bg-[#282b32] p-3">
           <div className="mb-2 flex items-center gap-1.5 text-xs font-bold text-muted-foreground">
             <Users className="h-4 w-4" /> Players
           </div>
@@ -191,7 +191,7 @@ export function BattlesLobby({ cases, recent = [] }: { cases: CaseDTO[]; recent?
             ))}
           </div>
         </div>
-        <div className="card-premium rounded-2xl p-3 ring-1 ring-border">
+        <div className="rounded-3xl border border-white/10 bg-[#282b32] p-3">
           <div className="mb-2 flex items-center gap-1.5 text-xs font-bold text-muted-foreground">
             <Layers className="h-4 w-4" /> Rounds
           </div>
@@ -218,7 +218,7 @@ export function BattlesLobby({ cases, recent = [] }: { cases: CaseDTO[]; recent?
         onClick={findBattle}
         disabled={busy || !selected}
         className={cn(
-          "flex w-full items-center justify-center gap-2 rounded-2xl py-4 font-display text-base font-black transition-transform active:scale-[0.98] disabled:opacity-70",
+          "flex w-full items-center justify-center gap-2 rounded-3xl py-4 font-display text-base font-black transition-transform active:scale-[0.98] disabled:opacity-70",
           canAfford ? "btn-glow" : "bg-secondary text-muted-foreground",
         )}
       >

@@ -48,6 +48,7 @@ export function ProfileView({ me, inventory, history }: { me: Me; inventory: Ite
   const [busy, setBusy] = useState(false)
   const [withdrawing, setWithdrawing] = useState<number | null>(null)
   const [toast, setToast] = useState<string | null>(null)
+  const [view, setView] = useState<"collection" | "activity" | "wallet">("collection")
 
   const invValue = items.reduce((s, i) => s + i.value, 0)
 
@@ -113,7 +114,8 @@ export function ProfileView({ me, inventory, history }: { me: Me; inventory: Ite
       )}
 
       {/* Level */}
-      <div className="card-premium rounded-2xl border border-border p-4">
+      <div className="relative overflow-hidden rounded-[30px] border border-emerald-300/15 bg-[linear-gradient(145deg,#176b61,#173146)] p-5 shadow-[0_9px_0_-5px_rgba(0,0,0,.6)]">
+        <div className="absolute -right-8 -top-8 h-28 w-28 rounded-full bg-emerald-300/15 blur-2xl" />
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/15 text-primary">
@@ -140,7 +142,11 @@ export function ProfileView({ me, inventory, history }: { me: Me; inventory: Ite
         </div>
       </div>
 
-      <TonWalletCard linkedAddress={me?.tonWalletAddress ?? null} />
+      <div className="grid grid-cols-3 gap-1.5 rounded-3xl border border-white/10 bg-[#282b32] p-1.5">
+        {(["collection", "activity", "wallet"] as const).map((item) => <button key={item} onClick={() => setView(item)} className={cn("rounded-2xl py-2.5 text-[11px] font-black capitalize transition-colors", view === item ? "bg-primary text-white shadow-[0_4px_0_#1938a8]" : "text-muted-foreground")}>{item}</button>)}
+      </div>
+
+      {view === "wallet" && <TonWalletCard linkedAddress={me?.tonWalletAddress ?? null} />}
 
       {me?.isAdmin && (
         <Link href="/admin" className="flex items-center justify-between rounded-2xl border border-primary/30 bg-primary/10 p-4 text-primary">
@@ -168,7 +174,7 @@ export function ProfileView({ me, inventory, history }: { me: Me; inventory: Ite
       </div>
 
       {/* Inventory */}
-      <section>
+      {view === "collection" && <section>
         <div className="mb-2 flex items-center justify-between">
           <h2 className="font-display text-lg font-bold">Inventory</h2>
           {items.length > 0 && (
@@ -225,10 +231,10 @@ export function ProfileView({ me, inventory, history }: { me: Me; inventory: Ite
             })}
           </div>
         )}
-      </section>
+      </section>}
 
       {/* History */}
-      <section>
+      {view === "activity" && <section>
         <h2 className="mb-2 font-display text-lg font-bold">Recent activity</h2>
         {history.length === 0 ? (
           <p className="text-xs text-muted-foreground">No games played yet.</p>
@@ -266,7 +272,7 @@ export function ProfileView({ me, inventory, history }: { me: Me; inventory: Ite
             })}
           </div>
         )}
-      </section>
+      </section>}
     </>
   )
 }

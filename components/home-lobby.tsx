@@ -2,16 +2,9 @@
 
 import Link from "next/link"
 import useSWR from "swr"
-import { CirclePlay, Gift, Rocket, Swords, TrendingUp, Users } from "lucide-react"
+import { Gift, Rocket, Swords, TrendingUp, Users } from "lucide-react"
 import { getLiveDrops } from "@/app/actions/cases"
 import { Coin } from "@/components/coin"
-
-const GAMES = [
-  { href: "/crash", title: "Crash", subtitle: "Shared live launch", icon: Rocket, tone: "from-[#101d41] to-[#071124]", tag: "LIVE" },
-  { href: "/battles", title: "Case battles", subtitle: "Fight for the whole pot", icon: Swords, tone: "from-[#7024a6] to-[#361255]", tag: "PVP" },
-  { href: "/upgrade", title: "Upgrade", subtitle: "Turn one gift into more", icon: TrendingUp, tone: "from-[#46227f] to-[#241444]", tag: "NEW" },
-  { href: "#cases", title: "Open cases", subtitle: "Choose your surprise", icon: Gift, tone: "from-[#2054c9] to-[#182e77]", tag: "DROPS" },
-]
 
 export function HomeLobby({ online }: { online: number }) {
   const { data: drops } = useSWR("home-live-drops", getLiveDrops, { refreshInterval: 12_000 })
@@ -26,11 +19,22 @@ export function HomeLobby({ online }: { online: number }) {
         </div>)}
       </div>
     </div>}
-    <div className="rounded-[28px] border border-[#4a74ff] bg-[#2f5bff] p-4 shadow-[0_8px_0_#1938a8]">
-      <div className="flex items-center gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-[#2f5bff]"><CirclePlay className="h-6 w-6 fill-current" /></span><div><div className="font-display text-lg font-black">Start playing in seconds</div><div className="text-xs font-medium text-white/70">Open a case or join a live game</div></div></div>
+    <div className="flex items-center justify-between px-1"><div><div className="text-[10px] font-black uppercase tracking-[.18em] text-[#7392ff]">Giftlys arcade</div><h1 className="font-display text-2xl font-black">Choose a game</h1></div><div className="flex items-center gap-1 rounded-full bg-emerald-400/10 px-2.5 py-1.5 text-[10px] font-bold text-emerald-300"><Users className="h-3.5 w-3.5" />{online} online</div></div>
+
+    <div className="grid grid-cols-2 gap-3">
+      <Link href="/crash" className="lobby-card group row-span-2 flex min-h-64 flex-col justify-between overflow-hidden rounded-[30px] border border-blue-300/20 bg-[linear-gradient(160deg,#244fc5,#08142e)] p-4 shadow-[0_9px_0_-5px_rgba(0,0,0,.65)]">
+        <div className="flex items-center justify-between"><span className="rounded-full bg-emerald-300 px-2 py-1 text-[9px] font-black text-emerald-950">LIVE</span><span className="text-xs text-white/50">15s rounds</span></div>
+        <div className="relative flex flex-1 items-center justify-center"><span className="absolute h-28 w-28 rounded-full bg-blue-300/20 blur-2xl" /><Rocket className="lobby-float relative h-24 w-24 -rotate-12 fill-white/10 text-white drop-shadow-[0_16px_24px_rgba(0,0,0,.5)]" strokeWidth={1.5} /></div>
+        <div><div className="font-display text-2xl font-black">Crash</div><div className="mt-1 text-xs text-white/60">One flight for everyone</div></div>
+      </Link>
+      <ModeCard href="/upgrade" title="Upgrade" subtitle="Improve a gift" icon={TrendingUp} tone="bg-[linear-gradient(145deg,#7027b8,#32134e)]" tag="NEW" />
+      <ModeCard href="/battles" title="Battles" subtitle="Win the whole pot" icon={Swords} tone="bg-[linear-gradient(145deg,#b51a78,#521139)]" tag="PVP" />
+      <Link href="#cases" className="lobby-card col-span-2 flex items-center gap-4 rounded-[28px] border border-white/10 bg-[linear-gradient(120deg,#265ee0,#192e76)] p-4 shadow-[0_8px_0_-5px_rgba(0,0,0,.65)]"><span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/12"><Gift className="h-8 w-8" /></span><div className="flex-1"><div className="font-display text-xl font-black">Open cases</div><div className="text-xs text-white/60">Fresh Telegram gifts</div></div><span className="text-2xl text-white/60">›</span></Link>
     </div>
-    <div className="mt-2 flex items-center justify-between px-1"><div><div className="text-[10px] font-black uppercase tracking-[.18em] text-white/45">Giftlys arcade</div><h1 className="font-display text-2xl font-black">Pick your game</h1></div><div className="flex items-center gap-1 text-xs font-bold text-emerald-300"><Users className="h-3.5 w-3.5" />{online} online</div></div>
-    <div className="flex flex-col gap-3">{GAMES.map((game) => { const Icon = game.icon; return <Link key={game.title} href={game.href} className={`group relative overflow-hidden rounded-[28px] border border-white/10 bg-gradient-to-r ${game.tone} p-4 shadow-[0_8px_0_-4px_rgba(0,0,0,.55)] active:translate-y-0.5`}><div className="absolute -right-4 -top-5 text-8xl opacity-10">{game.title === "Crash" ? "🚀" : game.title === "Upgrade" ? "🎁" : "🎲"}</div><div className="relative flex items-center gap-4"><span className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/15 bg-black/20 text-white"><Icon className="h-7 w-7" /></span><div className="min-w-0 flex-1"><div className="flex items-center gap-2"><span className="font-display text-xl font-black">{game.title}</span><span className="rounded-full bg-white/15 px-2 py-0.5 text-[9px] font-black">{game.tag}</span></div><div className="mt-0.5 text-xs font-medium text-white/65">{game.subtitle}</div></div><span className="text-2xl text-white/70">›</span></div></Link> })}</div>
     <Link href="/deposit" className="flex items-center justify-between rounded-3xl border border-white/10 bg-[#30333d] px-4 py-3"><span className="flex items-center gap-2 text-sm font-bold"><Coin className="h-5 w-5" />Need more GRAM?</span><span className="rounded-xl bg-primary px-3 py-1.5 text-xs font-black text-primary-foreground">Top up</span></Link>
   </section>
+}
+
+function ModeCard({ href, title, subtitle, icon: Icon, tone, tag }: { href: string; title: string; subtitle: string; icon: typeof Rocket; tone: string; tag: string }) {
+  return <Link href={href} className={`lobby-card relative flex min-h-[122px] flex-col justify-between overflow-hidden rounded-[28px] border border-white/10 p-3 ${tone} shadow-[0_8px_0_-5px_rgba(0,0,0,.65)]`}><span className="absolute -right-3 -top-4 h-20 w-20 rounded-full bg-white/10 blur-xl" /><div className="relative flex items-start justify-between"><span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-black/20"><Icon className="h-5 w-5" /></span><span className="rounded-full bg-white/12 px-2 py-0.5 text-[8px] font-black">{tag}</span></div><div className="relative"><div className="font-display text-base font-black">{title}</div><div className="text-[10px] text-white/55">{subtitle}</div></div></Link>
 }

@@ -147,8 +147,9 @@ export function DepositView({
   return (
     <>
       {/* Balance card */}
-      <div className="rounded-2xl border border-border bg-card p-4">
-        <div className="text-xs text-muted-foreground">Current balance</div>
+      <div className="relative overflow-hidden rounded-[30px] border border-blue-300/20 bg-[linear-gradient(145deg,#2458d3,#13255c)] p-5 shadow-[0_9px_0_-5px_rgba(0,0,0,.6)]">
+        <div className="absolute -right-8 -top-8 h-28 w-28 rounded-full bg-white/10 blur-2xl" />
+        <div className="relative text-[10px] font-black uppercase tracking-[.16em] text-white/55">Current balance</div>
         <div className="mt-1 flex items-center gap-2">
           <Coin className="h-6 w-6" />
           <span className="font-display text-3xl font-black tabular-nums">{fmt(me?.balance ?? 0)}</span>
@@ -157,7 +158,7 @@ export function DepositView({
       </div>
 
       {/* Method tabs */}
-      <div className={cn("grid gap-2", me?.isDemo ? "grid-cols-4" : "grid-cols-3")}>
+      <div className={cn("grid gap-1.5 rounded-3xl border border-white/10 bg-[#282b32] p-1.5", me?.isDemo ? "grid-cols-4" : "grid-cols-3")}>
         <Tab active={method === "stars"} onClick={() => setMethod("stars")} icon={Sparkles} label="Stars" />
         <Tab active={method === "ton"} onClick={() => setMethod("ton")} icon={Gem} label="TON" />
         <Tab active={method === "gifts"} onClick={() => setMethod("gifts")} icon={GiftIcon} label="Gifts" />
@@ -342,8 +343,8 @@ function Tab({
     <button
       onClick={onClick}
       className={cn(
-        "flex items-center justify-center gap-1.5 rounded-xl border py-2.5 text-sm font-bold transition-colors",
-        active ? "border-primary bg-primary/15 text-primary" : "border-border bg-card text-muted-foreground",
+        "flex items-center justify-center gap-1.5 rounded-2xl py-2.5 text-xs font-bold transition-all",
+        active ? "bg-primary text-white shadow-[0_4px_0_#1938a8]" : "text-muted-foreground",
       )}
     >
       <Icon className="h-4 w-4" />
@@ -369,7 +370,7 @@ function PackButton({
     <button
       onClick={onClick}
       disabled={disabled}
-      className="flex flex-col items-center gap-1 rounded-2xl border border-border bg-card py-4 transition-transform active:scale-95 disabled:opacity-50"
+      className="flex flex-col items-center gap-1 rounded-3xl border border-white/10 bg-[#282b32] py-4 shadow-[0_7px_0_-5px_rgba(0,0,0,.7)] transition-transform active:scale-95 disabled:opacity-50"
     >
       {children}
     </button>

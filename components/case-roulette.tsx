@@ -26,8 +26,8 @@ export function CaseRoulette({ pool, spinning, results, onSettled }: Props) {
     return () => { if (finishRef.current) window.clearTimeout(finishRef.current) }
   }, [onSettled, spinning, results.length])
 
-  return <section className="relative overflow-hidden rounded-[30px] border border-white/15 bg-[linear-gradient(145deg,#38225d,#1b1330)] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,.16),0_12px_0_-7px_rgba(25,12,47,.9)]">
-    <div className="mb-3 flex items-center justify-between px-1"><div><div className="text-[9px] font-black uppercase tracking-[.2em] text-primary">Giftlys case machine</div><div className="font-display text-lg font-black">{spinning ? "Finding your drops…" : "Tap open to start"}</div></div><div className="rounded-2xl bg-white/8 px-3 py-1.5 text-[10px] font-black text-white/65">{shown.length} DROP{shown.length > 1 ? "S" : ""}</div></div>
+  return <section className="relative overflow-hidden rounded-[30px] border border-blue-300/15 bg-[linear-gradient(145deg,#1b2f61,#101723)] p-3 shadow-[0_10px_0_-6px_rgba(0,0,0,.65)]">
+    <div className="absolute -right-12 -top-12 h-36 w-36 rounded-full bg-blue-400/15 blur-3xl" /><div className="relative mb-3 flex items-center justify-between px-1"><div><div className="text-[9px] font-black uppercase tracking-[.2em] text-[#7f9cff]">Giftlys case machine</div><div className="font-display text-lg font-black">{spinning ? "Finding your drops…" : "Tap open to start"}</div></div><div className="rounded-2xl bg-white/8 px-3 py-1.5 text-[10px] font-black text-white/65">{shown.length} DROP{shown.length > 1 ? "S" : ""}</div></div>
     <div className={cn("grid gap-2", shown.length > 1 ? "grid-cols-2" : "grid-cols-1")}>{shown.map((gift, index) => <Reel key={`${gift?.slug ?? "preview"}-${index}-${spinning}`} pool={pool} result={gift} spinning={spinning} />)}</div>
   </section>
 }
@@ -48,14 +48,14 @@ function Reel({ pool, result, spinning }: { pool: GiftDTO[]; result?: GiftDTO; s
     return () => cancelAnimationFrame(one)
   }, [pool, result, spinning])
   return <div ref={ref} className="relative overflow-hidden rounded-2xl border border-white/10 bg-black/25 py-3">
-    <div className="pointer-events-none absolute inset-y-0 left-1/2 z-20 w-1 -translate-x-1/2 rounded-full bg-primary shadow-[0_0_14px_2px_rgba(255,222,106,.9)]" />
+    <div className="pointer-events-none absolute inset-y-0 left-1/2 z-20 w-1 -translate-x-1/2 rounded-full bg-primary shadow-[0_0_14px_2px_rgba(47,91,255,.9)]" />
     <div className="pointer-events-none absolute left-1/2 top-0 z-20 -translate-x-1/2 border-x-7 border-t-7 border-x-transparent border-t-primary" />
-    <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-gradient-to-r from-[#1b1330] to-transparent" /><div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-[#1b1330] to-transparent" />
+    <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-gradient-to-r from-[#101723] to-transparent" /><div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-[#101723] to-transparent" />
     <div className="flex gap-2 px-1 will-change-transform" style={{ transform: `translateX(${offset}px)`, transition: moving ? "transform 4.5s cubic-bezier(.12,.68,.08,1)" : "none" }}>
       {reel.map((gift, index) => {
         const rarity = rarityOf(gift.rarity)
         const won = moving && index === WIN_INDEX
-        return <div key={index} className={cn("flex h-[74px] w-20 shrink-0 flex-col items-center justify-center rounded-xl border border-white/10 bg-card/90", rarity.ring, won && "scale-105 shadow-[0_0_22px_rgba(255,222,106,.7)]")}><img src={gift.imageUrl || "/images/nft-gift.png"} alt="" className="h-11 w-11 object-contain" /><span className={cn("mt-0.5 font-mono text-[9px] font-bold", rarity.text)}>{gift.value.toLocaleString()}</span></div>
+        return <div key={index} className={cn("flex h-[74px] w-20 shrink-0 flex-col items-center justify-center rounded-xl border border-white/10 bg-[#282d38]", rarity.ring, won && "scale-105 shadow-[0_0_22px_rgba(79,121,255,.7)]")}><img src={gift.imageUrl || "/images/nft-gift.png"} alt="" className="h-11 w-11 object-contain" /><span className={cn("mt-0.5 font-mono text-[9px] font-bold", rarity.text)}>{gift.value.toLocaleString()}</span></div>
       })}
     </div>
   </div>

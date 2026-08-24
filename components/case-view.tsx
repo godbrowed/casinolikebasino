@@ -113,7 +113,7 @@ export function CaseView({ c }: { c: CaseDTO }) {
           <p className="text-center text-xs font-medium text-destructive">{error}</p>
         )}
 
-        {!c.isFree && <div className="rounded-3xl border border-white/12 bg-card/70 p-2"><div className="mb-2 px-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">How many cases?</div><div className="grid grid-cols-4 gap-2">{[1, 2, 3, 5].map((count) => <button key={count} onClick={() => setOpenCount(count)} disabled={spinning || busy} className={cn("rounded-2xl py-2 text-xs font-black transition-all", openCount === count ? "bg-primary text-primary-foreground shadow-[0_3px_0_rgb(151,92,28)]" : "bg-secondary text-muted-foreground")}>×{count}</button>)}</div></div>}
+        {!c.isFree && <div className="rounded-3xl border border-white/10 bg-[#282b32] p-2"><div className="mb-2 px-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">How many cases?</div><div className="grid grid-cols-4 gap-2">{[1, 2, 3, 5].map((count) => <button key={count} onClick={() => setOpenCount(count)} disabled={spinning || busy} className={cn("rounded-2xl py-2 text-xs font-black transition-all", openCount === count ? "bg-primary text-primary-foreground shadow-[0_3px_0_#1938a8]" : "bg-secondary text-muted-foreground")}>×{count}</button>)}</div></div>}
 
         <button
           onClick={handleSpin}
@@ -146,13 +146,13 @@ export function CaseView({ c }: { c: CaseDTO }) {
             <h2 className="flex items-center gap-1.5 text-sm font-bold"><Sparkles className="h-3.5 w-3.5 text-primary" /> Possible rewards</h2>
             <span className="text-xs text-muted-foreground">{c.items.length} rewards</span>
           </div>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
             {c.items.map((g) => {
               const r = rarityOf(g.rarity)
               return (
                 <div
                   key={g.id}
-                  className={cn("rounded-2xl border border-border bg-background/45 p-2 text-center ring-1", r.ring)}
+                  className={cn("w-24 shrink-0 rounded-2xl border border-border bg-background/45 p-2 text-center ring-1", r.ring)}
                 >
                   <div className="relative mx-auto h-14 w-14">
                     {/* eslint-disable-next-line @next/next/no-img-element */}

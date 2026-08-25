@@ -1,0 +1,19 @@
+import { NextRequest, NextResponse } from "next/server"
+import { cashoutCrash, settleCrashBust, startCrash } from "@/app/actions/crash"
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json() as { action?: string; bet?: number; token?: string }
+    if (body.action === "start") return NextResponse.json(await startCrash(Number(body.bet)))
+    if (body.action === "cashout" && body.token) return NextResponse.json(await cashoutCrash(body.token))
+    if (body.action === "settle" && body.token) {
+      await settleCrashBust(body.token)
+      return NextResponse.json({ ok: true })
+    }
+    return NextResponse.json({ error: "INVALID_ACTION" }, { status: 400 })
+  } catch (cause) {
+    const error = cause instanceof Error ? cause.message : "REQUEST_FAILED"
+    const status = error === "Unauthorized" ? 401 : error === "INSUFFICIENT_FUNDS" || error === "BETTING_CLOSED" ? 409 : 400
+    return NextResponse.json({ error }, { status })
+  }
+}

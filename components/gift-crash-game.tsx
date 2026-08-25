@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import useSWR from "swr"
-import { cashoutGiftCrash, getCrashBoard, getCrashGifts, getGiftImages, settleGiftBust, startGiftCrash, type CrashBoard, type OwnedGift } from "@/app/actions/crash"
+import type { CrashBoard, OwnedGift } from "@/app/actions/crash"
 import { multiplierAtElapsed } from "@/lib/crash-shared"
 import { Coin } from "@/components/coin"
 import { CrashRocket } from "@/components/crash-rocket"
@@ -11,14 +11,16 @@ import { fmt, rarityOf } from "@/lib/format"
 import { haptic, hapticNotify } from "@/lib/telegram-webapp"
 import { cn } from "@/lib/utils"
 import { playGameSound } from "@/lib/game-sound"
+import { cashoutGiftCrashApi, fetchCrashBoard, fetchCrashGifts, settleGiftCrashApi, startGiftCrashApi } from "@/lib/client-game-api"
 
 type LocalPhase = "select" | "queued" | "running" | "cashed" | "crashed"
 
 export function GiftCrashGame() {
   const { refresh } = useUser()
-  const { data: gifts, mutate: mutateGifts, isLoading } = useSWR<OwnedGift[]>("crash-gifts", getCrashGifts)
-  const { data: rewardImages } = useSWR<string[]>("gift-crash-rewards", getGiftImages)
-  const { data: board, mutate: mutateBoard } = useSWR<CrashBoard>("shared-crash-board", getCrashBoard, { refreshInterval: 650, revalidateOnFocus: true })
+  const { data: giftData, mutate: mutateGifts, isLoading } = useSWR<{ gifts: OwnedGift[]; rewardImages: string[] }>("crash-gifts", fetchCrashGifts)
+  const { data: board, mutate: mutateBoard } = useSWR<CrashBoard>("shared-crash-board", fetchCrashBoard, { refreshInterval: 1000, revalidateOnFocus: true })
+  const gifts = giftData?.gifts
+  const rewardImages = giftData?.rewardImages
   const [selected, setSelected] = useState<OwnedGift | null>(null)
   const [localPhase, setLocalPhase] = useState<LocalPhase>("select")
   const [won, setWon] = useState<OwnedGift | null>(null)
@@ -47,7 +49,7 @@ export function GiftCrashGame() {
     if (boardPhase !== "crashed" || !tokenRef.current || settling.current || localPhase === "cashed") return
     settling.current = true
     const token = tokenRef.current
-    void settleGiftBust(token).finally(() => {
+    void settleGiftCrashApi(token).finally(() => {
       tokenRef.current = null
       settling.current = false
       setLocalPhase("crashed")
@@ -67,7 +69,7 @@ export function GiftCrashGame() {
     haptic("medium")
     playGameSound("bet")
     try {
-      const result = await startGiftCrash(selected.id)
+      const result = await startGiftCrashApi(selected.id)
       tokenRef.current = result.token
       setLocalPhase("queued")
       mutateBoard()
@@ -81,7 +83,7 @@ export function GiftCrashGame() {
     if (localPhase !== "running" || !tokenRef.current) return
     haptic("heavy")
     try {
-      const result = await cashoutGiftCrash(tokenRef.current)
+      const result = await cashoutGiftCrashApi(tokenRef.current)
       tokenRef.current = null
       if (result.success && result.gift) {
         setWon(result.gift)

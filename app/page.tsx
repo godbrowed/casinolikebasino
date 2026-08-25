@@ -1,6 +1,5 @@
 import { getHomeStats } from "@/app/actions/cases"
 import { AppHeader } from "@/components/app-header"
-import { DailyReward } from "@/components/daily-reward"
 import { HomeLobby } from "@/components/home-lobby"
 
 export const dynamic = "force-dynamic"
@@ -16,9 +15,8 @@ export default async function HomePage() {
   return (
     <>
       <AppHeader />
-      <main className="flex flex-col gap-5 pb-5 pt-3">
+      <main className="flex flex-col pb-5 pt-3">
         <HomeLobby online={stats.online} />
-        <div className="mx-auto w-full max-w-[560px] px-3 md:px-4"><DailyReward /></div>
       </main>
     </>
   )

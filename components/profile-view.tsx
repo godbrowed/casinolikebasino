@@ -4,8 +4,6 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Package, TrendingUp, Rocket, Gift, Swords, Send, Loader2, Shield, WalletCards, History, Layers3, Plus, ChevronRight } from "lucide-react"
 import Link from "next/link"
-import { sellGift, sellAll } from "@/app/actions/user"
-import { requestGiftWithdraw } from "@/app/actions/gifts-transfer"
 import { Coin } from "@/components/coin"
 import { TonWalletCard } from "@/components/ton-wallet-card"
 import { useUser } from "@/components/user-provider"
@@ -13,6 +11,7 @@ import { rarityOf, fmt } from "@/lib/format"
 import { levelProgress } from "@/lib/level"
 import { haptic } from "@/lib/telegram-webapp"
 import { cn } from "@/lib/utils"
+import { sellAllGiftsApi, sellGiftApi, withdrawGiftApi } from "@/lib/client-game-api"
 
 type Item = { id: number; name: string; rarity: string; imageUrl: string; value: number }
 type Hist = {
@@ -56,7 +55,7 @@ export function ProfileView({ me, inventory, history }: { me: Me; inventory: Ite
     setWithdrawing(id)
     haptic("medium")
     try {
-      await requestGiftWithdraw(id)
+      await withdrawGiftApi(id)
       setItems((prev) => prev.filter((i) => i.id !== id))
       setToast(`Withdrawal requested for ${name}. It will be sent to your Telegram once processed.`)
       setTimeout(() => setToast(null), 4500)
@@ -74,7 +73,7 @@ export function ProfileView({ me, inventory, history }: { me: Me; inventory: Ite
     setBusy(true)
     haptic("light")
     try {
-      const res = await sellGift(id)
+      const res = await sellGiftApi(id)
       setItems((prev) => prev.filter((i) => i.id !== id))
       setBalance(res.balance)
     } catch {
@@ -91,7 +90,7 @@ export function ProfileView({ me, inventory, history }: { me: Me; inventory: Ite
     setBusy(true)
     haptic("medium")
     try {
-      const res = await sellAll()
+      const res = await sellAllGiftsApi()
       if (res.balance != null) setBalance(res.balance)
       setItems([])
     } catch {
@@ -113,7 +112,7 @@ export function ProfileView({ me, inventory, history }: { me: Me; inventory: Ite
         </div>
       )}
 
-      <section className="relative overflow-hidden rounded-[34px] bg-[#30343c] p-5 ring-1 ring-white/[.08] md:p-6">
+      <section className="relative overflow-hidden rounded-[34px] bg-[linear-gradient(145deg,#333842,#292c33)] p-5 shadow-[0_22px_55px_-38px_rgba(47,112,255,.8)] ring-1 ring-white/[.08] md:p-6">
         <div className="absolute -right-16 -top-20 h-64 w-64 rounded-full bg-[#2f70ff]/15 blur-3xl" />
         <img src="/images/puggift-bot-avatar-web-v2.webp" alt="" className="absolute -bottom-16 -right-12 h-52 w-52 rounded-full object-cover opacity-[.07]" />
         <div className="relative flex items-center gap-4">
@@ -161,8 +160,8 @@ export function ProfileView({ me, inventory, history }: { me: Me; inventory: Ite
           )}
         </div>
         {items.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 rounded-[24px] border border-dashed border-white/10 bg-black/10 p-8 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-white/[.06]"><Package className="h-6 w-6 text-white/30" /></div>
+          <div className="relative flex flex-col items-center gap-3 overflow-hidden rounded-[24px] border border-dashed border-white/10 bg-[#22252b] p-8 text-center">
+            <div className="absolute -right-10 -top-12 h-32 w-32 rounded-full bg-[#2f70ff]/10 blur-2xl" /><div className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-[#11141a] ring-1 ring-white/10"><img src="/images/puggift-bot-avatar-web-v2.webp" alt="" className="h-full w-full object-cover opacity-75" /></div>
             <p className="text-sm text-white/40">No gifts yet. Open a case to build your collection.</p><Link href="/cases" className="rounded-2xl bg-[#2f70ff] px-4 py-2.5 text-xs font-black">Open cases</Link>
           </div>
         ) : (
@@ -217,20 +216,21 @@ export function ProfileView({ me, inventory, history }: { me: Me; inventory: Ite
             {history.map((h) => {
               const Icon = GAME_ICON[h.game] ?? Package
               const won = h.result > 0
+              const rewardImage = typeof h.meta?.imageUrl === "string" ? h.meta.imageUrl : null
               return (
                 <div
                   key={h.id}
                   className="flex items-center gap-3 rounded-[20px] bg-[#363a42] px-3 py-3 ring-1 ring-white/[.05]"
                 >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-white/[.07]">
-                    <Icon className="h-4 w-4 text-muted-foreground" />
+                  <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-[14px] bg-white/[.07]">
+                    {rewardImage ? <img src={rewardImage} alt="" className="h-9 w-9 object-contain" /> : <Icon className="h-4 w-4 text-muted-foreground" />}
                   </div>
                   <div className="flex-1 leading-tight">
                     <div className="text-xs font-black capitalize">{h.game}</div>
                     <div className="text-[11px] text-muted-foreground">
                       Bet <span className="font-mono">{fmt(h.bet)}</span>
                     </div>
-                  </div><ChevronRight className="h-4 w-4 text-white/20" />
+                  </div>
                   <div
                     className={cn(
                       "flex items-center gap-1 font-mono text-sm font-bold",
@@ -240,7 +240,7 @@ export function ProfileView({ me, inventory, history }: { me: Me; inventory: Ite
                     {won ? "+" : "-"}
                     {fmt(won ? h.result : h.bet)}
                     <Coin className="h-3 w-3" />
-                  </div>
+                  </div><ChevronRight className="h-4 w-4 text-white/20" />
                 </div>
               )
             })}

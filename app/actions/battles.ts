@@ -1,11 +1,12 @@
 "use server"
 
 import crypto from "node:crypto"
-import { eq, sql, desc, and, asc } from "drizzle-orm"
+import { eq, sql, desc, and, asc, inArray } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { db } from "@/lib/db"
 import { cases, caseItems, gifts, users, gameHistory, battleRooms, battleSlots } from "@/lib/db/schema"
 import { requireUserId } from "@/lib/session"
+import { giftValueInStars } from "@/lib/pricing"
 
 export type BattlePull = { round: number; gift: BattleGift }
 export type BattleGift = {
@@ -90,6 +91,9 @@ export async function joinBattle(input: {
   if (!Number.isFinite(entryCost) || entryCost < 10 || entryCost > 100_000) throw new Error("INVALID_BET")
 
   return db.transaction(async (tx) => {
+    // Serialize joins for the same stake so two simultaneous requests cannot
+    // both claim the last seat or charge the same player twice.
+    await tx.execute(sql`select pg_advisory_xact_lock(748219, ${entryCost})`)
     const u = (await tx.select().from(users).where(eq(users.id, userId)).limit(1))[0]
     if (!u) throw new Error("Unauthorized")
     if (Number(u.balance) < entryCost) throw new Error("INSUFFICIENT_FUNDS")
@@ -317,6 +321,7 @@ async function resolveRoom(roomId: number): Promise<void> {
         rarity: gifts.rarity,
         imageUrl: gifts.imageUrl,
         value: gifts.value,
+        floorTon: gifts.floorTon,
       })
       .from(caseItems)
       .innerJoin(gifts, eq(caseItems.giftId, gifts.id))
@@ -336,7 +341,7 @@ async function resolveRoom(roomId: number): Promise<void> {
       for (const p of players) {
         const idx = weightedPick(list.map((i) => ({ weight: Number(i.weight) })))
         const g = list[idx]
-        const gift: BattleGift = { id: g.id, name: g.name, rarity: g.rarity, imageUrl: g.imageUrl, value: Number(g.value) }
+        const gift: BattleGift = { id: g.id, name: g.name, rarity: g.rarity, imageUrl: g.imageUrl, value: giftValueInStars(g.value, g.floorTon) }
         p.pulls.push(gift)
         p.total += gift.value
       }
@@ -431,27 +436,55 @@ export type BattleSession = {
 }
 
 export async function getBattleSessions(): Promise<BattleSession[]> {
-  const rooms = await db
-    .select()
+  const roomIds = await db
+    .select({ id: battleRooms.id })
     .from(battleRooms)
     .where(and(eq(battleRooms.status, "waiting"), eq(battleRooms.caseId, 0)))
     .orderBy(asc(battleRooms.createdAt))
     .limit(12)
+  if (roomIds.length === 0) return []
+
+  const rows = await db
+    .select({
+      id: battleRooms.id,
+      entryCost: battleRooms.entryCost,
+      capacity: battleRooms.capacity,
+      startsAt: battleRooms.startsAt,
+      createdAt: battleRooms.createdAt,
+      name: battleSlots.name,
+    })
+    .from(battleRooms)
+    .innerJoin(battleSlots, and(eq(battleSlots.roomId, battleRooms.id), eq(battleSlots.isBot, false)))
+    .where(inArray(battleRooms.id, roomIds.map((room) => room.id)))
+    .orderBy(asc(battleRooms.createdAt), asc(battleSlots.slot))
+
+  const grouped = new Map<number, {
+    id: number
+    entryCost: string
+    capacity: number
+    startsAt: Date
+    createdAt: Date
+    names: string[]
+  }>()
+  for (const row of rows) {
+    const current = grouped.get(row.id)
+    if (current) current.names.push(row.name)
+    else grouped.set(row.id, { ...row, names: [row.name] })
+  }
+
   const now = Date.now()
   const sessions: BattleSession[] = []
-  for (const room of rooms) {
-    const slots = (await db.select().from(battleSlots).where(eq(battleSlots.roomId, room.id)).orderBy(asc(battleSlots.slot))).filter((slot) => !slot.isBot)
-    if (slots.length === 0) continue
+  for (const room of grouped.values()) {
     const started = countdownStarted(room)
     if (started && room.startsAt.getTime() <= now) continue
     sessions.push({
       roomId: room.id,
       bet: Number(room.entryCost),
-      players: slots.length,
+      players: room.names.length,
       capacity: room.capacity,
       status: started ? "countdown" : "waiting",
       secondsLeft: started ? Math.max(0, Math.ceil((room.startsAt.getTime() - now) / 1000)) : null,
-      names: slots.map((slot) => slot.name),
+      names: room.names,
     })
   }
   return sessions

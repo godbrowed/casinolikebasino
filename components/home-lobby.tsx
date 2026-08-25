@@ -3,19 +3,20 @@
 import Link from "next/link"
 import useSWR from "swr"
 import { ArrowRight, Play, Users } from "lucide-react"
-import { getLiveDrops } from "@/app/actions/cases"
 import { Coin } from "@/components/coin"
+import { fetchLiveDrops } from "@/lib/client-game-api"
 
 export function HomeLobby({ online }: { online: number }) {
-  const { data: drops } = useSWR("home-live-drops", getLiveDrops, { refreshInterval: 12_000 })
+  const { data: drops } = useSWR("home-live-drops", fetchLiveDrops, { refreshInterval: 12_000 })
+  const liveDrops = drops?.length ? [...drops, ...drops] : []
 
   return <section className="mx-auto flex w-full max-w-[560px] flex-col gap-3 px-3 md:px-4">
-    {drops && drops.length > 0 && <div className="relative left-1/2 w-screen -translate-x-1/2 overflow-hidden bg-[#34373e] py-2.5 ring-1 ring-white/10">
-      <div className="no-scrollbar flex items-center gap-3 overflow-x-auto px-3">
+    {liveDrops.length > 0 && <div className="relative left-1/2 w-screen -translate-x-1/2 overflow-hidden bg-[#34373e] py-2.5 ring-1 ring-white/10">
+      <div className="no-scrollbar flex items-center gap-4 overflow-x-auto px-3">
         <span className="flex shrink-0 items-center gap-2 pr-1 text-[11px] font-black uppercase tracking-[.12em]"><i className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_10px_#4ade80]" />LIVE</span>
-        {drops.map((drop) => <div key={drop.id} className="group relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-black/10">
+        {liveDrops.map((drop, index) => <div key={`${drop.id}-${index}`} className="group relative flex h-11 w-11 shrink-0 items-center justify-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={drop.imageUrl} alt={drop.name} className="h-9 w-9 object-contain drop-shadow-[0_5px_7px_rgba(0,0,0,.45)] transition-transform group-hover:scale-110" />
+          <img src={drop.imageUrl} alt={drop.name} className="h-11 w-11 object-contain drop-shadow-[0_6px_7px_rgba(0,0,0,.48)] transition-transform group-hover:scale-110" />
         </div>)}
       </div>
     </div>}

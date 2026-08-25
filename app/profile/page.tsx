@@ -5,7 +5,10 @@ import { ProfileView } from "@/components/profile-view"
 export const dynamic = "force-dynamic"
 
 export default async function ProfilePage() {
-  const [me, inventory, history] = await Promise.all([getMe(), getInventory(), getHistory()])
+  const [meResult, inventoryResult, historyResult] = await Promise.allSettled([getMe(), getInventory(), getHistory()])
+  const me = meResult.status === "fulfilled" ? meResult.value : null
+  const inventory = inventoryResult.status === "fulfilled" ? inventoryResult.value : []
+  const history = historyResult.status === "fulfilled" ? historyResult.value : []
   return (
     <>
       <AppHeader title="Profile" />

@@ -5,7 +5,6 @@ import { Plus } from "lucide-react"
 import { useUser } from "@/components/user-provider"
 import { Coin } from "@/components/coin"
 import { fmt } from "@/lib/format"
-import { LanguageSwitcher } from "@/components/language-switcher"
 
 export function AppHeader({ title }: { title?: string }) {
   const { me, isLoading } = useUser()
@@ -18,8 +17,6 @@ export function AppHeader({ title }: { title?: string }) {
           <span className="pug-logo-mark relative flex h-8 w-8 items-center justify-center rounded-full border border-[#376fff] bg-[#071126] shadow-[0_0_16px_rgba(47,112,255,.45)]"><img src="/images/puggift-bot-avatar-web-v2.webp" alt="PugGift" className="h-full w-full rounded-full object-cover" /><i className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-amber-300 shadow-[0_0_8px_#fcd34d]" /></span>
           <div className="font-display text-base font-black tracking-tight">Pug<span className="text-[#4d7bff]">Gift</span></div>
         </div>
-
-        <div className="absolute right-0 top-0"><LanguageSwitcher /></div>
 
         <Link href="/deposit" className="flex items-center gap-2 rounded-full bg-[#383b42] py-1.5 pl-3 pr-1.5 ring-1 ring-white/8 transition active:scale-95">
           <Coin className="h-5 w-5 text-[18px]" />

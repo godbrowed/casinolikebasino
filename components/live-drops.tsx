@@ -19,20 +19,10 @@ export function LiveDrops({ drops }: { drops: Drop[] }) {
         {loop.map((d, i) => {
           const r = rarityOf(d.rarity)
           return (
-            <div
-              key={`${d.id}-${i}`}
-              className={cn(
-                "flex shrink-0 items-center gap-2 rounded-xl border border-border bg-card/80 p-1.5 pr-3 ring-1",
-                r.ring,
-              )}
-            >
-              <div className={cn("flex h-9 w-9 items-center justify-center rounded-lg bg-secondary", r.glow)}>
+            <div key={`${d.id}-${i}`} className="flex h-11 w-11 shrink-0 items-center justify-center">
+              <div className={cn("flex h-11 w-11 items-center justify-center", r.glow)}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={d.imageUrl || "/images/nft-gift.png"} alt="" className="h-7 w-7 object-contain" />
-              </div>
-              <div className="leading-tight">
-                <div className={cn("text-[11px] font-semibold", r.text)}>{d.name}</div>
-                <div className="font-mono text-[11px] text-muted-foreground">{d.value.toLocaleString()}</div>
+                <img src={d.imageUrl || "/images/nft-gift.png"} alt="" className="h-11 w-11 object-contain" />
               </div>
             </div>
           )

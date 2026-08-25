@@ -26,7 +26,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark bg-background" suppressHydrationWarning>
-      <body className="font-sans antialiased">
+      <body className="font-sans antialiased" suppressHydrationWarning>
         <Script src="https://telegram.org/js/telegram-web-app.js" strategy="beforeInteractive" />
         <AppProviders>{children}</AppProviders>
         {process.env.NODE_ENV === "production" && <Analytics />}

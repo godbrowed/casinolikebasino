@@ -7,7 +7,7 @@ import { db } from "@/lib/db"
 import { users, gifts, inventory, transactions } from "@/lib/db/schema"
 import { requireUserId } from "@/lib/session"
 import { relayerConfigured, relayerUsername } from "@/lib/telegram-gifts"
-import { GIFT_VALUE_PER_TON } from "@/lib/pricing"
+import { giftValueInStars } from "@/lib/pricing"
 
 export type DepositGift = {
   slug: string
@@ -30,7 +30,7 @@ export async function getDepositGiftCatalog(): Promise<DepositGift[]> {
     })
     .from(gifts)
     .orderBy(desc(gifts.value))
-  return rows.map(({ floorTon, ...r }) => ({ ...r, value: Number(floorTon) > 0 ? Math.round(Number(floorTon) * GIFT_VALUE_PER_TON) : Number(r.value) }))
+  return rows.map(({ floorTon, ...r }) => ({ ...r, value: giftValueInStars(r.value, floorTon) }))
 }
 
 export type RelayerInfo = {
@@ -59,7 +59,7 @@ export async function createGiftDepositIntent(giftSlug: string): Promise<{
   const userId = await requireUserId()
   const gift = (await db.select().from(gifts).where(eq(gifts.slug, giftSlug)).limit(1))[0]
   if (!gift) throw new Error("Unknown gift")
-  const starValue = Number(gift.floorTon) > 0 ? Math.round(Number(gift.floorTon) * GIFT_VALUE_PER_TON) : Number(gift.value)
+  const starValue = giftValueInStars(gift.value, gift.floorTon)
 
   const code = `GFT-${crypto.randomBytes(3).toString("hex").toUpperCase()}`
   const row = await db
@@ -97,8 +97,9 @@ export async function requestGiftWithdraw(inventoryId: number): Promise<{ ok: tr
   await db.transaction(async (tx) => {
     const item = (
       await tx
-        .select({ id: inventory.id, giftId: inventory.giftId, value: inventory.value, status: inventory.status })
+        .select({ id: inventory.id, giftId: inventory.giftId, value: inventory.value, status: inventory.status, floorTon: gifts.floorTon })
         .from(inventory)
+        .innerJoin(gifts, eq(inventory.giftId, gifts.id))
         .where(and(eq(inventory.id, inventoryId), eq(inventory.userId, userId)))
         .limit(1)
     )[0]
@@ -114,7 +115,7 @@ export async function requestGiftWithdraw(inventoryId: number): Promise<{ ok: tr
       type: "gift_withdraw",
       currency: "nft",
       amount: "0",
-      credited: String(Number(item.value)),
+      credited: String(giftValueInStars(item.value, item.floorTon)),
       status: "pending",
       externalId: `wd_${inventoryId}`,
       meta: { inventoryId, giftId: item.giftId, giftSlug: gift?.slug, giftName: gift?.name },

@@ -12,7 +12,7 @@ import { requestAppFullscreen } from "@/lib/telegram-webapp"
 
 export function AppProviders({ children }: { children: ReactNode }) {
   const pathname = usePathname()
-  const immersive = pathname === "/deposit" || pathname === "/crash" || pathname.startsWith("/case/")
+  const immersive = pathname === "/deposit" || pathname === "/crash" || pathname === "/battles" || pathname.startsWith("/case/")
   const manifestUrl =
     typeof window !== "undefined" ? `${window.location.origin}/tonconnect-manifest.json` : "/tonconnect-manifest.json"
 

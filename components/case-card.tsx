@@ -33,10 +33,10 @@ export function CaseCard({ c }: { c: CaseDTO }) {
     >
       <div className="relative z-10 mb-1 flex items-center justify-between">
         <span className={cn("rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide", topRarity.chip)}>
-          {topRarity.label}
+          {c.isFree ? "FREE" : topRarity.label}
         </span>
         <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
-          {c.isFree ? "every 24h" : "top prize"}
+          {c.isFree ? "no cost" : "top prize"}
           {!c.isFree && <Coin className="h-3 w-3" />}
           {!c.isFree && <span className="font-mono font-bold text-foreground">{fmt(top?.value ?? 0)}</span>}
         </span>
@@ -72,9 +72,9 @@ export function CaseCard({ c }: { c: CaseDTO }) {
       </div>
 
       <div className="relative z-10 mt-1 flex flex-col items-center">
-        <div className="w-full truncate text-center font-display text-[15px] font-black tracking-tight">{c.isFree ? "Daily Drop" : c.name}</div>
+        <div className="w-full truncate text-center font-display text-[15px] font-black tracking-tight">{c.isFree ? "Free Case" : c.name}</div>
         <div className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-          {c.isFree ? `${c.items.length} daily rewards` : "Gift rewards"}
+          {c.isFree ? "One free opening" : "Gift rewards"}
         </div>
         <div className={cn(
           "mt-1.5 inline-flex items-center gap-1.5 rounded-full px-3 py-1 ring-1 transition-colors",

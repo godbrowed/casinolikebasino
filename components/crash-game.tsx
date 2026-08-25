@@ -1,23 +1,50 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import { Gift, Sparkles } from "lucide-react"
 import useSWR from "swr"
-import { cashoutCrash, getCrashBoard, settleCrashBust, startCrash, type CrashBoard } from "@/app/actions/crash"
+import type { CrashBoard, OwnedGift } from "@/app/actions/crash"
 import { Coin } from "@/components/coin"
 import { CrashRocket } from "@/components/crash-rocket"
 import { useUser } from "@/components/user-provider"
-import { fmt } from "@/lib/format"
+import { fmt, rarityOf } from "@/lib/format"
 import { haptic, hapticNotify } from "@/lib/telegram-webapp"
 import { cn } from "@/lib/utils"
 import { multiplierAtElapsed } from "@/lib/crash-shared"
 import { playGameSound } from "@/lib/game-sound"
+import {
+  cashoutCrashApi,
+  cashoutGiftCrashApi,
+  fetchCrashBoard,
+  fetchCrashGifts,
+  settleCrashApi,
+  settleGiftCrashApi,
+  startCrashApi,
+  startGiftCrashApi,
+} from "@/lib/client-game-api"
+
+type StakeKind = "stars" | "gift"
+type ActiveWager =
+  | { kind: "stars"; token: string; amount: number }
+  | { kind: "gift"; token: string; gift: OwnedGift }
+type Outcome =
+  | { kind: "stars"; payout: number; at: number }
+  | { kind: "gift"; gift: OwnedGift; at: number }
 
 export function CrashGame() {
   const { me, setBalance, refresh } = useUser()
-  const { data: board, mutate } = useSWR<CrashBoard>("shared-crash-board", getCrashBoard, { refreshInterval: 650, revalidateOnFocus: true })
+  const { data: board, mutate } = useSWR<CrashBoard>("shared-crash-board", fetchCrashBoard, {
+    refreshInterval: 1000,
+    revalidateOnFocus: true,
+  })
+  const { data: giftData, mutate: mutateGifts } = useSWR("crash-gifts", fetchCrashGifts, {
+    revalidateOnFocus: true,
+  })
+  const [stakeKind, setStakeKind] = useState<StakeKind>("stars")
   const [bet, setBet] = useState(100)
-  const [token, setToken] = useState<string | null>(null)
-  const [outcome, setOutcome] = useState<{ payout: number; at: number } | null>(null)
+  const [selectedGift, setSelectedGift] = useState<OwnedGift | null>(null)
+  const [wager, setWager] = useState<ActiveWager | null>(null)
+  const [outcome, setOutcome] = useState<Outcome | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [displayMultiplier, setDisplayMultiplier] = useState(1)
   const [clock, setClock] = useState(Date.now())
@@ -27,8 +54,9 @@ export function CrashGame() {
   const phase = board?.phase === "crashed" ? "crashed" : board && clock >= board.flightStart ? "flying" : "betting"
   const multiplier = displayMultiplier
   const countdown = phase === "betting" ? Math.max(0, Math.ceil(((board?.flightStart ?? clock) - clock) / 1000)) : 0
-  const canBet = phase === "betting" && !token
-  const canCashout = phase === "flying" && Boolean(token)
+  const canBet = phase === "betting" && !wager
+  const canCashout = phase === "flying" && Boolean(wager)
+  const stakeValue = wager?.kind === "gift" ? wager.gift.value : wager?.kind === "stars" ? wager.amount : stakeKind === "gift" ? selectedGift?.value ?? 0 : bet
 
   useEffect(() => {
     const id = window.setInterval(() => setClock(Date.now()), 100)
@@ -36,16 +64,19 @@ export function CrashGame() {
   }, [])
 
   useEffect(() => {
-    if (phase !== "crashed" || !token || settling.current) return
+    if (phase !== "crashed" || !wager || settling.current) return
     settling.current = true
-    void settleCrashBust(token).finally(() => {
-      setToken(null)
+    const request = wager.kind === "gift" ? settleGiftCrashApi(wager.token) : settleCrashApi(wager.token)
+    void request.finally(() => {
+      setWager(null)
+      setSelectedGift(null)
       settling.current = false
       refresh()
       mutate()
+      mutateGifts()
       hapticNotify("error")
     })
-  }, [mutate, phase, refresh, token])
+  }, [mutate, mutateGifts, phase, refresh, wager])
 
   useEffect(() => {
     if (phase === "crashed" && board && crashSoundedRound.current !== board.roundId) {
@@ -66,36 +97,63 @@ export function CrashGame() {
     return () => window.clearInterval(id)
   }, [board, phase])
 
-  async function placeBet() {
-    if (!canBet || bet <= 0 || bet > balance) return setError("Not enough balance. Deposit to play.")
+  async function placeWager() {
+    if (!canBet) return
+    if (stakeKind === "stars" && (bet <= 0 || bet > balance)) {
+      setError("Not enough Stars. Top up to join the next flight.")
+      return
+    }
+    if (stakeKind === "gift" && !selectedGift) {
+      setError("Choose a gift for this flight.")
+      return
+    }
+
     setError(null)
     setOutcome(null)
     haptic("medium")
     playGameSound("bet")
     try {
-      const result = await startCrash(bet)
-      setToken(result.token)
-      setBalance(result.balance)
-      mutate()
+      if (stakeKind === "gift" && selectedGift) {
+        const result = await startGiftCrashApi(selectedGift.id)
+        setWager({ kind: "gift", token: result.token, gift: selectedGift })
+        await mutateGifts()
+      } else {
+        const result = await startCrashApi(bet)
+        setWager({ kind: "stars", token: result.token, amount: bet })
+        setBalance(result.balance)
+      }
+      await mutate()
     } catch (cause) {
-      const message = cause instanceof Error ? cause.message : "Could not place bet"
+      const message = cause instanceof Error ? cause.message : "Could not place the bet"
       setError(message === "BETTING_CLOSED" ? "Betting closed — wait for the next countdown." : message)
       mutate()
+      mutateGifts()
     }
   }
 
   async function cashout() {
-    if (!token || !canCashout) return
+    if (!wager || !canCashout) return
     haptic("heavy")
     try {
-      const result = await cashoutCrash(token)
-      if (result.success) {
-        setOutcome({ payout: result.payout, at: result.multiplier })
-        setBalance(result.balance ?? balance)
-        hapticNotify("success")
-        playGameSound("cashout")
-      } else hapticNotify("error")
-      setToken(null)
+      if (wager.kind === "gift") {
+        const result = await cashoutGiftCrashApi(wager.token)
+        if (result.success && result.gift) {
+          setOutcome({ kind: "gift", gift: result.gift, at: result.multiplier })
+          hapticNotify("success")
+          playGameSound("cashout")
+        } else hapticNotify("error")
+        setSelectedGift(null)
+        await mutateGifts()
+      } else {
+        const result = await cashoutCrashApi(wager.token)
+        if (result.success) {
+          setOutcome({ kind: "stars", payout: result.payout, at: result.multiplier })
+          setBalance(result.balance ?? balance)
+          hapticNotify("success")
+          playGameSound("cashout")
+        } else hapticNotify("error")
+      }
+      setWager(null)
       refresh()
       mutate()
     } catch {
@@ -103,18 +161,34 @@ export function CrashGame() {
     }
   }
 
+  function chooseStakeKind(kind: StakeKind) {
+    if (wager) return
+    setStakeKind(kind)
+    setError(null)
+    haptic("light")
+  }
+
   return <div className="crash-board flex min-h-[calc(100dvh-130px)] w-full flex-col bg-[#071126] pb-6">
-    <CrashRocket phase={phase === "flying" ? "running" : phase === "crashed" ? "crashed" : "idle"} multiplier={multiplier}>
+    <CrashRocket
+      phase={phase === "flying" ? "running" : phase === "crashed" ? "crashed" : "idle"}
+      multiplier={multiplier}
+      payloadImage={wager?.kind === "gift" ? wager.gift.imageUrl : null}
+      collectImages={giftData?.rewardImages ?? []}
+    >
       {phase === "betting" ? <>
         <div className="font-display text-[82px] font-black leading-none tabular-nums text-white md:text-[104px]">{countdown || 1}</div>
-        <div className="mt-2 text-[10px] font-black uppercase tracking-[.28em] text-white/45">next flight</div>
+        <div className="mt-2 flex items-center gap-2 text-[10px] font-black uppercase tracking-[.28em] text-white/45"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#6e96ff]" />bets open</div>
       </> : phase === "crashed" ? <>
         <div className="rounded-full bg-[#071126]/75 px-4 py-2 font-display text-xl font-black text-rose-300 backdrop-blur-sm">CRASHED · {multiplier.toFixed(2)}×</div>
       </> : <>
         <div className="font-display text-5xl font-black tabular-nums text-white md:text-7xl">{multiplier.toFixed(2)}×</div>
-        <div className="mt-1 flex items-center gap-2 text-[10px] font-black uppercase tracking-[.2em] text-emerald-300"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-300" />live</div>
+        <div className="mt-1 flex items-center gap-2 text-[10px] font-black uppercase tracking-[.2em] text-emerald-300"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-300" />live flight</div>
       </>}
-      {outcome && <div className="mt-3 rounded-full bg-emerald-400 px-3 py-1.5 text-xs font-black text-emerald-950">CASHED {outcome.at.toFixed(2)}× · +{fmt(outcome.payout)}</div>}
+      {outcome?.kind === "stars" && <div className="mt-3 flex items-center gap-1.5 rounded-full bg-emerald-400 px-3 py-1.5 text-xs font-black text-emerald-950"><Coin className="h-4 w-4" />CASHED {outcome.at.toFixed(2)}× · +{fmt(outcome.payout)}</div>}
+      {outcome?.kind === "gift" && <div className="mt-3 flex items-center gap-2 rounded-2xl bg-white/95 p-2 pr-4 text-left text-[#071126] shadow-xl">
+        <img src={outcome.gift.imageUrl} alt="" className="h-10 w-10 object-contain" />
+        <span><b className="block text-xs">{outcome.gift.name}</b><small className="flex items-center gap-1 text-[10px] font-bold text-[#526078]"><Coin className="h-3 w-3" />{fmt(outcome.gift.value)} · {outcome.at.toFixed(2)}×</small></span>
+      </div>}
     </CrashRocket>
 
     <div className="no-scrollbar flex w-full items-center gap-2 overflow-x-auto border-y border-white/[.06] bg-[#0a152a] px-3 py-3">
@@ -122,25 +196,69 @@ export function CrashGame() {
       {board?.recent.map((round, index) => <span key={index} className={cn("shrink-0 rounded-full px-4 py-2 font-mono text-xs font-black", round.multiplier >= 10 ? "bg-[#bd3f24] text-white" : round.multiplier >= 2 ? "bg-[#2461d3] text-white" : "bg-[#202a3f] text-white/85")}>{round.multiplier.toFixed(2)}×</span>)}
     </div>
 
-    <div className="mx-auto flex w-full max-w-[560px] flex-col gap-3 px-3 pt-4 md:px-0">
-      <section className="overflow-hidden rounded-[28px] bg-[#202a3f] shadow-[0_18px_50px_rgba(0,0,0,.24)] ring-1 ring-white/[.07]">
-        <div className="grid grid-cols-[1fr_auto_auto] gap-3 px-4 pb-2 pt-4 text-[10px] font-black uppercase tracking-[.12em] text-white/35"><span>Bet</span><span>Amount</span><span className="w-20 text-right">Result</span></div>
-        <div className="max-h-52 min-h-[112px] overflow-y-auto pb-2">
-          {board?.players.length ? board.players.map((player, index) => <div key={`${player.name}-${index}`} className="grid grid-cols-[1fr_auto_auto] items-center gap-3 px-4 py-2.5 text-xs">
-            <span className="flex min-w-0 items-center gap-2"><i className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#3999e9] font-black not-italic text-white">{player.name.replace("@", "").charAt(0).toUpperCase()}</i><b className="truncate text-sm">{player.name}</b></span>
-            <span className="flex items-center gap-1 font-mono font-black text-amber-300"><Coin className="h-4 w-4" />{fmt(player.bet)}</span>
-            <span className={cn("w-20 text-right font-mono font-black", player.status === "cashed" ? "text-emerald-300" : player.status === "bust" ? "text-rose-300" : "text-white/45")}>{player.status === "cashed" ? `+${fmt(player.result)}` : player.status === "bust" ? "LOST" : `${fmt(player.bet * multiplier)}`}</span>
-          </div>) : <div className="flex min-h-[112px] items-center justify-center px-4 text-center text-xs text-white/40">No bets yet. Be first in this shared round.</div>}
+    <div className="mx-auto flex w-full max-w-[600px] flex-col gap-3 px-3 pt-4 md:px-0">
+      <section className="rounded-[28px] bg-[#111d33] p-3 shadow-[0_18px_50px_rgba(0,0,0,.24)] ring-1 ring-white/[.07]">
+        <div className="flex items-center justify-between px-1 pb-3">
+          <div><p className="font-display text-sm font-black text-white">Your stake</p><p className="text-[10px] font-bold text-white/35">Stars and gifts fly in the same round</p></div>
+          <div className="flex rounded-full bg-black/25 p-1">
+            <button onClick={() => chooseStakeKind("stars")} disabled={Boolean(wager)} className={cn("flex items-center gap-1.5 rounded-full px-3 py-2 text-[11px] font-black transition", stakeKind === "stars" ? "bg-[#2f70ff] text-white shadow-lg" : "text-white/45")}><Coin className="h-4 w-4" />Stars</button>
+            <button onClick={() => chooseStakeKind("gift")} disabled={Boolean(wager)} className={cn("flex items-center gap-1.5 rounded-full px-3 py-2 text-[11px] font-black transition", stakeKind === "gift" ? "bg-[#8b4cff] text-white shadow-lg" : "text-white/45")}><Gift className="h-4 w-4" />Gift</button>
+          </div>
         </div>
+
+        {stakeKind === "stars" ? <div className="grid gap-2 md:grid-cols-[1fr_1.3fr]">
+          <div className="grid grid-cols-3 gap-2">{[100, 500, 2500].map((amount) => <button key={amount} onClick={() => setBet(Math.min(amount, Math.floor(balance)))} disabled={Boolean(wager)} className={cn("flex items-center justify-center gap-1 rounded-xl bg-white/[.07] py-3 font-mono text-xs font-black text-white/60 ring-1 ring-white/[.05]", bet === amount && "bg-[#243f78] text-white ring-[#6e96ff]/45")}><Coin className="h-3.5 w-3.5" />{amount.toLocaleString()}</button>)}</div>
+          <div className="flex items-center gap-2 rounded-xl bg-black/25 px-4 ring-1 ring-white/[.06]"><Coin className="h-5 w-5" /><input aria-label="Stars bet" type="number" inputMode="numeric" value={bet || ""} disabled={Boolean(wager)} onChange={(event) => setBet(Math.max(0, Math.min(Math.floor(balance), Number(event.target.value))))} className="min-w-0 flex-1 bg-transparent py-3 font-mono text-lg font-black outline-none" /><button onClick={() => setBet(Math.floor(balance))} className="text-[10px] font-black uppercase text-[#6e96ff]">max</button></div>
+        </div> : <GiftStakeShelf gifts={giftData?.gifts ?? []} selected={selectedGift} disabled={Boolean(wager)} onSelect={setSelectedGift} />}
+
+        {error && <p className="px-2 pt-3 text-center text-xs font-bold text-rose-300">{error}</p>}
+
+        {canCashout ? <button onClick={cashout} className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-400 py-4 font-display text-lg font-black text-emerald-950 shadow-[0_12px_30px_rgba(52,211,153,.25)] active:scale-[.98]">
+          {wager?.kind === "gift" ? <><Gift className="h-5 w-5" />Cash out gift · {multiplier.toFixed(2)}×</> : <><Coin className="h-5 w-5" />Cash out · {fmt(stakeValue * multiplier)}</>}
+        </button> : <button onClick={placeWager} disabled={!canBet || (stakeKind === "gift" && !selectedGift)} className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#2f70ff] py-4 font-display text-lg font-black text-white shadow-[0_12px_30px_rgba(47,112,255,.25)] transition active:scale-[.98] disabled:bg-white/10 disabled:text-white/35 disabled:shadow-none">
+          {wager ? <><Sparkles className="h-5 w-5" />BET ACCEPTED</> : phase === "betting" ? stakeKind === "gift" ? <><Gift className="h-5 w-5" />PLACE GIFT</> : <><Coin className="h-5 w-5" />PLACE {fmt(bet)}</> : "NEXT ROUND"}
+        </button>}
       </section>
 
-      {error && <p className="text-center text-xs font-bold text-rose-300">{error}</p>}
-
-      {canCashout ? <button onClick={cashout} className="w-full rounded-2xl bg-emerald-400 py-4 font-display text-lg font-black text-emerald-950 shadow-[0_12px_30px_rgba(52,211,153,.25)] active:scale-[.98]">Cash out · {fmt(bet * multiplier)}</button> : <>
-        <div className="grid grid-cols-3 gap-2">{[100, 500, 2500].map((amount) => <button key={amount} onClick={() => setBet(Math.min(amount, Math.floor(balance)))} disabled={Boolean(token)} className={cn("rounded-xl bg-white/10 py-2.5 font-mono text-xs font-black text-white/70", bet === amount && "bg-white/20 text-white")}>★ {amount.toLocaleString()}</button>)}</div>
-        <div className="flex items-center gap-2 rounded-2xl bg-white/10 px-4 py-2 ring-1 ring-white/[.07]"><Coin className="h-5 w-5" /><input type="number" inputMode="numeric" value={bet || ""} disabled={Boolean(token)} onChange={(event) => setBet(Math.max(0, Math.min(Math.floor(balance), Number(event.target.value))))} className="min-w-0 flex-1 bg-transparent py-1 font-mono text-lg font-black outline-none" /><button onClick={() => setBet(Math.floor(balance))} className="text-[10px] font-black uppercase text-[#6e96ff]">max</button></div>
-        <button onClick={placeBet} disabled={!canBet} className="w-full rounded-2xl bg-[#2f70ff] py-4 font-display text-lg font-black text-white shadow-[0_12px_30px_rgba(47,112,255,.25)] transition active:scale-[.98] disabled:bg-white/10 disabled:text-white/35 disabled:shadow-none">{token ? "BET ACCEPTED" : phase === "betting" ? "PLACE BET" : "NEXT ROUND"}</button>
-      </>}
+      <section className="overflow-hidden rounded-[28px] bg-[#202a3f] shadow-[0_18px_50px_rgba(0,0,0,.24)] ring-1 ring-white/[.07]">
+        <div className="grid grid-cols-[1fr_auto_auto] gap-3 px-4 pb-2 pt-4 text-[10px] font-black uppercase tracking-[.12em] text-white/35"><span>Players</span><span>Stake</span><span className="w-20 text-right">Result</span></div>
+        <div className="max-h-52 min-h-[112px] overflow-y-auto pb-2">
+          {board?.players.length ? board.players.map((player, index) => <div key={`${player.name}-${index}`} className="grid grid-cols-[1fr_auto_auto] items-center gap-3 px-4 py-2.5 text-xs">
+            <span className="flex min-w-0 items-center gap-2">
+              {player.mode === "gift" && player.giftImage ? <i className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-b to-transparent ring-1", rarityOf(player.giftRarity ?? "common").bg, rarityOf(player.giftRarity ?? "common").ring)}><img src={player.giftImage} alt="" className="h-8 w-8 object-contain" /></i> : <i className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#3999e9] font-black not-italic text-white">{player.name.replace("@", "").charAt(0).toUpperCase()}</i>}
+              <span className="min-w-0"><b className="block truncate text-sm">{player.name}</b>{player.giftName && <small className="block truncate text-[9px] font-bold text-violet-300/75">{player.giftName}</small>}</span>
+            </span>
+            <span className="flex items-center gap-1 font-mono font-black text-amber-300"><Coin className="h-4 w-4" />{fmt(player.bet)}</span>
+            <span className={cn("w-20 text-right font-mono font-black", player.status === "cashed" ? "text-emerald-300" : player.status === "bust" ? "text-rose-300" : "text-white/45")}>{player.status === "cashed" ? `+${fmt(player.result)}` : player.status === "bust" ? "LOST" : `${fmt(player.bet * multiplier)}`}</span>
+          </div>) : <div className="flex min-h-[112px] items-center justify-center px-4 text-center text-xs text-white/40">No bets yet. Stars and gifts join this same shared flight.</div>}
+        </div>
+      </section>
     </div>
+  </div>
+}
+
+function GiftStakeShelf({ gifts, selected, disabled, onSelect }: { gifts: OwnedGift[]; selected: OwnedGift | null; disabled: boolean; onSelect: (gift: OwnedGift) => void }) {
+  if (!gifts.length) return <div className="flex min-h-28 items-center justify-between gap-4 rounded-2xl border border-dashed border-white/10 bg-black/15 px-4">
+    <span><b className="block text-sm text-white/75">No gifts available</b><small className="text-[10px] font-bold text-white/35">Open a case or deposit a gift first</small></span>
+    <a href="/deposit" className="shrink-0 rounded-xl bg-white/10 px-3 py-2 text-[10px] font-black text-white">ADD GIFT</a>
+  </div>
+
+  return <div className="no-scrollbar flex gap-2 overflow-x-auto pb-1">
+    {gifts.map((gift) => {
+      const rarity = rarityOf(gift.rarity)
+      const active = selected?.id === gift.id
+      return <button
+        key={gift.id}
+        type="button"
+        disabled={disabled}
+        onClick={() => { onSelect(gift); haptic("light") }}
+        className={cn("relative flex w-[112px] shrink-0 flex-col items-center rounded-2xl bg-gradient-to-b p-2.5 text-center ring-1 transition active:scale-[.97]", rarity.bg, active ? `${rarity.ring} ${rarity.glow} bg-white/[.09]` : "ring-white/[.06] opacity-75 hover:opacity-100")}
+      >
+        {active && <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_10px_#6ee7b7]" />}
+        <img src={gift.imageUrl} alt={gift.name} className="h-16 w-16 object-contain drop-shadow-[0_8px_12px_rgba(0,0,0,.28)]" />
+        <b className="mt-1 w-full truncate text-[10px] text-white">{gift.name}</b>
+        <span className="mt-1 flex items-center gap-1 rounded-full bg-black/25 px-2 py-1 font-mono text-[10px] font-black text-amber-200"><Coin className="h-3 w-3" />{fmt(gift.value)}</span>
+      </button>
+    })}
   </div>
 }

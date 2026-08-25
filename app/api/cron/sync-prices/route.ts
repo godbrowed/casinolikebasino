@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { gifts, cases, caseItems } from "@/lib/db/schema"
 import { eq } from "drizzle-orm"
-import { fetchPortalsData, GIFT_VALUE_PER_TON, rarityFromFloor, priceFromContents } from "@/lib/pricing"
+import { fetchPortalsData, tonToStarValue, rarityFromFloor, priceFromContents } from "@/lib/pricing"
 
 const NEW_CASES = [
   { slug: "first-drop", name: "First Drop", coverUrl: "/cases/starter.png", accent: "cyan", sortOrder: 10, from: 0, size: 7 },
@@ -69,7 +69,7 @@ async function sync() {
       misses.push(g.slug)
       continue
     }
-    const value = info.floor * GIFT_VALUE_PER_TON
+    const value = tonToStarValue(info.floor)
     await db
       .update(gifts)
       .set({

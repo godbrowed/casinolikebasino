@@ -1,11 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useState, type ReactNode } from "react"
 import Link from "next/link"
-import { Sparkles, Gem, Zap, Loader2, Gift as GiftIcon, Copy, Check, ChevronLeft } from "lucide-react"
+import { Loader2, Gift as GiftIcon, Copy, Check, ChevronLeft } from "lucide-react"
 import { useTonConnectUI, useTonWallet } from "@tonconnect/ui-react"
 import {
-  addDemoBalance,
   createStarsInvoice,
   createTonIntent,
   verifyTonDeposit,
@@ -20,33 +19,29 @@ import { useUser } from "@/components/user-provider"
 import { fmt } from "@/lib/format"
 import { getWebApp, haptic, hapticNotify } from "@/lib/telegram-webapp"
 import { cn } from "@/lib/utils"
-import { starsToGram, tonToStars } from "@/lib/deposit-shared"
 
-type Method = "stars" | "ton" | "gifts" | "demo"
+type Method = "stars" | "ton" | "gifts"
 
 export function DepositView({
-  starPacks,
-  tonPacks,
   tonRate,
   giftCatalog,
   relayer,
 }: {
-  starPacks: number[]
-  tonPacks: number[]
   tonRate: number
   giftCatalog: DepositGift[]
   relayer: RelayerInfo
 }) {
-  const { me, setBalance, refresh } = useUser()
-  const [method, setMethod] = useState<Method>("stars")
+  const { setBalance, refresh } = useUser()
+  const [method, setMethod] = useState<Method>("ton")
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null)
   const [giftIntent, setGiftIntent] = useState<{ code: string; giftName: string; value: number } | null>(null)
   const [copied, setCopied] = useState(false)
-  const [starAmount, setStarAmount] = useState(starPacks.includes(250) ? 250 : starPacks[0] ?? 50)
-  const [tonAmount, setTonAmount] = useState(tonPacks[0] ?? 1.77)
+  const [amountText, setAmountText] = useState("200")
   const [tonConnectUI] = useTonConnectUI()
   const wallet = useTonWallet()
+  const starAmount = amountText ? Number(amountText) : 0
+  const tonAmount = starAmount > 0 ? Number((starAmount / tonRate).toFixed(4)) : 0
 
   async function handleGiftDeposit(slug: string) {
     setBusy(true)
@@ -65,21 +60,6 @@ export function DepositView({
     setMsg({ type, text })
     hapticNotify(type === "ok" ? "success" : "error")
     setTimeout(() => setMsg(null), 4000)
-  }
-
-  async function handleDemo(amount: number) {
-    setBusy(true)
-    haptic("medium")
-    try {
-      const res = await addDemoBalance(amount)
-      setBalance(res.balance)
-      notify("ok", `Added ${fmt(amount)} to your balance`)
-    } catch (e) {
-      notify("err", e instanceof Error ? e.message : "Failed")
-    } finally {
-      setBusy(false)
-      refresh()
-    }
   }
 
   async function handleStars(stars: number) {
@@ -148,15 +128,14 @@ export function DepositView({
   }
 
   return (
-    <div className="mx-auto flex min-h-[calc(var(--tg-viewport-stable-height,100dvh)-86px)] w-full max-w-[620px] flex-col px-1 pb-[max(1rem,var(--tg-content-safe-area-inset-bottom,0px))]">
+    <div className="mx-auto flex min-h-[calc(var(--tg-viewport-stable-height,100dvh)-118px)] w-full max-w-[620px] flex-col px-1 pb-[max(1rem,var(--tg-content-safe-area-inset-bottom,0px))]">
       <header className="relative flex flex-col items-center pt-2">
-        <Link href="/" className="absolute left-0 top-0 flex h-11 w-11 items-center justify-center rounded-full bg-[#111419] text-white/70 ring-1 ring-white/[.06] transition hover:text-white"><ChevronLeft className="h-6 w-6" /></Link>
-        <h1 className="font-display text-2xl font-black md:text-3xl">Balance replenishment</h1>
-        <div className={cn("mt-5 grid w-full max-w-[560px] gap-1 rounded-[22px] bg-[#3b3f46] p-1.5", me?.isDemo ? "grid-cols-4" : "grid-cols-3")}>
-          <Tab active={method === "stars"} onClick={() => setMethod("stars")} icon={Sparkles} label="Stars" />
-          <Tab active={method === "ton"} onClick={() => setMethod("ton")} icon={Gem} label="TON" />
-          <Tab active={method === "gifts"} onClick={() => setMethod("gifts")} icon={GiftIcon} label="Gifts" />
-          {me?.isDemo && <Tab active={method === "demo"} onClick={() => setMethod("demo")} icon={Zap} label="Demo" />}
+        <Link href="/" aria-label="Back" className="absolute left-0 top-0 flex h-11 w-11 items-center justify-center rounded-full bg-[#111419] text-white/70 transition hover:text-white"><ChevronLeft className="h-6 w-6" /></Link>
+        <h1 className="px-12 font-display text-2xl font-black md:px-0 md:text-3xl"><span className="md:hidden">Balance</span><span className="hidden md:inline">Balance replenishment</span></h1>
+        <div className="mt-5 grid w-full max-w-[560px] grid-cols-3 gap-1 rounded-[22px] bg-[#3b3f46] p-1.5">
+          <Tab active={method === "ton"} onClick={() => setMethod("ton")} icon={<img src="/icons/ton.svg" alt="" className="h-5 w-5" />} label="TON" />
+          <Tab active={method === "stars"} onClick={() => setMethod("stars")} icon={<Coin className="h-5 w-5" />} label="Stars" />
+          <Tab active={method === "gifts"} onClick={() => setMethod("gifts")} icon={<GiftIcon className="h-5 w-5 text-[#ff6fbd]" />} label="Gifts" />
         </div>
       </header>
 
@@ -171,9 +150,16 @@ export function DepositView({
         </div>
       )}
 
-      {method === "stars" && <DepositAmountPane amount={starAmount} detail={`Telegram invoice · +${fmt(starsToGram(starAmount))} balance`} />}
-
-      {method === "ton" && <DepositAmountPane amount={tonToStars(tonAmount)} eyebrow={wallet ? "Wallet connected" : "Connect wallet"} detail={`≈ ${tonAmount} TON · 1 TON = ${fmt(tonRate)} Stars`} />}
+      {(method === "stars" || method === "ton") && (
+        <DepositAmountPane
+          value={amountText}
+          onChange={(value) => {
+            const digits = value.replace(/\D/g, "").replace(/^0+(?=\d)/, "").slice(0, 5)
+            setAmountText(digits && Number(digits) > 10_000 ? "10000" : digits)
+          }}
+          detail={method === "ton" && tonAmount > 0 ? `≈ ${tonAmount} TON` : undefined}
+        />
+      )}
 
       {method === "gifts" && (
         <div className="flex flex-1 flex-col pt-7">
@@ -250,32 +236,27 @@ export function DepositView({
         </div>
       )}
 
-      {method === "demo" && me?.isDemo && (
-        <DepositAmountPane amount={starAmount} eyebrow="Demo balance" detail="No payment · development accounts only" />
-      )}
-
       {busy && (
         <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" /> Processing…
         </div>
       )}
 
-      {method !== "gifts" && <footer className="mt-auto border-t border-white/[.06] bg-[#171a20]/96 pt-3 backdrop-blur-xl">
-        <div className="no-scrollbar flex gap-2 overflow-x-auto pb-3">
-          {(method === "ton" ? tonPacks : method === "demo" ? [100, 500, 2500] : starPacks).map((value) => {
-            const active = method === "ton" ? tonAmount === value : starAmount === value
-            return <button key={value} onClick={() => method === "ton" ? setTonAmount(value) : setStarAmount(value)} className={cn("min-w-[104px] flex-1 rounded-[18px] px-3 py-3 text-sm font-black transition", active ? "bg-white/18 text-white ring-1 ring-white/15" : "bg-[#3d4149] text-white/72 hover:bg-[#484d56]")}>+{fmt(value)}</button>
+      {method !== "gifts" && <footer className="mt-auto bg-[#171a20]/96 pt-3">
+        <div className="grid grid-cols-3 gap-3 pb-3">
+          {[500, 2000, 5000].map((value) => {
+            const active = starAmount === value
+            return <button key={value} onClick={() => setAmountText(String(value))} className={cn("rounded-[18px] bg-[#50535a] px-3 py-3 text-sm font-black text-white transition", active && "bg-[#656971]")}>+{fmt(value)}</button>
           })}
         </div>
-        <button onClick={() => method === "stars" ? handleStars(starAmount) : method === "ton" ? handleTon(tonAmount) : handleDemo(starAmount)} disabled={busy} className="flex w-full items-center justify-center gap-2 rounded-[20px] bg-[#2f70ff] py-4 font-display text-lg font-black shadow-[0_6px_0_#1945b9,0_16px_30px_-14px_rgba(47,112,255,.65)] transition active:translate-y-0.5 disabled:opacity-50">{busy ? <Loader2 className="h-5 w-5 animate-spin" /> : method === "ton" ? wallet ? `Top up ${tonAmount} TON` : "Connect TON wallet" : method === "demo" ? `Add ${fmt(starAmount)} demo Stars` : `Top up ${fmt(starAmount)} Stars`}</button>
-        <p className="mt-3 text-center text-[10px] text-white/28">{method === "stars" ? "Credited after Telegram confirms the invoice" : method === "ton" ? "Sent to the configured project treasury and verified on-chain" : "Instant demo credit"}</p>
+        <button onClick={() => method === "stars" ? handleStars(starAmount) : handleTon(tonAmount)} disabled={busy || starAmount < 1 || starAmount > 10_000} className="flex w-full items-center justify-center gap-2 rounded-[20px] bg-[#2f70ff] py-4 font-display text-lg font-black transition active:scale-[.99] disabled:opacity-50">{busy ? <Loader2 className="h-5 w-5 animate-spin" /> : method === "ton" ? wallet ? `Top up ${tonAmount} TON` : "Connect wallet" : `Top up ${fmt(starAmount)} Stars`}</button>
       </footer>}
     </div>
   )
 }
 
-function DepositAmountPane({ amount, eyebrow, detail }: { amount: number; eyebrow?: string; detail: string }) {
-  return <section className="flex flex-1 flex-col items-center justify-center py-12 text-center md:min-h-[430px]"><span className="rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-bold text-white/65">{eyebrow ?? "Telegram Stars"}</span><div className="mt-5 flex items-center gap-3"><span className="font-display text-7xl font-black tabular-nums md:text-8xl">{fmt(amount)}</span><Coin className="h-16 w-16 md:h-20 md:w-20" /></div><div className="mt-4 text-sm font-bold text-[#4f7fff]">{detail}</div></section>
+function DepositAmountPane({ value, onChange, detail }: { value: string; onChange: (value: string) => void; detail?: string }) {
+  return <section className="flex min-h-[220px] flex-1 flex-col items-center justify-center py-8 text-center"><div className="flex w-full items-center justify-center gap-3"><input aria-label="Stars amount" type="text" inputMode="numeric" enterKeyHint="done" pattern="[0-9]*" autoComplete="off" spellCheck={false} maxLength={5} value={value} onChange={(event) => onChange(event.target.value)} onFocus={(event) => event.currentTarget.select()} placeholder="0" className="min-w-0 max-w-[76%] bg-transparent text-right font-display text-7xl font-black tabular-nums text-white caret-[#2f70ff] outline-none placeholder:text-white/20 md:text-8xl" style={{ width: `${Math.max(1, value.length) + 0.45}ch` }} /><Coin className="h-16 w-16 md:h-20 md:w-20" /></div>{detail && <div className="mt-4 text-sm font-bold text-white/42">{detail}</div>}</section>
 }
 
 function Tab({
@@ -286,7 +267,7 @@ function Tab({
 }: {
   active: boolean
   onClick: () => void
-  icon: typeof Sparkles
+  icon: ReactNode
   label: string
 }) {
   return (
@@ -294,10 +275,10 @@ function Tab({
       onClick={onClick}
       className={cn(
         "flex items-center justify-center gap-1.5 rounded-2xl py-2.5 text-xs font-bold transition-all",
-        active ? "bg-primary text-white shadow-[0_4px_0_#1938a8]" : "text-muted-foreground",
+        active ? "bg-[#2f70ff] text-white" : "text-white/65",
       )}
     >
-      <Icon className="h-4 w-4" />
+      {Icon}
       {label}
     </button>
   )

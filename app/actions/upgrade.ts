@@ -6,6 +6,7 @@ import { db } from "@/lib/db"
 import { inventory, gifts, gameHistory } from "@/lib/db/schema"
 import { requireUserId } from "@/lib/session"
 import { upgradeChance } from "@/lib/upgrade-shared"
+import { giftValueInStars } from "@/lib/pricing"
 
 export async function getUpgradeTargets(): Promise<
   { id: number; name: string; rarity: string; imageUrl: string; value: number }[]
@@ -17,7 +18,7 @@ export async function getUpgradeTargets(): Promise<
       name: g.name,
       rarity: g.rarity,
       imageUrl: g.imageUrl,
-      value: Number(g.value),
+      value: giftValueInStars(g.value, g.floorTon),
     }))
     .sort((a, b) => a.value - b.value)
 }
@@ -35,8 +36,13 @@ export async function upgradeGift(
   return db.transaction(async (tx) => {
     const src = (
       await tx
-        .select()
+        .select({
+          id: inventory.id,
+          value: inventory.value,
+          floorTon: gifts.floorTon,
+        })
         .from(inventory)
+        .innerJoin(gifts, eq(inventory.giftId, gifts.id))
         .where(
           and(
             eq(inventory.id, inventoryId),
@@ -51,8 +57,8 @@ export async function upgradeGift(
     const target = (await tx.select().from(gifts).where(eq(gifts.id, targetGiftId)).limit(1))[0]
     if (!target) throw new Error("Target not found")
 
-    const targetValue = Number(target.value)
-    const sourceValue = Number(src.value)
+    const targetValue = giftValueInStars(target.value, target.floorTon)
+    const sourceValue = giftValueInStars(src.value, src.floorTon)
     if (targetValue <= sourceValue) throw new Error("Target must be more valuable")
 
     const chance = upgradeChance(sourceValue, targetValue)

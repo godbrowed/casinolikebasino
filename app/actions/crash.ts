@@ -7,6 +7,7 @@ import { db } from "@/lib/db"
 import { users, gameHistory, inventory, gifts } from "@/lib/db/schema"
 import { requireUserId } from "@/lib/session"
 import { crashRoundPhase, CRASH_ROUND_MS, multiplierAtElapsed, sharedFlightStart, sharedRoundId, sharedRoundStart } from "@/lib/crash-shared"
+import { giftValueInStars } from "@/lib/pricing"
 
 function crashSecret(): string {
   const configured = process.env.SESSION_SECRET || process.env.TELEGRAM_BOT_TOKEN
@@ -59,7 +60,16 @@ export type CrashBoard = {
   phase: "betting" | "flying" | "crashed"
   multiplier: number
   secondsLeft: number
-  players: { name: string; bet: number; result: number; status: "bet" | "cashed" | "bust" }[]
+  players: {
+    name: string
+    bet: number
+    result: number
+    status: "bet" | "cashed" | "bust"
+    mode: "stars" | "gift"
+    giftName?: string
+    giftImage?: string
+    giftRarity?: string
+  }[]
   recent: { multiplier: number; won: boolean }[]
 }
 
@@ -95,7 +105,16 @@ export async function getCrashBoard(): Promise<CrashBoard> {
     players: rows.filter((row) => Number((row.meta as Record<string, unknown> | null)?.roundId) === roundId).map((row) => {
       const meta = (row.meta ?? {}) as Record<string, unknown>
       const status = meta.status === "cashed" || meta.status === "bust" ? meta.status : crashed ? "bust" : "bet"
-      return { name: row.username ? `@${row.username}` : row.firstName || "Player", bet: Number(row.bet), result: Number(row.result), status }
+      return {
+        name: row.username ? `@${row.username}` : row.firstName || "Player",
+        bet: Number(row.bet),
+        result: Number(row.result),
+        status,
+        mode: meta.mode === "gift" ? "gift" : "stars",
+        giftName: typeof meta.giftName === "string" ? meta.giftName : undefined,
+        giftImage: typeof meta.giftImage === "string" ? meta.giftImage : typeof meta.imageUrl === "string" ? meta.imageUrl : undefined,
+        giftRarity: typeof meta.giftRarity === "string" ? meta.giftRarity : typeof meta.rarity === "string" ? meta.rarity : undefined,
+      }
     }),
     // These are the actual deterministic results of completed shared rounds,
     // so history is present even when a round had no wagers. No fake LIVE
@@ -133,7 +152,7 @@ export async function startCrash(bet: number): Promise<{
     const roundId = sharedRoundId()
     const startTime = sharedFlightStart()
     const history = await tx.insert(gameHistory).values({
-      userId, game: "crash", bet: String(bet), result: "0", meta: { roundId, status: "active" },
+      userId, game: "crash", bet: String(bet), result: "0", meta: { roundId, mode: "stars", status: "active" },
     }).returning({ id: gameHistory.id })
     const token = signRound({ userId, bet, roundId, startTime, historyId: history[0].id })
 
@@ -201,7 +220,17 @@ export async function settleCrashBust(token: string): Promise<void> {
 // for a real gift whose value is closest to (staked value * multiplier).
 // Busting loses the staked gift.
 
-type GiftRound = { userId: string; inventoryId: number; stakeValue: number; roundId: number; startTime: number; historyId: number }
+type GiftRound = {
+  userId: string
+  inventoryId: number
+  stakeValue: number
+  roundId: number
+  startTime: number
+  historyId: number
+  giftName: string
+  giftImage: string
+  giftRarity: string
+}
 
 export type OwnedGift = {
   id: number
@@ -227,6 +256,7 @@ export async function getCrashGifts(): Promise<OwnedGift[]> {
     .select({
       id: inventory.id,
       value: inventory.value,
+      floorTon: gifts.floorTon,
       name: gifts.name,
       rarity: gifts.rarity,
       imageUrl: gifts.imageUrl,
@@ -235,7 +265,9 @@ export async function getCrashGifts(): Promise<OwnedGift[]> {
     .innerJoin(gifts, eq(inventory.giftId, gifts.id))
     .where(and(eq(inventory.userId, userId), eq(inventory.status, "owned")))
     .orderBy(sql`${inventory.value} desc`)
-  return rows.map((r) => ({ ...r, value: Number(r.value) }))
+  return rows
+    .map(({ floorTon, ...r }) => ({ ...r, value: giftValueInStars(r.value, floorTon) }))
+    .sort((a, b) => b.value - a.value)
 }
 
 export async function startGiftCrash(inventoryId: number): Promise<{
@@ -248,8 +280,16 @@ export async function startGiftCrash(inventoryId: number): Promise<{
   return db.transaction(async (tx) => {
     const item = (
       await tx
-        .select()
+        .select({
+          id: inventory.id,
+          value: inventory.value,
+          floorTon: gifts.floorTon,
+          name: gifts.name,
+          rarity: gifts.rarity,
+          imageUrl: gifts.imageUrl,
+        })
         .from(inventory)
+        .innerJoin(gifts, eq(inventory.giftId, gifts.id))
         .where(and(eq(inventory.id, inventoryId), eq(inventory.userId, userId), eq(inventory.status, "owned")))
         .limit(1)
     )[0]
@@ -261,11 +301,32 @@ export async function startGiftCrash(inventoryId: number): Promise<{
     const startTime = sharedFlightStart()
     // Same 90% RTP for gift crash (payout is a real NFT).
     const roundId = sharedRoundId()
-    const stakeValue = Number(item.value)
+    const stakeValue = giftValueInStars(item.value, item.floorTon)
     const history = await tx.insert(gameHistory).values({
-      userId, game: "crash", bet: String(stakeValue), result: "0", meta: { roundId, mode: "gift", status: "active" },
+      userId,
+      game: "crash",
+      bet: String(stakeValue),
+      result: "0",
+      meta: {
+        roundId,
+        mode: "gift",
+        status: "active",
+        giftName: item.name,
+        giftImage: item.imageUrl,
+        giftRarity: item.rarity,
+      },
     }).returning({ id: gameHistory.id })
-    const token = signGiftRound({ userId, inventoryId, stakeValue, roundId, startTime, historyId: history[0].id })
+    const token = signGiftRound({
+      userId,
+      inventoryId,
+      stakeValue,
+      roundId,
+      startTime,
+      historyId: history[0].id,
+      giftName: item.name,
+      giftImage: item.imageUrl,
+      giftRarity: item.rarity,
+    })
     return { token, startTime, stakeValue }
   })
 }
@@ -287,7 +348,7 @@ export async function cashoutGiftCrash(token: string): Promise<{
   if (current >= crashPoint) {
     // Bust — the wagered gift is lost.
     await db.update(inventory).set({ status: "lost" }).where(eq(inventory.id, round.inventoryId))
-    await db.update(gameHistory).set({ result: "0", meta: { roundId: round.roundId, mode: "gift", crashPoint, status: "bust" } }).where(eq(gameHistory.id, round.historyId))
+    await db.update(gameHistory).set({ result: "0", meta: { roundId: round.roundId, mode: "gift", crashPoint, status: "bust", giftName: round.giftName, giftImage: round.giftImage, giftRarity: round.giftRarity } }).where(eq(gameHistory.id, round.historyId))
     revalidatePath("/profile")
     return { success: false, multiplier: crashPoint, crashPoint, gift: null }
   }
@@ -298,19 +359,24 @@ export async function cashoutGiftCrash(token: string): Promise<{
   return db.transaction(async (tx) => {
     // Pick the gift whose value is closest to (and not above) the target,
     // falling back to the cheapest gift if none qualify.
-    const all = await tx.select().from(gifts)
+    const all = (await tx.select().from(gifts)).map((gift) => ({
+      gift,
+      value: giftValueInStars(gift.value, gift.floorTon),
+    }))
     const affordable = all
-      .filter((g) => Number(g.value) <= targetValue)
-      .sort((a, b) => Number(b.value) - Number(a.value))
-    const chosen = affordable[0] ?? all.sort((a, b) => Number(a.value) - Number(b.value))[0]
-    if (!chosen) throw new Error("No gifts available")
+      .filter((entry) => entry.value <= targetValue)
+      .sort((a, b) => b.value - a.value)
+    const chosenEntry = affordable[0] ?? all.sort((a, b) => a.value - b.value)[0]
+    if (!chosenEntry) throw new Error("No gifts available")
+    const chosen = chosenEntry.gift
+    const chosenValue = chosenEntry.value
 
     await tx
       .update(inventory)
-      .set({ giftId: chosen.id, value: String(Number(chosen.value)), source: "crash", status: "owned" })
+      .set({ giftId: chosen.id, value: String(chosenValue), source: "crash", status: "owned" })
       .where(eq(inventory.id, round.inventoryId))
 
-    await tx.update(gameHistory).set({ result: String(Number(chosen.value)), meta: { roundId: round.roundId, mode: "gift", crashPoint, status: "cashed", multiplier: mult, giftName: chosen.name, imageUrl: chosen.imageUrl, rarity: chosen.rarity } }).where(eq(gameHistory.id, round.historyId))
+    await tx.update(gameHistory).set({ result: String(chosenValue), meta: { roundId: round.roundId, mode: "gift", crashPoint, status: "cashed", multiplier: mult, giftName: chosen.name, giftImage: chosen.imageUrl, giftRarity: chosen.rarity } }).where(eq(gameHistory.id, round.historyId))
 
     revalidatePath("/profile")
     return {
@@ -322,7 +388,7 @@ export async function cashoutGiftCrash(token: string): Promise<{
         name: chosen.name,
         rarity: chosen.rarity,
         imageUrl: chosen.imageUrl,
-        value: Number(chosen.value),
+        value: chosenValue,
       },
     }
   })
@@ -338,7 +404,7 @@ export async function settleGiftBust(token: string): Promise<void> {
   )[0]
   if (!item || item.status !== "wagered") return
   await db.update(inventory).set({ status: "lost" }).where(eq(inventory.id, round.inventoryId))
-  await db.update(gameHistory).set({ result: "0", meta: { roundId: round.roundId, mode: "gift", crashPoint: rollCrashPoint(round.roundId), status: "bust" } }).where(eq(gameHistory.id, round.historyId))
+  await db.update(gameHistory).set({ result: "0", meta: { roundId: round.roundId, mode: "gift", crashPoint: rollCrashPoint(round.roundId), status: "bust", giftName: round.giftName, giftImage: round.giftImage, giftRarity: round.giftRarity } }).where(eq(gameHistory.id, round.historyId))
   revalidatePath("/profile")
 }
 

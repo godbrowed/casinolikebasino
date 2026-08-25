@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache"
 import { db } from "@/lib/db"
 import { users, transactions } from "@/lib/db/schema"
 import { requireUserId, getCurrentUser } from "@/lib/session"
-import { STAR_PACKS, starsToGram, tonToStars } from "@/lib/deposit-shared"
+import { starsToGram, tonToStars } from "@/lib/deposit-shared"
 
 /** Demo-only instant top up so the preview is fully playable. */
 export async function addDemoBalance(amount: number): Promise<{ balance: number }> {
@@ -39,7 +39,9 @@ export async function createStarsInvoice(stars: number): Promise<{ link: string 
   const userId = await requireUserId()
   const token = process.env.TELEGRAM_BOT_TOKEN
   if (!token) throw new Error("Stars payments are not configured (missing TELEGRAM_BOT_TOKEN)")
-  if (!STAR_PACKS.includes(stars)) throw new Error("Invalid pack")
+  // Telegram Stars invoices use whole XTR units. Accept a custom amount while
+  // keeping it inside Telegram's documented 1–10,000 Stars range.
+  if (!Number.isInteger(stars) || stars < 1 || stars > 10_000) throw new Error("Enter an amount from 1 to 10,000 Stars")
   const credited = starsToGram(stars)
 
   const payload = JSON.stringify({ userId, stars, n: crypto.randomBytes(6).toString("hex") })

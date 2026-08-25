@@ -6,6 +6,7 @@ import { db } from "@/lib/db"
 import { users, inventory, gifts, gameHistory } from "@/lib/db/schema"
 import { requireUserId, getCurrentUser } from "@/lib/session"
 import { isAdminId } from "@/lib/admin"
+import { giftValueInStars } from "@/lib/pricing"
 
 export async function getMe() {
   const user = await getCurrentUser()
@@ -39,21 +40,23 @@ export async function getInventory() {
       rarity: gifts.rarity,
       imageUrl: gifts.imageUrl,
       slug: gifts.slug,
+      floorTon: gifts.floorTon,
     })
     .from(inventory)
     .innerJoin(gifts, eq(inventory.giftId, gifts.id))
     .where(and(eq(inventory.userId, userId), eq(inventory.status, "owned")))
     .orderBy(desc(inventory.value), desc(inventory.createdAt))
 
-  return rows.map((r) => ({ ...r, value: Number(r.value) }))
+  return rows.map(({ floorTon, ...r }) => ({ ...r, value: giftValueInStars(r.value, floorTon) }))
 }
 
 export async function sellGift(inventoryId: number) {
   const userId = await requireUserId()
   return db.transaction(async (tx) => {
     const rows = await tx
-      .select()
+      .select({ id: inventory.id, value: inventory.value, floorTon: gifts.floorTon })
       .from(inventory)
+      .innerJoin(gifts, eq(inventory.giftId, gifts.id))
       .where(
         and(
           eq(inventory.id, inventoryId),
@@ -64,16 +67,17 @@ export async function sellGift(inventoryId: number) {
       .limit(1)
     const item = rows[0]
     if (!item) throw new Error("Item not found")
+    const currentValue = giftValueInStars(item.value, item.floorTon)
 
     await tx.update(inventory).set({ status: "sold" }).where(eq(inventory.id, inventoryId))
     const updated = await tx
       .update(users)
-      .set({ balance: sql`${users.balance} + ${item.value}` })
+      .set({ balance: sql`${users.balance} + ${currentValue}` })
       .where(eq(users.id, userId))
       .returning({ balance: users.balance })
 
     revalidatePath("/profile")
-    return { balance: Number(updated[0].balance), value: Number(item.value) }
+    return { balance: Number(updated[0].balance), value: currentValue }
   })
 }
 
@@ -81,12 +85,13 @@ export async function sellAll() {
   const userId = await requireUserId()
   return db.transaction(async (tx) => {
     const owned = await tx
-      .select({ id: inventory.id, value: inventory.value })
+      .select({ id: inventory.id, value: inventory.value, floorTon: gifts.floorTon })
       .from(inventory)
+      .innerJoin(gifts, eq(inventory.giftId, gifts.id))
       .where(and(eq(inventory.userId, userId), eq(inventory.status, "owned")))
     if (owned.length === 0) return { balance: null, total: 0 }
 
-    const total = owned.reduce((s, r) => s + Number(r.value), 0)
+    const total = owned.reduce((s, r) => s + giftValueInStars(r.value, r.floorTon), 0)
     await tx
       .update(inventory)
       .set({ status: "sold" })

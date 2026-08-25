@@ -2,22 +2,22 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import useSWR from "swr"
-import { Clock3, Loader2, Plus, ShieldCheck, Users, X } from "lucide-react"
-import { getBattleSessions, getMatchState, joinBattle, leaveBattle, type BattleResult, type BattleSession, type MatchState } from "@/app/actions/battles"
+import Link from "next/link"
+import { ArrowLeft, Clock3, Loader2, Plus, ShieldCheck, Users, X } from "lucide-react"
+import type { BattleResult, BattleSession, MatchState } from "@/app/actions/battles"
 import { BattleArena } from "@/components/battle-arena"
 import { Coin } from "@/components/coin"
 import { useUser } from "@/components/user-provider"
 import { fmt } from "@/lib/format"
 import { haptic } from "@/lib/telegram-webapp"
 import { cn } from "@/lib/utils"
+import { fetchBattleSessions, fetchMatchState, joinBattleApi, leaveBattleApi } from "@/lib/client-game-api"
 
 type Phase = "lobby" | "session" | "arena"
-const BETS = [50, 100, 250, 500, 1000, 2500]
-
 export function BattlesLobby() {
   const { me, refresh } = useUser()
-  const { data: sessions, mutate: refreshSessions } = useSWR<BattleSession[]>("pvp-sessions", getBattleSessions, { refreshInterval: 2000 })
-  const [bet, setBet] = useState(250)
+  const { data: sessions, mutate: refreshSessions } = useSWR<BattleSession[]>("pvp-sessions", fetchBattleSessions, { refreshInterval: 2500 })
+  const [bet, setBet] = useState(100)
   const [phase, setPhase] = useState<Phase>("lobby")
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -30,7 +30,7 @@ export function BattlesLobby() {
   const stopPolling = useCallback(() => { if (poll.current) clearInterval(poll.current); poll.current = null }, [])
   const tick = useCallback(async (id: number) => {
     try {
-      const state = await getMatchState(id)
+      const state = await fetchMatchState(id)
       setMatch(state)
       if (state.status === "done" && state.result) {
         stopPolling(); setResult(state.result); setPhase("arena"); refresh(); void refreshSessions()
@@ -44,9 +44,9 @@ export function BattlesLobby() {
     if (busy || (me?.balance ?? 0) < amount) return setError("Not enough Stars for this stake.")
     setBusy(true); setError(null); haptic("medium")
     try {
-      const { roomId: id } = await joinBattle({ bet: amount, roomId: targetRoomId })
+      const { roomId: id } = await joinBattleApi(amount, targetRoomId)
       setBet(amount); setRoomId(id); setPhase("session"); refresh(); await tick(id)
-      poll.current = setInterval(() => void tick(id), 800)
+      poll.current = setInterval(() => void tick(id), 1000)
       void refreshSessions()
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : "Could not join PvP"
@@ -57,7 +57,7 @@ export function BattlesLobby() {
   async function cancelQueue() {
     if (match?.status !== "waiting") return
     stopPolling(); const id = roomId; setPhase("lobby"); setMatch(null); setRoomId(null)
-    if (id != null) await leaveBattle(id).catch(() => undefined)
+    if (id != null) await leaveBattleApi(id).catch(() => undefined)
     refresh(); void refreshSessions()
   }
 
@@ -66,18 +66,20 @@ export function BattlesLobby() {
   if (phase === "arena" && result) return <BattleArena result={result} onDone={reset} />
   if (phase === "session") return <SessionRoom match={match} bet={bet} onCancel={cancelQueue} />
 
-  return <div className="flex flex-col gap-4">
-    <section className="relative min-h-[190px] overflow-hidden rounded-[32px] bg-[#071226] p-5 shadow-[0_18px_46px_-24px_rgba(47,112,255,.65)] ring-1 ring-white/10">
-      <img src="/images/puggift-pvp-card-v2.webp" alt="" className="absolute right-0 top-0 h-full w-[62%] object-cover [mask-image:linear-gradient(to_right,transparent,black_35%)]" />
-      <div className="absolute inset-0 bg-[linear-gradient(90deg,#09111f_0%,rgba(9,17,31,.8)_44%,transparent_78%)]" />
-      <div className="absolute right-5 top-5 flex h-[150px] w-[150px] items-center justify-center rounded-full border-[8px] border-[#252b36] bg-[#343a46]/95 shadow-[0_16px_38px_rgba(0,0,0,.55),inset_0_0_22px_rgba(0,0,0,.35)] backdrop-blur-sm"><i className="absolute left-1/2 top-[-12px] h-0 w-0 -translate-x-1/2 border-x-[9px] border-t-[17px] border-x-transparent border-t-white" /><span className="flex h-16 w-16 flex-col items-center justify-center rounded-full bg-[#080b11] ring-4 ring-[#222733]"><b className="font-display text-xl">0/2</b><small className="text-[7px] font-black uppercase tracking-[.12em] text-white/35">no stakes</small></span></div>
-      <div className="relative flex h-full max-w-[62%] flex-col justify-end"><div className="mb-10 text-[9px] font-black uppercase tracking-[.2em] text-blue-300">Real-player sessions</div><h1 className="font-display text-3xl font-black">Stars PvP</h1><p className="mt-1 text-xs leading-relaxed text-white/60">First stake owns the wheel. The second splits it and starts one shared timer.</p></div>
-    </section>
+  return <div className="mx-auto flex min-h-[calc(var(--tg-viewport-stable-height,100dvh)-84px)] w-full max-w-[720px] flex-col gap-4 pb-5">
+    <div className="flex items-center justify-between px-1">
+      <Link href="/" className="flex h-11 w-11 items-center justify-center rounded-full bg-[#101217] text-white/70 ring-1 ring-white/[.06]"><ArrowLeft className="h-5 w-5" /></Link>
+      <div className="text-center"><div className="text-[9px] font-black uppercase tracking-[.2em] text-[#6f91ff]">Real players · shared session</div><h1 className="font-display text-xl font-black">PugGift PvP</h1></div>
+      <div className="h-11 w-11" />
+    </div>
 
-    <section className="rounded-[28px] bg-[#30333a] p-4 ring-1 ring-white/10">
-      <div className="mb-3 flex items-end justify-between"><div><div className="text-[9px] font-black uppercase tracking-[.16em] text-white/45">Create your stake</div><div className="mt-1 flex items-center gap-1 font-display text-3xl font-black"><Coin className="h-8 w-8 text-[28px]" glow />{fmt(bet)}</div></div><div className="text-right text-[10px] text-white/45">2 real players<br/><b className="text-emerald-300">90% bank payout</b></div></div>
-      <div className="grid grid-cols-3 gap-2">{BETS.map((amount) => <button key={amount} onClick={() => { haptic("light"); setBet(amount) }} className={cn("rounded-2xl py-3 text-xs font-black transition", bet === amount ? "bg-[#2f70ff] text-white shadow-[0_4px_0_#1744b9]" : "bg-[#41454e] text-white/65 hover:bg-[#4a4f59]")}>{fmt(amount)}</button>)}</div>
-      <button onClick={() => enterSession(bet)} disabled={busy || !canAfford} className="btn-glow mt-3 flex w-full items-center justify-center gap-2 rounded-2xl py-4 font-display font-black disabled:opacity-40">{busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <><Plus className="h-5 w-5" />Create or join session</>}</button>
+    <LobbyWheel session={sessions?.[0] ?? null} />
+
+    <section className="rounded-[28px] bg-[#2b2e34] p-3 ring-1 ring-white/10">
+      <div className="mb-3 flex items-center justify-between px-1"><div><div className="text-[9px] font-black uppercase tracking-[.16em] text-white/40">Your stake</div><div className="text-xs text-white/55">Enter any amount from 10 to 100,000</div></div><div className="rounded-full bg-emerald-400/10 px-2.5 py-1 text-[9px] font-black text-emerald-300">90% payout</div></div>
+      <div className="flex items-center gap-3 rounded-[20px] bg-[#17191e] px-4 py-3 ring-1 ring-white/[.07]"><Coin className="h-6 w-6" /><input aria-label="PvP stake" type="number" inputMode="numeric" min={10} max={100000} value={bet || ""} onChange={(event) => setBet(Math.max(0, Math.min(100000, Math.floor(Number(event.target.value)))))} className="min-w-0 flex-1 bg-transparent font-mono text-2xl font-black outline-none" /><button onClick={() => setBet(Math.floor(me?.balance ?? 0))} className="rounded-xl bg-white/[.07] px-3 py-2 text-[10px] font-black uppercase text-[#7e9eff]">max</button></div>
+      <div className="mt-2 grid grid-cols-3 gap-2">{[50, 250, 1000].map((amount) => <button key={amount} onClick={() => { haptic("light"); setBet(Math.min(100000, bet + amount)) }} className="rounded-xl bg-[#41454e] py-2.5 text-xs font-black text-white/60">+{fmt(amount)}</button>)}</div>
+      <button onClick={() => enterSession(bet)} disabled={busy || !canAfford || bet < 10} className="mt-3 flex w-full items-center justify-center gap-2 rounded-[20px] bg-[#2f70ff] py-4 font-display text-base font-black text-white shadow-[0_7px_22px_rgba(47,112,255,.3)] disabled:bg-white/10 disabled:text-white/30 disabled:shadow-none">{busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <><Plus className="h-5 w-5" />Place stake</>}</button>
     </section>
 
     <section className="overflow-hidden rounded-[28px] bg-[#2b2e34] ring-1 ring-white/10">
@@ -89,9 +91,30 @@ export function BattlesLobby() {
       </div>) : <div className="px-4 py-7 text-center text-xs text-white/40">No public session yet — your stake will create the first one.</div>}</div>
     </section>
 
-    <div className="flex items-center justify-center gap-2 text-[10px] text-white/40"><ShieldCheck className="h-3.5 w-3.5 text-emerald-300" />Real accounts only · equal stake · synchronized result</div>
+    <div className="flex items-center justify-center gap-2 text-[10px] text-white/40"><ShieldCheck className="h-3.5 w-3.5 text-emerald-300" />No bots · equal stake · synchronized result</div>
     {error && <p className="text-center text-xs font-bold text-rose-300">{error}</p>}
   </div>
+}
+
+function LobbyWheel({ session }: { session: BattleSession | null }) {
+  const hasStake = Boolean(session)
+  const players = session?.players ?? 0
+  const wheel = !hasStake
+    ? "repeating-conic-gradient(#4b4b4b 0deg 36deg,#666 36deg 72deg)"
+    : players === 1
+      ? "#2f70ff"
+      : "conic-gradient(#2f70ff 0deg 180deg,#ff9f38 180deg 360deg)"
+  const bank = session ? session.bet * session.players : 0
+  return <section className="flex flex-col items-center rounded-[32px] bg-[#0b0c0f] px-3 pb-5 pt-4 ring-1 ring-white/[.055]">
+    <div className="relative aspect-square w-full max-w-[420px]">
+      <i className="absolute left-1/2 top-[-7px] z-20 h-0 w-0 -translate-x-1/2 border-x-[12px] border-t-[22px] border-x-transparent border-t-white" />
+      <div className="absolute inset-[5%] rounded-full border-[9px] border-[#1e2025] shadow-[0_22px_55px_rgba(0,0,0,.58),inset_0_0_24px_rgba(0,0,0,.4)]" style={{ background: wheel }} />
+      {(session?.names ?? []).map((name, index) => <div key={`${name}-${index}`} className="absolute z-10 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-[linear-gradient(145deg,#88a5ff,#2f70ff)] font-black shadow-xl" style={{ left: players === 1 ? "34%" : index === 0 ? "31%" : "69%", top: players === 1 ? "42%" : "50%" }}>{name.slice(0,1).toUpperCase()}</div>)}
+      <div className="absolute left-1/2 top-1/2 z-10 flex h-[31%] w-[31%] -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full bg-[#0b0c0f] text-center ring-[7px] ring-[#1e2025]"><span className="font-display text-lg font-black md:text-2xl">{session?.status === "countdown" ? session.secondsLeft : "WAITING"}</span><span className="mt-1 text-[8px] font-black uppercase tracking-[.14em] text-white/30">{session?.status === "countdown" ? "seconds" : hasStake ? "player two" : "first stake"}</span></div>
+    </div>
+    <div className="-mt-1 flex items-center gap-2 rounded-full bg-[#35373c] px-4 py-2 text-sm font-black"><span className="text-white/45">Bank</span><Coin className="h-4 w-4" />{fmt(bank)}</div>
+    <div className="mt-3 text-center"><h2 className="font-display text-lg font-black">{hasStake ? "A public room is waiting" : "Nobody is playing yet"}</h2><p className="mt-1 text-xs text-white/40">{hasStake ? "Join the exact stake below, or create a room with your own amount." : "Choose any stake. The wheel stays idle until another real player joins."}</p></div>
+  </section>
 }
 
 function SessionRoom({ match, bet, onCancel }: { match: MatchState | null; bet: number; onCancel: () => void }) {

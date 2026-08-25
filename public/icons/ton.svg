@@ -1,4 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 56 56" role="img" aria-label="TON">
-  <circle cx="28" cy="28" r="28" fill="#0098EA"/>
+  <defs>
+    <linearGradient id="ton-blue" x1="28" y1="0" x2="28" y2="56" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#38B2DC"/>
+      <stop offset="1" stop-color="#229DCA"/>
+    </linearGradient>
+  </defs>
+  <circle cx="28" cy="28" r="28" fill="url(#ton-blue)"/>
   <path fill="#fff" d="M15.2 13.5h25.6c2.4 0 3.8 2.7 2.4 4.7L30.6 42.1a3.2 3.2 0 0 1-5.6 0L12.8 18.2a3.2 3.2 0 0 1 2.4-4.7Zm4.1 4.9L27.8 35l8.7-16.6H19.3Z"/>
 </svg>

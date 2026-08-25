@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache"
 import { db } from "@/lib/db"
 import { cases, caseItems, gifts, users, inventory, gameHistory } from "@/lib/db/schema"
 import { getCurrentUserId, requireUserId } from "@/lib/session"
-import { BALANCE_REWARD_MAX_CASE_PRICE, GIFT_VALUE_PER_TON, priceFromContents } from "@/lib/pricing"
+import { BALANCE_REWARD_MAX_CASE_PRICE, giftValueInStars, priceFromContents } from "@/lib/pricing"
 
 export type GiftDTO = {
   id: number
@@ -17,7 +17,6 @@ export type GiftDTO = {
   value: number
   floorTon?: number
   weight?: number
-  chance?: number
   rewardType?: "gift" | "currency"
 }
 
@@ -39,26 +38,26 @@ export type CaseDTO = {
 const CURRENCY_CASE_LIMIT = BALANCE_REWARD_MAX_CASE_PRICE
 
 function starValue(value: string | number, floorTon: string | number | null | undefined): number {
-  return Number(floorTon) > 0 ? Math.round(Number(floorTon) * GIFT_VALUE_PER_TON * 100) / 100 : Number(value)
+  return giftValueInStars(value, floorTon)
 }
 
 function currencyRewards(price: number): GiftDTO[] {
   if (price > CURRENCY_CASE_LIMIT) return []
   return [
-    { id: -101, slug: `stars-small-${price}`, name: `${Math.round(price * 0.1)} Stars`, rarity: "common", imageUrl: "/images/puggift-star.svg", value: price * 0.1, chance: 20, rewardType: "currency" },
-    { id: -102, slug: `stars-medium-${price}`, name: `${Math.round(price * 0.25)} Stars`, rarity: "rare", imageUrl: "/images/puggift-star.svg", value: price * 0.25, chance: 12, rewardType: "currency" },
-    { id: -103, slug: `stars-large-${price}`, name: `${Math.round(price * 0.5)} Stars`, rarity: "epic", imageUrl: "/images/puggift-star.svg", value: price * 0.5, chance: 6, rewardType: "currency" },
-    { id: -104, slug: `stars-jackpot-${price}`, name: `${Math.round(price)} Stars`, rarity: "legendary", imageUrl: "/images/puggift-star.svg", value: price, chance: 2, rewardType: "currency" },
+    { id: -101, slug: `stars-small-${price}`, name: `${Math.round(price * 0.1)} Stars`, rarity: "common", imageUrl: "/images/puggift-star.svg", value: price * 0.1, rewardType: "currency" },
+    { id: -102, slug: `stars-medium-${price}`, name: `${Math.round(price * 0.25)} Stars`, rarity: "rare", imageUrl: "/images/puggift-star.svg", value: price * 0.25, rewardType: "currency" },
+    { id: -103, slug: `stars-large-${price}`, name: `${Math.round(price * 0.5)} Stars`, rarity: "epic", imageUrl: "/images/puggift-star.svg", value: price * 0.5, rewardType: "currency" },
+    { id: -104, slug: `stars-jackpot-${price}`, name: `${Math.round(price)} Stars`, rarity: "legendary", imageUrl: "/images/puggift-star.svg", value: price, rewardType: "currency" },
   ]
 }
 
 const FREE_CURRENCY_REWARDS: GiftDTO[] = [
-  { id: -1, slug: "stars-2", name: "2 Stars", rarity: "common", imageUrl: "/images/puggift-star.svg", value: 2, chance: 45, rewardType: "currency" },
-  { id: -2, slug: "stars-5", name: "5 Stars", rarity: "common", imageUrl: "/images/puggift-star.svg", value: 5, chance: 30, rewardType: "currency" },
-  { id: -3, slug: "stars-10", name: "10 Stars", rarity: "rare", imageUrl: "/images/puggift-star.svg", value: 10, chance: 15, rewardType: "currency" },
-  { id: -4, slug: "stars-25", name: "25 Stars", rarity: "epic", imageUrl: "/images/puggift-star.svg", value: 25, chance: 7, rewardType: "currency" },
-  { id: -5, slug: "stars-50", name: "50 Stars", rarity: "legendary", imageUrl: "/images/puggift-star.svg", value: 50, chance: 2, rewardType: "currency" },
-  { id: -6, slug: "stars-100", name: "100 Stars", rarity: "mythic", imageUrl: "/images/puggift-star.svg", value: 100, chance: 0.8, rewardType: "currency" },
+  { id: -1, slug: "stars-2", name: "2 Stars", rarity: "common", imageUrl: "/images/puggift-star.svg", value: 2, rewardType: "currency" },
+  { id: -2, slug: "stars-5", name: "5 Stars", rarity: "common", imageUrl: "/images/puggift-star.svg", value: 5, rewardType: "currency" },
+  { id: -3, slug: "stars-10", name: "10 Stars", rarity: "rare", imageUrl: "/images/puggift-star.svg", value: 10, rewardType: "currency" },
+  { id: -4, slug: "stars-25", name: "25 Stars", rarity: "epic", imageUrl: "/images/puggift-star.svg", value: 25, rewardType: "currency" },
+  { id: -5, slug: "stars-50", name: "50 Stars", rarity: "legendary", imageUrl: "/images/puggift-star.svg", value: 50, rewardType: "currency" },
+  { id: -6, slug: "stars-100", name: "100 Stars", rarity: "mythic", imageUrl: "/images/puggift-star.svg", value: 100, rewardType: "currency" },
 ]
 
 export async function getCases(): Promise<CaseDTO[]> {
@@ -87,7 +86,6 @@ export async function getCases(): Promise<CaseDTO[]> {
 
   return rows.map((c) => {
     const list = items.filter((i) => i.caseId === c.id)
-    const totalW = list.reduce((s, i) => s + Number(i.weight), 0)
     const livePrice = c.isFree ? 0 : priceFromContents(list.map((i) => ({ weight: Number(i.weight), value: starValue(i.value, i.floorTon) })))
     const nextFreeAt = c.isFree && lastFreeCaseAt
       ? new Date(lastFreeCaseAt.getTime() + (c.cooldownHours ?? 24) * 60 * 60 * 1000).toISOString()
@@ -95,7 +93,7 @@ export async function getCases(): Promise<CaseDTO[]> {
     return {
       id: c.id,
       slug: c.slug,
-      name: c.name,
+      name: c.isFree ? "Free Case" : c.name,
       coverUrl: c.isFree ? "/images/giftlys-free-case.png" : c.coverUrl,
       price: livePrice || Number(c.price),
       accent: c.accent,
@@ -104,7 +102,7 @@ export async function getCases(): Promise<CaseDTO[]> {
       nextFreeAt,
       items: c.isFree
         ? [
-            { id: 37, slug: "snakebox", name: "Snake Box NFT", rarity: "mythic", imageUrl: "https://storage.portal-market.com/portals-market/gifts/snakebox/models/png/aquarium.png", value: 280, chance: 0.2, rewardType: "gift" as const },
+            { id: 37, slug: "snakebox", name: "Snake Box NFT", rarity: "mythic", imageUrl: "https://storage.portal-market.com/portals-market/gifts/snakebox/models/png/aquarium.png", value: 280, rewardType: "gift" as const },
             ...FREE_CURRENCY_REWARDS,
           ]
         : [
@@ -118,7 +116,6 @@ export async function getCases(): Promise<CaseDTO[]> {
           value: starValue(i.value, i.floorTon),
           floorTon: Number(i.floorTon),
           weight: Number(i.weight),
-          chance: totalW ? (Number(i.weight) / totalW) * ((livePrice || Number(c.price)) <= CURRENCY_CASE_LIMIT ? 60 : 100) : 0,
           rewardType: "gift" as const,
         }))
         .sort((a, b) => b.value - a.value),
@@ -325,6 +322,21 @@ export async function openCases(caseId: number, count: number): Promise<{
   balance: number
 }> {
   const safeCount = Math.max(1, Math.min(5, Math.floor(count)))
+  if (safeCount > 1) {
+    const [caseRow, userId] = await Promise.all([
+      db.select().from(cases).where(eq(cases.id, caseId)).limit(1).then((rows) => rows[0]),
+      requireUserId(),
+    ])
+    if (!caseRow) throw new Error("Case not found")
+    const list = await db
+      .select({ weight: caseItems.weight, value: gifts.value, floorTon: gifts.floorTon })
+      .from(caseItems)
+      .innerJoin(gifts, eq(caseItems.giftId, gifts.id))
+      .where(eq(caseItems.caseId, caseId))
+    const unitPrice = priceFromContents(list.map((item) => ({ weight: Number(item.weight), value: starValue(item.value, item.floorTon) }))) || Number(caseRow.price)
+    const user = (await db.select({ balance: users.balance }).from(users).where(eq(users.id, userId)).limit(1))[0]
+    if (!user || Number(user.balance) < unitPrice * safeCount) throw new Error("INSUFFICIENT_FUNDS")
+  }
   const results: { won: GiftDTO; inventoryId: number | null }[] = []
   let balance = 0
   for (let i = 0; i < safeCount; i++) {
@@ -369,12 +381,14 @@ export async function getLiveDrops(): Promise<
         const isCrashWin = r.game === "crash" && m.status === "cashed"
         if (r.game === "upgrade" && !isUpgradeWin) return null
         if (r.game === "crash" && !isCrashWin) return null
-        const fallbackImage = isCrashWin ? "/images/puggift-star.svg" : "/images/nft-gift.png"
+        const rewardType = String(m.rewardType ?? "gift")
+        const imageUrl = typeof m.imageUrl === "string" ? m.imageUrl : ""
+        if (rewardType === "currency" || !imageUrl || imageUrl.includes("puggift-star")) return null
         return {
           id: r.id,
           name: String(m.giftName ?? m.targetName ?? (isCrashWin ? `Crash ${Number(m.multiplier ?? 1).toFixed(2)}×` : "Gift")),
           rarity: String(m.rarity ?? "common"),
-          imageUrl: String(m.imageUrl ?? fallbackImage),
+          imageUrl,
           value: Number(r.result),
         }
       })

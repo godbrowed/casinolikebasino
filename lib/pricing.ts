@@ -1,6 +1,31 @@
 // Gifts and cases are priced in the same Stars balance used by every game.
-// 1 TON of live floor value maps to 113 in-game Stars.
-export const GIFT_VALUE_PER_TON = 113
+// Product reference: 1,000 Stars = $15.60. TON is kept as a single reference
+// value here so every surface (cases, inventory, crash, upgrade and deposits)
+// performs exactly the same conversion.
+export const STAR_USD = 15.6 / 1000
+const configuredTonUsd = Number(process.env.NEXT_PUBLIC_TON_USD_RATE)
+export const TON_USD_REFERENCE = Number.isFinite(configuredTonUsd) && configuredTonUsd > 0 ? configuredTonUsd : 1.43
+export const STARS_PER_TON = TON_USD_REFERENCE / STAR_USD
+export const GIFT_VALUE_PER_TON = STARS_PER_TON
+
+export function tonToStarValue(ton: string | number): number {
+  const value = Number(ton)
+  if (!Number.isFinite(value) || value <= 0) return 0
+  return Math.round(value * STARS_PER_TON * 100) / 100
+}
+
+/** Prefer the live TON floor and use the stored value only for legacy gifts
+ * that do not yet have a floor. This prevents stale database values leaking
+ * into upgrade odds, crash rewards, sales or case prices. */
+export function giftValueInStars(
+  storedValue: string | number,
+  floorTon: string | number | null | undefined,
+): number {
+  const liveValue = tonToStarValue(floorTon ?? 0)
+  if (liveValue > 0) return liveValue
+  const fallback = Number(storedValue)
+  return Number.isFinite(fallback) ? Math.round(fallback * 100) / 100 : 0
+}
 
 export const PORTALS_API = "https://portal-market.com/api/collections?limit=500"
 

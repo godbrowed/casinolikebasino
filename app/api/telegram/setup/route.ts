@@ -54,13 +54,26 @@ export async function GET(req: Request) {
   const webhook = await tg("setWebhook", {
     url: `${url}/api/telegram/webhook`,
     secret_token: process.env.TELEGRAM_WEBHOOK_SECRET,
-    allowed_updates: ["message", "pre_checkout_query"],
+    allowed_updates: ["message", "pre_checkout_query", "callback_query", "my_chat_member"],
   })
   const commands = await tg("setMyCommands", {
     commands: [{ command: "start", description: "Open PugGift" }],
   })
   const menu = await tg("setChatMenuButton", {
     menu_button: { type: "web_app", text: "🎮 Play PugGift", web_app: { url } },
+  })
+  const channelAdminRights = await tg("setMyDefaultAdministratorRights", {
+    for_channels: true,
+    rights: {
+      can_manage_chat: true,
+      can_post_messages: true,
+      can_edit_messages: true,
+      can_delete_messages: false,
+      can_invite_users: false,
+      can_manage_video_chats: false,
+      can_promote_members: false,
+      is_anonymous: false,
+    },
   })
   const name = await tg("setMyName", { name: "PugGift" })
   const shortDescription = await tg("setMyShortDescription", { short_description: "Telegram gifts, live Crash and real-player PvP with the black pug." })
@@ -71,7 +84,7 @@ export async function GET(req: Request) {
   const channel = channelUsername ? await tg("getChat", { chat_id: `@${channelUsername}` }) : { ok: true, result: null }
 
   return NextResponse.json({
-    ok: Boolean(webhook?.ok && commands?.ok && menu?.ok && bot?.ok && channel?.ok && name?.ok && shortDescription?.ok && description?.ok && avatar?.ok),
+    ok: Boolean(webhook?.ok && commands?.ok && menu?.ok && channelAdminRights?.ok && bot?.ok && channel?.ok && name?.ok && shortDescription?.ok && description?.ok && avatar?.ok),
     appUrl: url,
     bot: bot?.result ? { id: bot.result.id, username: bot.result.username } : bot,
     requiredBotUsernameEnv: bot?.result?.username || null,
@@ -79,6 +92,7 @@ export async function GET(req: Request) {
     webhook,
     commands,
     menu,
+    channelAdminRights,
     profile: { name, shortDescription, description, avatar },
   })
 }

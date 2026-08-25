@@ -4,6 +4,7 @@ import { db } from "@/lib/db"
 import { users, transactions } from "@/lib/db/schema"
 import { starsToGram } from "@/lib/deposit-shared"
 import { relayerUsername } from "@/lib/telegram-gifts"
+import { joinGiveawayFromCallback, registerGiveawayChannel, settleGiveaway } from "@/lib/giveaways"
 
 const token = process.env.TELEGRAM_BOT_TOKEN
 
@@ -37,6 +38,27 @@ export async function POST(req: Request) {
 
   const update = await req.json().catch(() => null)
   if (!update) return NextResponse.json({ ok: true })
+
+  if (update.my_chat_member) {
+    await registerGiveawayChannel(update)
+    return NextResponse.json({ ok: true })
+  }
+
+  const callback = update.callback_query
+  if (callback?.id && typeof callback.data === "string" && callback.data.startsWith("gw_join:")) {
+    const giveawayId = Number(callback.data.slice("gw_join:".length))
+    const result = await joinGiveawayFromCallback({ giveawayId, telegramUser: callback.from })
+    await tg("answerCallbackQuery", {
+      callback_query_id: callback.id,
+      text: result.message,
+      show_alert: result.showAlert ?? false,
+      cache_time: 0,
+    })
+    if (!result.ok && result.message.includes("entry period has ended")) {
+      await settleGiveaway(giveawayId).catch(() => undefined)
+    }
+    return NextResponse.json({ ok: true })
+  }
 
   // Greet on /start (and any plain text) with an "Open app" Web App button.
   const message = update.message

@@ -1,4 +1,7 @@
-@import 'tailwindcss';
+@import 'tailwindcss' source(none);
+@source '../app';
+@source '../components';
+@source '../lib';
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
 
@@ -296,4 +299,34 @@
     100% { opacity: .94; transform: translate3d(-3px,28px,0) rotate(4deg) scale(.94); }
   }
   .animate-pug-fall { animation: pug-fall 1.8s cubic-bezier(.2,.75,.25,1) both; will-change: transform, opacity; }
+
+  .giveaway-hero {
+    border: 1px solid rgb(255 255 255 / .11);
+    background:
+      radial-gradient(circle at 78% 22%, rgb(139 92 246 / .22), transparent 34%),
+      linear-gradient(135deg, #151927 0%, #261b3e 55%, #171920 100%);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / .08), 0 26px 70px -44px rgb(109 72 255 / .8);
+  }
+
+  .giveaway-input {
+    width: 100%;
+    min-height: 48px;
+    border-radius: 14px;
+    border: 1px solid rgb(255 255 255 / .09);
+    background: rgb(0 0 0 / .2);
+    padding-left: 13px;
+    padding-right: 13px;
+    color: white;
+    font-size: 13px;
+    font-weight: 700;
+    outline: none;
+    transition: border-color .16s ease, background .16s ease, box-shadow .16s ease;
+  }
+  .giveaway-input::placeholder { color: rgb(255 255 255 / .24); }
+  .giveaway-input:focus {
+    border-color: rgb(83 126 255 / .7);
+    background: rgb(20 31 62 / .5);
+    box-shadow: 0 0 0 3px rgb(54 116 255 / .12);
+  }
+  select.giveaway-input option { background: #24272d; color: white; }
 }

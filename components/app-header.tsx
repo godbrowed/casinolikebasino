@@ -13,6 +13,8 @@ export function AppHeader({ title }: { title?: string }) {
   const pathname = usePathname()
   const routeColor = pathname === "/upgrade"
     ? "bg-[#2558b8]"
+    : pathname === "/giveaways"
+      ? "bg-[#1a1722]"
     : pathname === "/crash"
       ? "bg-[#071126]"
       : pathname.startsWith("/case/")

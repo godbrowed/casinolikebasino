@@ -7,6 +7,7 @@ import {
   numeric,
   timestamp,
   jsonb,
+  uniqueIndex,
 } from "drizzle-orm/pg-core"
 
 export const users = pgTable("users", {
@@ -120,3 +121,50 @@ export const battleSlots = pgTable("battle_slots", {
   isBot: boolean("is_bot").notNull().default(false),
   joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
 })
+
+export const giveawayChannels = pgTable("giveaway_channels", {
+  id: serial("id").primaryKey(),
+  ownerUserId: text("owner_user_id").notNull(),
+  chatId: text("chat_id").notNull(),
+  username: text("username"),
+  title: text("title").notNull(),
+  botStatus: text("bot_status").notNull().default("administrator"),
+  canPostMessages: boolean("can_post_messages").notNull().default(false),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  chatIdUnique: uniqueIndex("giveaway_channels_chat_id_unique").on(table.chatId),
+}))
+
+export const giveaways = pgTable("giveaways", {
+  id: serial("id").primaryKey(),
+  ownerUserId: text("owner_user_id").notNull(),
+  channelId: integer("channel_id").notNull(),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  prizeText: text("prize_text").notNull(),
+  ticketPrice: numeric("ticket_price", { precision: 20, scale: 2 }).notNull().default("0"),
+  winnerCount: integer("winner_count").notNull().default(1),
+  maxTicketsPerUser: integer("max_tickets_per_user").notNull().default(1),
+  status: text("status").notNull().default("draft"),
+  endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
+  postMessageId: integer("post_message_id"),
+  participantCount: integer("participant_count").notNull().default(0),
+  ticketCount: integer("ticket_count").notNull().default(0),
+  pot: numeric("pot", { precision: 20, scale: 2 }).notNull().default("0"),
+  winnerUserIds: jsonb("winner_user_ids"),
+  settledAt: timestamp("settled_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+})
+
+export const giveawayEntries = pgTable("giveaway_entries", {
+  id: serial("id").primaryKey(),
+  giveawayId: integer("giveaway_id").notNull(),
+  userId: text("user_id").notNull(),
+  tickets: integer("tickets").notNull().default(1),
+  amount: numeric("amount", { precision: 20, scale: 2 }).notNull().default("0"),
+  joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  giveawayUserUnique: uniqueIndex("giveaway_entries_giveaway_user_unique").on(table.giveawayId, table.userId),
+}))

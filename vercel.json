@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/relayer",
-      "schedule": "* * * * *"
+      "schedule": "15 0 * * *"
     },
     {
       "path": "/api/cron/sync-prices",

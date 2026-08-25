@@ -4,7 +4,7 @@
 // performs exactly the same conversion.
 export const STAR_USD = 15.6 / 1000
 const configuredTonUsd = Number(process.env.NEXT_PUBLIC_TON_USD_RATE)
-export const TON_USD_REFERENCE = Number.isFinite(configuredTonUsd) && configuredTonUsd > 0 ? configuredTonUsd : 1.43
+export const TON_USD_REFERENCE = Number.isFinite(configuredTonUsd) && configuredTonUsd > 0 ? configuredTonUsd : 1.49
 export const STARS_PER_TON = TON_USD_REFERENCE / STAR_USD
 export const GIFT_VALUE_PER_TON = STARS_PER_TON
 

@@ -433,6 +433,7 @@ export type BattleSession = {
   status: "waiting" | "countdown"
   secondsLeft: number | null
   names: string[]
+  photos: (string | null)[]
 }
 
 export async function getBattleSessions(): Promise<BattleSession[]> {
@@ -452,6 +453,7 @@ export async function getBattleSessions(): Promise<BattleSession[]> {
       startsAt: battleRooms.startsAt,
       createdAt: battleRooms.createdAt,
       name: battleSlots.name,
+      photoUrl: battleSlots.photoUrl,
     })
     .from(battleRooms)
     .innerJoin(battleSlots, and(eq(battleSlots.roomId, battleRooms.id), eq(battleSlots.isBot, false)))
@@ -465,11 +467,14 @@ export async function getBattleSessions(): Promise<BattleSession[]> {
     startsAt: Date
     createdAt: Date
     names: string[]
+    photos: (string | null)[]
   }>()
   for (const row of rows) {
     const current = grouped.get(row.id)
-    if (current) current.names.push(row.name)
-    else grouped.set(row.id, { ...row, names: [row.name] })
+    if (current) {
+      current.names.push(row.name)
+      current.photos.push(row.photoUrl)
+    } else grouped.set(row.id, { ...row, names: [row.name], photos: [row.photoUrl] })
   }
 
   const now = Date.now()
@@ -485,6 +490,7 @@ export async function getBattleSessions(): Promise<BattleSession[]> {
       status: started ? "countdown" : "waiting",
       secondsLeft: started ? Math.max(0, Math.ceil((room.startsAt.getTime() - now) / 1000)) : null,
       names: room.names,
+      photos: room.photos,
     })
   }
   return sessions

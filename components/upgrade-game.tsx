@@ -21,6 +21,7 @@ export function UpgradeGame({ inventory, targets }: { inventory: Item[]; targets
   const [source, setSource] = useState<Item | null>(inventory[0] ?? null)
   const [target, setTarget] = useState<Item | null>(null)
   const [spinning, setSpinning] = useState(false)
+  const [wheelAnimating, setWheelAnimating] = useState(false)
   const [angle, setAngle] = useState(180)
   const [outcome, setOutcome] = useState<boolean | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -33,11 +34,13 @@ export function UpgradeGame({ inventory, targets }: { inventory: Item[]; targets
   function resetFlight() {
     setOutcome(null)
     setError(null)
+    setWheelAnimating(false)
     setAngle(180)
   }
 
   async function handleUpgrade() {
     if (!source || !target || spinning || chance <= 0) return
+    setWheelAnimating(false)
     setSpinning(true)
     setOutcome(null)
     setError(null)
@@ -52,8 +55,12 @@ export function UpgradeGame({ inventory, targets }: { inventory: Item[]; targets
         : winDegrees + Math.random() * Math.max(5, 356 - winDegrees)
 
       // The pug always resets to the bottom before a fresh GPU-only rotation.
-      window.setTimeout(() => setAngle(1440 + landing), 70)
       window.setTimeout(() => {
+        setWheelAnimating(true)
+        setAngle(1440 + landing)
+      }, 70)
+      window.setTimeout(() => {
+        setWheelAnimating(false)
         setSpinning(false)
         setOutcome(result.success)
         hapticNotify(result.success ? "success" : "error")
@@ -70,6 +77,7 @@ export function UpgradeGame({ inventory, targets }: { inventory: Item[]; targets
         router.refresh()
       }, 3150)
     } catch (upgradeError) {
+      setWheelAnimating(false)
       setSpinning(false)
       setError(upgradeError instanceof Error ? upgradeError.message : "Upgrade could not be completed")
     }
@@ -78,11 +86,12 @@ export function UpgradeGame({ inventory, targets }: { inventory: Item[]; targets
   if (inventory.length === 0 && !source) return <EmptyUpgrade />
 
   return (
-    <div className="relative min-h-[calc(var(--tg-viewport-stable-height,100dvh)-76px)] overflow-hidden bg-[radial-gradient(circle_at_50%_25%,#2a68d6_0%,#1a4a9d_35%,#102f68_70%,#0b2048_100%)] pb-[calc(6.5rem+var(--tg-content-safe-area-inset-bottom,0px))] text-white">
+    <div className="relative min-h-[calc(var(--tg-viewport-stable-height,100dvh)-58px)] overflow-hidden bg-[#2558b8] pb-[calc(6.5rem+var(--tg-content-safe-area-inset-bottom,0px))] text-white">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[720px] bg-[radial-gradient(circle_at_50%_24%,rgba(74,132,238,.55),rgba(31,78,167,.28)_52%,transparent_78%)] [mask-image:linear-gradient(to_bottom,transparent,black_120px)]" />
       <div className="pointer-events-none absolute inset-0 opacity-30 [background-image:radial-gradient(rgba(255,255,255,.42)_1px,transparent_1px)] [background-size:62px_62px]" />
       <div className="pointer-events-none absolute left-1/2 top-28 h-[440px] w-[440px] -translate-x-1/2 rounded-full bg-[#6b8fff]/15 blur-[100px]" />
 
-      <div className="relative z-10 mx-auto flex w-full max-w-[1180px] items-center gap-3 px-3 py-3 md:px-5">
+      <div className="relative z-10 mx-auto flex w-full max-w-[1120px] items-center gap-3 px-3 py-3 md:px-5 md:py-4">
         <Link href="/" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#091b3d]/55 text-white/80 ring-1 ring-white/10 backdrop-blur-md">
           <ArrowLeft className="h-5 w-5" />
         </Link>
@@ -96,16 +105,16 @@ export function UpgradeGame({ inventory, targets }: { inventory: Item[]; targets
         </div>
       </div>
 
-      <main className="relative z-10 mx-auto flex w-full max-w-[1180px] flex-col px-3 md:px-5">
-        <section className="grid grid-cols-2 items-center gap-2 md:grid-cols-[minmax(150px,210px)_minmax(360px,500px)_minmax(150px,210px)] md:gap-5">
+      <main className="relative z-10 mx-auto flex w-full max-w-[1120px] flex-col px-3 md:px-5">
+        <section className="grid grid-cols-2 items-center gap-2 md:grid-cols-[210px_430px_210px] md:justify-center md:gap-7 lg:grid-cols-[220px_450px_220px] lg:gap-9">
           <div className="order-2 md:order-1"><GiftHero title="Your gift" hint="Stake" item={source} /></div>
-          <div className="order-1 col-span-2 mx-auto w-full max-w-[500px] md:order-2 md:col-span-1">
-            <UpgradeWheel angle={angle} spinning={spinning} chance={chance} multiplier={multiplier} outcome={outcome} />
+          <div className="order-1 col-span-2 mx-auto w-full max-w-[500px] md:order-2 md:col-span-1 md:max-w-none">
+            <UpgradeWheel angle={angle} spinning={spinning} animating={wheelAnimating} chance={chance} multiplier={multiplier} outcome={outcome} />
           </div>
           <div className="order-3"><GiftHero title="Target gift" hint="Prize" item={target} /></div>
         </section>
 
-        <div className="mx-auto mt-3 flex w-full max-w-[760px] flex-col gap-2.5 md:mt-5">
+        <div className="mx-auto mt-3 flex w-full max-w-[820px] flex-col gap-2.5 md:mt-4">
           {error && <p className="rounded-[18px] bg-rose-500/18 px-3 py-2.5 text-center text-xs font-bold text-rose-100 ring-1 ring-rose-200/20">{error}</p>}
 
           <section className="overflow-hidden rounded-[28px] bg-[#0d2858]/72 p-2.5 ring-1 ring-white/10 backdrop-blur-xl md:p-3">
@@ -144,11 +153,11 @@ export function UpgradeGame({ inventory, targets }: { inventory: Item[]; targets
   )
 }
 
-function UpgradeWheel({ angle, spinning, chance, multiplier, outcome }: { angle: number; spinning: boolean; chance: number; multiplier: number; outcome: boolean | null }) {
+function UpgradeWheel({ angle, spinning, animating, chance, multiplier, outcome }: { angle: number; spinning: boolean; animating: boolean; chance: number; multiplier: number; outcome: boolean | null }) {
   const circumference = 2 * Math.PI * 44
   const winLength = chance > 0 ? Math.max(4, chance * circumference) : 0
 
-  return <div className="relative mx-auto aspect-square w-[min(78vw,370px)] md:w-[min(32vw,410px)]">
+  return <div className="relative mx-auto aspect-square w-[min(78vw,370px)] md:w-[410px] lg:w-[430px]">
     <div className="absolute inset-[4%] rounded-full bg-[#081a3b]/70 shadow-[0_30px_70px_rgba(2,10,35,.45),inset_0_0_70px_rgba(55,105,226,.24)] ring-1 ring-white/10" />
     <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full -rotate-90 drop-shadow-[0_15px_28px_rgba(4,11,36,.4)]">
       <circle cx="50" cy="50" r="44" fill="none" stroke="rgba(8,27,65,.8)" strokeWidth="10" />
@@ -161,7 +170,7 @@ function UpgradeWheel({ angle, spinning, chance, multiplier, outcome }: { angle:
       <i className="block h-0 w-0 border-x-[14px] border-t-[20px] border-x-transparent border-t-white drop-shadow-[0_5px_8px_rgba(0,0,0,.35)]" />
     </div>
 
-    <div className="absolute inset-0 z-20" style={{ transform: `rotate(${angle}deg)`, transition: spinning ? "transform 3s cubic-bezier(.08,.72,.08,1)" : "none", willChange: "transform" }}>
+    <div className="absolute inset-0 z-20" style={{ transform: `rotate(${angle}deg)`, transition: animating ? "transform 3s cubic-bezier(.08,.72,.08,1)" : "none", willChange: "transform" }}>
       <div className={cn("absolute left-1/2 top-[0.5%] flex h-12 w-12 -translate-x-1/2 items-center justify-center overflow-hidden rounded-full border-[3px] bg-[#081a3b] shadow-[0_0_0_4px_rgba(14,36,83,.65),0_0_28px_rgba(102,145,255,.75)] md:h-14 md:w-14", outcome === false ? "border-rose-400" : outcome === true ? "border-emerald-300" : "border-[#8db0ff]")}>
         <img src="/images/puggift-bot-avatar-web-v2.webp" alt="Pug marker" className="h-full w-full object-cover" />
       </div>
@@ -180,7 +189,7 @@ function UpgradeWheel({ angle, spinning, chance, multiplier, outcome }: { angle:
 
 function GiftHero({ title, hint, item }: { title: string; hint: string; item: Item | null }) {
   const rarity = item ? rarityOf(item.rarity) : null
-  return <div className={cn("relative min-w-0 overflow-hidden rounded-[24px] bg-[#0d2858]/68 p-2.5 text-center ring-1 ring-white/10 backdrop-blur-xl md:p-4", item && rarity?.ring)}>
+  return <div className={cn("relative min-w-0 overflow-hidden rounded-[24px] bg-[#0d2858]/68 p-2.5 text-center ring-1 ring-white/10 backdrop-blur-xl md:min-h-[250px] md:p-4", item && rarity?.ring)}>
     <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-white/8 to-transparent" />
     <div className="relative flex items-center justify-between text-left md:block md:text-center"><div><div className="text-[8px] font-black uppercase tracking-[.18em] text-blue-100/45">{hint}</div><div className="text-[11px] font-black text-white/80 md:text-sm">{title}</div></div>{item && <span className="flex items-center gap-1 rounded-full bg-white/10 px-2 py-1 text-[9px] font-black text-white/55"><Coin className="h-3 w-3" />{fmt(item.value)}</span>}</div>
     {item ? <>

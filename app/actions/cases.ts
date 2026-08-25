@@ -382,12 +382,12 @@ export async function getLiveDrops(): Promise<
         if (r.game === "upgrade" && !isUpgradeWin) return null
         if (r.game === "crash" && !isCrashWin) return null
         const rewardType = String(m.rewardType ?? "gift")
-        const imageUrl = typeof m.imageUrl === "string" ? m.imageUrl : ""
+        const imageUrl = typeof m.imageUrl === "string" ? m.imageUrl : typeof m.giftImage === "string" ? m.giftImage : ""
         if (rewardType === "currency" || !imageUrl || imageUrl.includes("puggift-star")) return null
         return {
           id: r.id,
           name: String(m.giftName ?? m.targetName ?? (isCrashWin ? `Crash ${Number(m.multiplier ?? 1).toFixed(2)}×` : "Gift")),
-          rarity: String(m.rarity ?? "common"),
+          rarity: String(m.rarity ?? m.giftRarity ?? "common"),
           imageUrl,
           value: Number(r.result),
         }

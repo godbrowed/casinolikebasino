@@ -30,6 +30,7 @@ type ActiveWager =
 type Outcome =
   | { kind: "stars"; payout: number; at: number }
   | { kind: "gift"; gift: OwnedGift; at: number }
+type CrashSignal = { roundId: number; multiplier: number }
 
 export function CrashGame() {
   const { me, setBalance, refresh } = useUser()
@@ -47,11 +48,13 @@ export function CrashGame() {
   const [outcome, setOutcome] = useState<Outcome | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [displayMultiplier, setDisplayMultiplier] = useState(1)
+  const [crashSignal, setCrashSignal] = useState<CrashSignal | null>(null)
   const [clock, setClock] = useState(Date.now())
   const settling = useRef(false)
   const crashSoundedRound = useRef<number | null>(null)
   const balance = me?.balance ?? 0
-  const phase = board?.phase === "crashed" ? "crashed" : board && clock >= board.flightStart ? "flying" : "betting"
+  const signalledCrash = Boolean(board && crashSignal?.roundId === board.roundId)
+  const phase = board?.phase === "crashed" || signalledCrash ? "crashed" : board && clock >= board.flightStart ? "flying" : "betting"
   const multiplier = displayMultiplier
   const countdown = phase === "betting" ? Math.max(0, Math.ceil(((board?.flightStart ?? clock) - clock) / 1000)) : 0
   const canBet = phase === "betting" && !wager
@@ -62,6 +65,26 @@ export function CrashGame() {
     const id = window.setInterval(() => setClock(Date.now()), 100)
     return () => window.clearInterval(id)
   }, [])
+
+  useEffect(() => {
+    if (!board) return
+    if (board.phase === "crashed") {
+      setCrashSignal({ roundId: board.roundId, multiplier: board.multiplier })
+      return
+    }
+
+    setCrashSignal((current) => current?.roundId === board.roundId ? current : null)
+    const controller = new AbortController()
+    void fetch(`/api/crash/watch?roundId=${board.roundId}`, {
+      cache: "no-store",
+      signal: controller.signal,
+    }).then(async (response) => {
+      if (!response.ok) return
+      const payload = await response.json() as CrashSignal
+      if (payload.roundId === board.roundId && Number.isFinite(payload.multiplier)) setCrashSignal(payload)
+    }).catch(() => undefined)
+    return () => controller.abort()
+  }, [board?.roundId])
 
   useEffect(() => {
     if (phase !== "crashed" || !wager || settling.current) return
@@ -88,14 +111,14 @@ export function CrashGame() {
   useEffect(() => {
     if (!board) return
     if (phase !== "flying") {
-      setDisplayMultiplier(board.multiplier)
+      setDisplayMultiplier(crashSignal?.roundId === board.roundId ? crashSignal.multiplier : board.multiplier)
       return
     }
     const tick = () => setDisplayMultiplier(multiplierAtElapsed(Date.now() - board.flightStart))
     tick()
     const id = window.setInterval(tick, 100)
     return () => window.clearInterval(id)
-  }, [board, phase])
+  }, [board, crashSignal, phase])
 
   async function placeWager() {
     if (!canBet) return

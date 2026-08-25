@@ -7,16 +7,8 @@ import { db } from "@/lib/db"
 import { users, gameHistory, inventory, gifts } from "@/lib/db/schema"
 import { requireUserId } from "@/lib/session"
 import { crashRoundPhase, CRASH_ROUND_MS, multiplierAtElapsed, sharedFlightStart, sharedRoundId, sharedRoundStart } from "@/lib/crash-shared"
+import { crashPointForRound as rollCrashPoint, crashSecret } from "@/lib/crash-server"
 import { giftValueInStars } from "@/lib/pricing"
-
-function crashSecret(): string {
-  const configured = process.env.SESSION_SECRET || process.env.TELEGRAM_BOT_TOKEN
-  if (configured) return configured
-  // The public board is rendered before a player can place a bet. Keep it
-  // available on installations that have not yet configured a separate
-  // session secret; production deployments should still set SESSION_SECRET.
-  return "puggift-crash-fallback-secret-change-in-production"
-}
 
 type RoundPayload = { userId: string; bet: number; roundId: number; startTime: number; historyId: number }
 
@@ -38,20 +30,6 @@ function verifyRound(token: string): RoundPayload | null {
   } catch {
     return null
   }
-}
-
-// For point = edge/(1-r) with anytime cashout the theoretical RTP equals `edge`.
-// edge = 0.90 => RTP 90% (house edge 10%). No separate instabust needed: the
-// formula already busts ~80% of rounds at 1.00x on its own.
-function rollCrashPoint(roundId: number, edge = 0.9): number {
-  // A deterministic, server-secret roll makes the board identical for every
-  // player in this 15 second round, without exposing future rounds.
-  const hash = crypto.createHmac("sha256", crashSecret()).update(`crash:${roundId}`).digest()
-  const r = hash.readUInt32BE(0) / 0x1_0000_0000
-  const point = edge / (1 - r)
-  // The flight window is 15 seconds. Cap the visible round so every rocket
-  // resolves before the next betting lobby opens.
-  return Math.min(20, Math.max(1.0, Math.floor(point * 100) / 100))
 }
 
 export type CrashBoard = {

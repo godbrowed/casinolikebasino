@@ -50,7 +50,7 @@ export function BattlesLobby() {
       void refreshSessions()
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : "Could not join PvP"
-      setError(message === "INSUFFICIENT_FUNDS" ? "Not enough Stars for this stake." : message === "INVALID_BET" ? "Choose a valid stake." : message === "SESSION_CLOSED" ? "This session has already started. Choose another one." : message)
+      setError(message === "INSUFFICIENT_FUNDS" ? "Not enough Stars for this stake." : message === "INVALID_BET" ? "Choose a valid stake." : message === "SESSION_CLOSED" ? "This session has already started. Choose another one." : message === "PVP_TEMPORARILY_UNAVAILABLE" ? "PvP is temporarily unavailable. Please try again." : message)
     } finally { setBusy(false) }
   }
 

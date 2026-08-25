@@ -12,7 +12,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "INVALID_ACTION" }, { status: 400 })
   } catch (cause) {
     const error = cause instanceof Error ? cause.message : "REQUEST_FAILED"
-    const status = error === "Unauthorized" ? 401 : error === "INSUFFICIENT_FUNDS" || error === "SESSION_CLOSED" ? 409 : 400
-    return NextResponse.json({ error }, { status })
+    if (error === "Unauthorized") return NextResponse.json({ error }, { status: 401 })
+    if (error === "INSUFFICIENT_FUNDS" || error === "SESSION_CLOSED") {
+      return NextResponse.json({ error }, { status: 409 })
+    }
+    if (error === "INVALID_BET" || error === "INVALID_ACTION") {
+      return NextResponse.json({ error }, { status: 400 })
+    }
+
+    console.error("PvP action failed", cause)
+    return NextResponse.json({ error: "PVP_TEMPORARILY_UNAVAILABLE" }, { status: 500 })
   }
 }

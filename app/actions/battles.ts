@@ -133,7 +133,6 @@ export async function joinBattle(input: {
       const created = await tx
         .insert(battleRooms)
         .values({
-          caseId: null,
           capacity,
           rounds,
           entryCost: entryCost.toFixed(2),

@@ -56,6 +56,7 @@ export async function GET(req: Request) {
     secret_token: process.env.TELEGRAM_WEBHOOK_SECRET,
     allowed_updates: ["message", "pre_checkout_query", "callback_query", "my_chat_member"],
   })
+  const webhookInfo = await tg("getWebhookInfo", {})
   const commands = await tg("setMyCommands", {
     commands: [{ command: "start", description: "Open PugGift" }],
   })
@@ -84,12 +85,21 @@ export async function GET(req: Request) {
   const channel = channelUsername ? await tg("getChat", { chat_id: `@${channelUsername}` }) : { ok: true, result: null }
 
   return NextResponse.json({
-    ok: Boolean(webhook?.ok && commands?.ok && menu?.ok && channelAdminRights?.ok && bot?.ok && channel?.ok && name?.ok && shortDescription?.ok && description?.ok && avatar?.ok),
+    // Profile cosmetics can be independently rate-limited by Telegram. The
+    // integration is ready when its webhook, commands, menu and channel rights
+    // are active; expose cosmetic results separately below.
+    ok: Boolean(webhook?.ok && webhookInfo?.ok && commands?.ok && menu?.ok && channelAdminRights?.ok && bot?.ok),
     appUrl: url,
     bot: bot?.result ? { id: bot.result.id, username: bot.result.username } : bot,
     requiredBotUsernameEnv: bot?.result?.username || null,
     channel: channel?.result ? { id: channel.result.id, username: channel.result.username } : null,
     webhook,
+    webhookInfo: webhookInfo?.result ? {
+      url: webhookInfo.result.url,
+      pendingUpdateCount: webhookInfo.result.pending_update_count,
+      allowedUpdates: webhookInfo.result.allowed_updates,
+      lastErrorMessage: webhookInfo.result.last_error_message ?? null,
+    } : webhookInfo,
     commands,
     menu,
     channelAdminRights,

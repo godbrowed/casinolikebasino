@@ -1,33 +1,18 @@
 import { NextResponse } from "next/server"
 import { and, eq, sql } from "drizzle-orm"
 import { db } from "@/lib/db"
-import { users, inventory, transactions } from "@/lib/db/schema"
-import { getRelayerGifts, transferGiftToUser, notifyUser, relayerConfigured } from "@/lib/telegram-gifts"
+import { inventory, transactions } from "@/lib/db/schema"
+import { getRelayerGifts, transferGiftToUser, notifyUser, businessRelayerConfigured } from "@/lib/telegram-gifts"
+import { creditGiftDeposit, processPersonalGiftDeposits } from "@/lib/gift-deposits"
 
 export const dynamic = "force-dynamic"
 
 function authorized(req: Request): boolean {
-  const secret = process.env.ADMIN_SECRET || process.env.CRON_SECRET
-  if (!secret) return false
+  const secrets = [process.env.ADMIN_SECRET, process.env.CRON_SECRET].filter((value): value is string => Boolean(value))
+  if (!secrets.length) return false
   const url = new URL(req.url)
   const provided = req.headers.get("authorization")?.replace("Bearer ", "") || url.searchParams.get("secret")
-  return provided === secret
-}
-
-/** Credit a confirmed NFT gift deposit to the user's inventory. */
-async function creditDeposit(tx: typeof transactions.$inferSelect) {
-  const meta = (tx.meta as any) ?? {}
-  await db.transaction(async (t) => {
-    await t.insert(inventory).values({
-      userId: tx.userId,
-      giftId: meta.giftId,
-      value: String(Number(tx.credited)),
-      status: "owned",
-      source: "deposit",
-    })
-    await t.update(transactions).set({ status: "completed" }).where(eq(transactions.id, tx.id))
-  })
-  await notifyUser(tx.userId, `Your <b>${meta.giftName ?? "gift"}</b> deposit was credited. Good luck!`)
+  return Boolean(provided && secrets.includes(provided))
 }
 
 /** Fulfill a pending withdrawal by transferring a matching relayer gift to the user. */
@@ -60,7 +45,7 @@ export async function POST(req: Request) {
     const tx = (await db.select().from(transactions).where(eq(transactions.id, txId)).limit(1))[0]
     if (!tx) return NextResponse.json({ ok: false, error: "tx not found" }, { status: 404 })
     if (tx.type === "gift_deposit" && tx.status === "pending") {
-      await creditDeposit(tx)
+      await creditGiftDeposit(tx)
       return NextResponse.json({ ok: true, credited: true })
     }
     if (tx.type === "gift_withdraw" && tx.status === "pending") {
@@ -75,9 +60,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "nothing to do" })
   }
 
-  // Automated processing requires a configured relayer (bot + business connection).
-  if (!relayerConfigured()) {
-    return NextResponse.json({ ok: true, automated: false, note: "relayer not configured; use manual confirm" })
+  // Normal-account deposits use getUserGifts and need no Business connection.
+  const deposits = await processPersonalGiftDeposits().catch((error) => ({
+    configured: false,
+    scanned: 0,
+    credited: 0,
+    error: error instanceof Error ? error.message : "deposit scan failed",
+  }))
+
+  // A Business connection remains optional and is only used for withdrawals.
+  if (!businessRelayerConfigured()) {
+    return NextResponse.json({ ok: true, automated: deposits.configured, deposits, withdrawals: { configured: false } })
   }
 
   const pending = await db
@@ -98,7 +91,7 @@ export async function POST(req: Request) {
     }
   }
 
-  return NextResponse.json({ ok: true, automated: true, pending: pending.length, fulfilled })
+  return NextResponse.json({ ok: true, automated: true, deposits, withdrawals: { configured: true, pending: pending.length, fulfilled } })
 }
 
 export async function GET(req: Request) {

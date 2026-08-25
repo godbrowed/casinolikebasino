@@ -1,9 +1,8 @@
 import "server-only"
 
-// Thin wrapper around Telegram Bot API gift methods used by the NFT gift relayer.
-// The relayer is the owner's Telegram account connected to the bot as a Business
-// account. All calls are gated on env vars so the app runs fine before keys are
-// added — the deposit/withdraw flows then fall back to manual admin confirmation.
+// Thin wrapper around Telegram Bot API gift methods used by the gift relayer.
+// Deposits can be detected from a normal public Telegram account through
+// getUserGifts. A Business connection is only needed for automatic withdrawals.
 //
 // Required env for automated relaying:
 //   TELEGRAM_BOT_TOKEN               – the bot token from @BotFather
@@ -14,13 +13,22 @@ import "server-only"
 
 const API = "https://api.telegram.org"
 
-export function relayerConfigured(): boolean {
+export function businessRelayerConfigured(): boolean {
   return Boolean(process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_BUSINESS_CONNECTION_ID)
+}
+
+export function relayerBotConfigured(): boolean {
+  return Boolean(process.env.TELEGRAM_BOT_TOKEN)
 }
 
 export function relayerUsername(): string | null {
   const username = process.env.RELAYER_USERNAME?.trim().replace(/^@+/, "")
-  return username || null
+  return username || "pugsrelayer"
+}
+
+export function configuredRelayerUserId(): number | null {
+  const value = Number(process.env.RELAYER_USER_ID)
+  return Number.isSafeInteger(value) && value > 0 ? value : null
 }
 
 async function call<T = any>(method: string, body: Record<string, unknown>): Promise<T> {
@@ -43,6 +51,51 @@ export type TgOwnedGift = {
   name: string | null
   transferStarCount: number
   canBeTransferred: boolean
+}
+
+export type RelayerDepositEvent = {
+  fingerprint: string
+  senderUserId: string | null
+  sendDate: number
+  type: string
+  giftId: string | null
+  giftSlug: string | null
+  giftName: string | null
+}
+
+/**
+ * Read gifts hosted by a normal Telegram relayer profile. This does not need a
+ * Business connection. sender_user is intentionally required by the matching
+ * layer, so anonymous/private transfers are never credited to the wrong user.
+ */
+export async function getRelayerDepositEvents(userId: number): Promise<RelayerDepositEvent[]> {
+  const result = await call<{ gifts: any[] }>("getUserGifts", {
+    user_id: userId,
+    sort_by_price: false,
+    offset: "",
+    limit: 100,
+  })
+
+  return (result.gifts ?? []).map((owned) => {
+    const gift = owned.gift ?? {}
+    const senderUserId = owned.sender_user?.id == null ? null : String(owned.sender_user.id)
+    const sendDate = Number(owned.send_date ?? 0)
+    const giftId = gift.id == null ? null : String(gift.id)
+    const giftSlug = typeof gift.slug === "string" ? gift.slug : null
+    const giftName = gift.base_name ?? gift.name ?? gift.title ?? null
+    const fingerprint = giftSlug
+      ? `unique:${giftSlug}`
+      : `${owned.type ?? "gift"}:${senderUserId ?? "private"}:${sendDate}:${giftId ?? "unknown"}`
+    return {
+      fingerprint,
+      senderUserId,
+      sendDate,
+      type: owned.type ?? "gift",
+      giftId,
+      giftSlug,
+      giftName: typeof giftName === "string" ? giftName : null,
+    }
+  })
 }
 
 /** List unique gifts currently owned by the connected business account (the relayer). */

@@ -4,10 +4,11 @@ import crypto from "crypto"
 import { and, desc, eq, sql } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { db } from "@/lib/db"
-import { users, gifts, inventory, transactions } from "@/lib/db/schema"
+import { gifts, inventory, transactions } from "@/lib/db/schema"
 import { requireUserId } from "@/lib/session"
-import { relayerConfigured, relayerUsername } from "@/lib/telegram-gifts"
+import { relayerUsername } from "@/lib/telegram-gifts"
 import { giftValueInStars } from "@/lib/pricing"
+import { personalGiftRelayerReady, processPersonalGiftDeposits } from "@/lib/gift-deposits"
 
 export type DepositGift = {
   slug: string
@@ -35,23 +36,28 @@ export async function getDepositGiftCatalog(): Promise<DepositGift[]> {
 
 export type RelayerInfo = {
   username: string | null
+  url: string
   automated: boolean
 }
 
 /** Public info the deposit UI needs to instruct the user where to send a gift. */
 export async function getRelayerInfo(): Promise<RelayerInfo> {
-  return { username: relayerUsername(), automated: relayerConfigured() }
+  const username = relayerUsername() ?? "pugsrelayer"
+  return {
+    username,
+    url: `https://t.me/${username}`,
+    automated: await personalGiftRelayerReady(),
+  }
 }
 
 /**
- * Create a pending NFT gift deposit. The user is told to send the chosen gift to
- * the relayer account with the returned code in the comment. A relayer poll (or
- * an admin) then confirms it and credits the gift to the user's inventory.
+ * Create a pending NFT gift deposit. The sender's Telegram ID, gift name and
+ * transfer time are matched automatically; no user-visible comment code exists.
  */
 export async function createGiftDepositIntent(giftSlug: string): Promise<{
   transactionId: number
-  code: string
   relayerUsername: string | null
+  relayerUrl: string
   automated: boolean
   giftName: string
   value: number
@@ -61,7 +67,8 @@ export async function createGiftDepositIntent(giftSlug: string): Promise<{
   if (!gift) throw new Error("Unknown gift")
   const starValue = giftValueInStars(gift.value, gift.floorTon)
 
-  const code = `GFT-${crypto.randomBytes(3).toString("hex").toUpperCase()}`
+  // Random internal correlation id; users no longer need to copy a code.
+  const externalId = `gdep_${crypto.randomBytes(12).toString("hex")}`
   const row = await db
     .insert(transactions)
     .values({
@@ -71,19 +78,65 @@ export async function createGiftDepositIntent(giftSlug: string): Promise<{
       amount: "0",
       credited: String(starValue),
       status: "pending",
-      externalId: code,
+      externalId,
       meta: { giftId: gift.id, giftSlug: gift.slug, giftName: gift.name },
     })
     .returning({ id: transactions.id })
 
   return {
     transactionId: row[0].id,
-    code,
     relayerUsername: relayerUsername(),
-    automated: relayerConfigured(),
+    relayerUrl: `https://t.me/${relayerUsername() ?? "pugsrelayer"}`,
+    automated: await personalGiftRelayerReady(),
     giftName: gift.name,
     value: starValue,
   }
+}
+
+/** Called by the open deposit screen. It is safe to poll: matching and credit
+ * are idempotent and restricted to the current Telegram user. */
+export async function checkGiftDeposit(transactionId: number): Promise<{
+  status: string
+  completed: boolean
+}> {
+  const userId = await requireUserId()
+  if (!Number.isSafeInteger(transactionId) || transactionId <= 0) throw new Error("Invalid deposit")
+  const mine = (
+    await db
+      .select({ id: transactions.id, status: transactions.status })
+      .from(transactions)
+      .where(and(eq(transactions.id, transactionId), eq(transactions.userId, userId), eq(transactions.type, "gift_deposit")))
+      .limit(1)
+  )[0]
+  if (!mine) throw new Error("Deposit not found")
+  if (mine.status === "pending") {
+    await processPersonalGiftDeposits({ transactionId, userId })
+  }
+  const current = (
+    await db
+      .select({ status: transactions.status })
+      .from(transactions)
+      .where(and(eq(transactions.id, transactionId), eq(transactions.userId, userId)))
+      .limit(1)
+  )[0]
+  const status = current?.status ?? "pending"
+  return { status, completed: status === "completed" }
+}
+
+export async function cancelGiftDeposit(transactionId: number): Promise<void> {
+  const userId = await requireUserId()
+  if (!Number.isSafeInteger(transactionId) || transactionId <= 0) return
+  await db
+    .update(transactions)
+    .set({ status: "cancelled" })
+    .where(
+      and(
+        eq(transactions.id, transactionId),
+        eq(transactions.userId, userId),
+        eq(transactions.type, "gift_deposit"),
+        eq(transactions.status, "pending"),
+      ),
+    )
 }
 
 /**

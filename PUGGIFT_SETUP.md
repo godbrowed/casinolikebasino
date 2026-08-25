@@ -8,5 +8,8 @@
 6. If this is a completely fresh economy, create a new Neon/Postgres database and put its connection string in `DATABASE_URL`. Reusing the old database also reuses existing users, balances, inventory, rooms, and history.
 7. Update `url` and `iconUrl` in `public/tonconnect-manifest.json` if the production domain changes.
 8. Deploy, then open `https://YOUR_DOMAIN/api/telegram/setup?secret=YOUR_ADMIN_SECRET` once. This registers the webhook, `/start`, and Telegram menu button for the new bot.
+9. Set `RELAYER_USERNAME=pugsrelayer`. For immediate gift auto-detection, set `RELAYER_USER_ID` to that account's numeric Telegram ID. Alternatively, open PugGift once from `@pugsrelayer`; the app can then resolve the ID from its Telegram profile.
+
+Gift deposits do not require a Business connection. PugGift polls `getUserGifts`, matches the visible sender Telegram ID and selected gift, credits it once, then sends a confirmation through the main bot. The sender must not use Telegram's anonymous/private sender option. A Business connection is only needed if automatic gift withdrawals are enabled later.
 
 The PugGift `/start` image is `public/images/puggift-mascot-share-v1.png`. Optimized in-app mascot and Crash assets are `public/images/puggift-mascot-web-v1.webp` and `public/images/puggift-rocket-web-v1.webp`.

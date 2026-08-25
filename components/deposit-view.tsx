@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, type ReactNode } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 import Link from "next/link"
-import { Loader2, Gift as GiftIcon, Copy, Check, ChevronLeft } from "lucide-react"
+import { Loader2, Gift as GiftIcon, ChevronLeft, ExternalLink, ShieldCheck } from "lucide-react"
 import { useTonConnectUI, useTonWallet } from "@tonconnect/ui-react"
 import {
   createStarsInvoice,
@@ -10,6 +10,8 @@ import {
   verifyTonDeposit,
 } from "@/app/actions/deposit"
 import {
+  cancelGiftDeposit,
+  checkGiftDeposit,
   createGiftDepositIntent,
   type DepositGift,
   type RelayerInfo,
@@ -35,8 +37,13 @@ export function DepositView({
   const [method, setMethod] = useState<Method>("ton")
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null)
-  const [giftIntent, setGiftIntent] = useState<{ code: string; giftName: string; value: number } | null>(null)
-  const [copied, setCopied] = useState(false)
+  const [giftIntent, setGiftIntent] = useState<{
+    transactionId: number
+    giftName: string
+    value: number
+    relayerUsername: string | null
+    relayerUrl: string
+  } | null>(null)
   const [amountText, setAmountText] = useState("200")
   const [tonConnectUI] = useTonConnectUI()
   const wallet = useTonWallet()
@@ -48,7 +55,13 @@ export function DepositView({
     haptic("medium")
     try {
       const intent = await createGiftDepositIntent(slug)
-      setGiftIntent({ code: intent.code, giftName: intent.giftName, value: intent.value })
+      setGiftIntent({
+        transactionId: intent.transactionId,
+        giftName: intent.giftName,
+        value: intent.value,
+        relayerUsername: intent.relayerUsername,
+        relayerUrl: intent.relayerUrl,
+      })
     } catch (e) {
       notify("err", e instanceof Error ? e.message : "Could not start gift deposit")
     } finally {
@@ -127,13 +140,39 @@ export function DepositView({
     }
   }
 
+  useEffect(() => {
+    if (!giftIntent) return
+    let active = true
+    let timer: ReturnType<typeof setInterval> | null = null
+    const poll = async () => {
+      try {
+        const result = await checkGiftDeposit(giftIntent.transactionId)
+        if (!active || !result.completed) return
+        active = false
+        if (timer) clearInterval(timer)
+        setGiftIntent(null)
+        notify("ok", `${giftIntent.giftName} was credited automatically`)
+        refresh()
+      } catch {
+        // The background cron keeps checking too; temporary API/network errors
+        // must not interrupt the transfer screen.
+      }
+    }
+    void poll()
+    timer = setInterval(poll, 6_000)
+    return () => {
+      active = false
+      if (timer) clearInterval(timer)
+    }
+  }, [giftIntent?.transactionId])
+
   return (
     <div className="mx-auto flex min-h-[calc(var(--tg-viewport-stable-height,100dvh)-118px)] w-full max-w-[620px] flex-col px-1 pb-[max(1rem,var(--tg-content-safe-area-inset-bottom,0px))]">
       <header className="relative flex flex-col items-center pt-2">
         <Link href="/" aria-label="Back" className="absolute left-0 top-0 flex h-11 w-11 items-center justify-center rounded-full bg-[#111419] text-white/70 transition hover:text-white"><ChevronLeft className="h-6 w-6" /></Link>
         <h1 className="px-12 font-display text-2xl font-black md:px-0 md:text-3xl"><span className="md:hidden">Balance</span><span className="hidden md:inline">Balance replenishment</span></h1>
         <div className="mt-5 grid w-full max-w-[560px] grid-cols-3 gap-1 rounded-[22px] bg-[#3b3f46] p-1.5">
-          <Tab active={method === "ton"} onClick={() => setMethod("ton")} icon={<img src="/icons/ton.svg" alt="" className="h-5 w-5" />} label="TON" />
+          <Tab active={method === "ton"} onClick={() => setMethod("ton")} icon={<img src="/icons/ton.svg" alt="" className="h-6 w-6 shrink-0 rounded-full shadow-[0_1px_5px_rgba(0,152,234,.45)] ring-1 ring-white/20" />} label="TON" />
           <Tab active={method === "stars"} onClick={() => setMethod("stars")} icon={<Coin className="h-5 w-5" />} label="Stars" />
           <Tab active={method === "gifts"} onClick={() => setMethod("gifts")} icon={<GiftIcon className="h-5 w-5 text-[#ff6fbd]" />} label="Gifts" />
         </div>
@@ -166,51 +205,33 @@ export function DepositView({
           {giftIntent ? (
             <div className="mx-auto flex w-full max-w-[560px] flex-col gap-3 rounded-[30px] bg-[#3b3f46] p-5 ring-1 ring-white/10">
               <div className="text-center">
-                <div className="font-display text-lg font-black text-primary">Send your gift to the relayer</div>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Transfer your <span className="font-bold text-foreground">{giftIntent.giftName}</span> Telegram gift to
-                  {relayer.username ? (
-                    <>
-                      {" "}
-                      <span className="font-bold text-foreground">@{relayer.username}</span>
-                    </>
-                  ) : (
-                    " our relayer account"
-                  )}{" "}
-                  with the code below in the message. You&apos;ll be credited{" "}
-                  <span className="inline-flex items-center gap-0.5 font-bold text-foreground">
-                    {fmt(giftIntent.value)} <Coin className="h-3 w-3" />
-                  </span>
-                  Stars.
+                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#2f70ff]/18 text-[#70a0ff] ring-1 ring-[#6f96ff]/30"><ShieldCheck className="h-6 w-6" /></div>
+                <div className="font-display text-xl font-black text-white">Send the gift to @{giftIntent.relayerUsername ?? "pugsrelayer"}</div>
+                <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-white/48">
+                  Transfer <span className="font-black text-white">{giftIntent.giftName}</span>{" "}from this Telegram account. Don&apos;t hide the sender — PugGift will recognize you and add the gift automatically.
                 </p>
               </div>
+              <a href={giftIntent.relayerUrl} target="_blank" rel="noreferrer" onClick={() => haptic("medium")} className="flex items-center justify-center gap-2 rounded-[20px] bg-[#2f70ff] py-4 font-display text-lg font-black text-white shadow-[0_5px_0_#1945b9] transition active:translate-y-0.5"><ExternalLink className="h-5 w-5" />Open t.me/{giftIntent.relayerUsername ?? "pugsrelayer"}</a>
+              <div className="flex items-center justify-center gap-2 rounded-[18px] bg-[#25282f] px-3 py-3 text-xs font-bold text-white/55"><Loader2 className="h-4 w-4 animate-spin text-[#70a0ff]" />Waiting for the transfer · value {fmt(giftIntent.value)} Stars</div>
+              <p className="text-center text-[11px] text-white/35">No code is needed. After detection, the main PugGift bot will message you that the deposit was credited.</p>
               <button
-                onClick={() => {
-                  navigator.clipboard?.writeText(giftIntent.code)
-                  setCopied(true)
-                  haptic("light")
-                  setTimeout(() => setCopied(false), 1500)
+                onClick={async () => {
+                  setBusy(true)
+                  try {
+                    await cancelGiftDeposit(giftIntent.transactionId)
+                    setGiftIntent(null)
+                  } finally {
+                    setBusy(false)
+                  }
                 }}
-                className="flex items-center justify-center gap-2 rounded-xl border border-border bg-card py-3 font-mono text-lg font-black tracking-widest"
-              >
-                {giftIntent.code}
-                {copied ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4 text-muted-foreground" />}
-              </button>
-              <p className="text-center text-[11px] text-muted-foreground">
-                {relayer.automated
-                  ? "Your deposit is detected automatically and credited within a minute."
-                  : "Deposits are reviewed and credited shortly after the gift arrives."}
-              </p>
-              <button
-                onClick={() => setGiftIntent(null)}
                 className="rounded-xl bg-secondary py-2.5 text-sm font-bold transition-colors hover:bg-secondary/70"
               >
-                Deposit another gift
+                Cancel · choose another gift
               </button>
             </div>
           ) : (
             <>
-              <div className="mx-auto w-full max-w-[560px] rounded-[30px] bg-[#3b3f46] p-5 text-center ring-1 ring-white/[.07]"><h2 className="font-display text-2xl font-black">Add a gift</h2><p className="mx-auto mt-1 max-w-sm text-sm text-white/45">Then keep it in your collection, use it for an upgrade or sell it for Stars.</p><button onClick={() => document.getElementById("deposit-gifts")?.scrollIntoView({ behavior: "smooth", block: "start" })} className="mt-5 w-full rounded-[20px] bg-[#2f70ff] py-4 text-lg font-black shadow-[0_5px_0_#1945b9]">Add</button></div>
+              <div className="mx-auto w-full max-w-[560px] rounded-[30px] bg-[#3b3f46] p-5 text-center ring-1 ring-white/[.07]"><h2 className="font-display text-2xl font-black">Add a gift</h2><p className="mx-auto mt-1 max-w-sm text-sm text-white/45">Send it to <a href={relayer.url} target="_blank" rel="noreferrer" className="font-black text-[#72a0ff] underline decoration-[#72a0ff]/35 underline-offset-2">@{relayer.username ?? "pugsrelayer"}</a>, then keep it, upgrade it or sell it for Stars.</p><button onClick={() => document.getElementById("deposit-gifts")?.scrollIntoView({ behavior: "smooth", block: "start" })} className="mt-5 w-full rounded-[20px] bg-[#2f70ff] py-4 text-lg font-black shadow-[0_5px_0_#1945b9]">Add</button></div>
               {giftCatalog.length === 0 ? (
                 <p className="py-6 text-center text-xs text-muted-foreground">No gifts available yet.</p>
               ) : (

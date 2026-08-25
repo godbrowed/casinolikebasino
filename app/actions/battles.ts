@@ -1,7 +1,7 @@
 "use server"
 
 import crypto from "node:crypto"
-import { eq, sql, desc, and, asc, inArray } from "drizzle-orm"
+import { eq, sql, desc, and, asc, inArray, isNull } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { db } from "@/lib/db"
 import { cases, caseItems, gifts, users, gameHistory, battleRooms, battleSlots } from "@/lib/db/schema"
@@ -106,7 +106,7 @@ export async function joinBattle(input: {
       .where(
         and(
           eq(battleRooms.status, "waiting"),
-          eq(battleRooms.caseId, 0),
+          isNull(battleRooms.caseId),
           eq(battleRooms.capacity, capacity),
           eq(battleRooms.rounds, rounds),
           eq(battleRooms.entryCost, entryCost.toFixed(2)),
@@ -133,7 +133,7 @@ export async function joinBattle(input: {
       const created = await tx
         .insert(battleRooms)
         .values({
-          caseId: 0,
+          caseId: null,
           capacity,
           rounds,
           entryCost: entryCost.toFixed(2),
@@ -212,7 +212,9 @@ export async function getMatchState(roomId: number): Promise<MatchState> {
   const userId = await requireUserId()
   const room = (await db.select().from(battleRooms).where(eq(battleRooms.id, roomId)).limit(1))[0]
   if (!room) throw new Error("Room not found")
-  const caseRow = (await db.select().from(cases).where(eq(cases.id, room.caseId)).limit(1))[0]
+  const caseRow = room.caseId == null
+    ? undefined
+    : (await db.select().from(cases).where(eq(cases.id, room.caseId)).limit(1))[0]
 
   if (room.status === "waiting") {
     const realPlayers = (await db.select().from(battleSlots).where(eq(battleSlots.roomId, roomId))).filter((slot) => !slot.isBot)
@@ -231,7 +233,7 @@ export async function getMatchState(roomId: number): Promise<MatchState> {
     capacity: fresh.capacity,
     rounds: fresh.rounds,
     entryCost: Number(fresh.entryCost),
-    caseName: room.caseId === 0 ? "Stars PvP" : caseRow?.name ?? "Case",
+    caseName: room.caseId == null ? "Stars PvP" : caseRow?.name ?? "Case",
     secondsLeft: countdownStarted(fresh) ? Math.max(0, Math.ceil((fresh.startsAt.getTime() - Date.now()) / 1000)) : null,
     slots: slots.map((s) => ({
       slot: s.slot,
@@ -272,9 +274,11 @@ async function resolveRoom(roomId: number): Promise<void> {
     }
 
     const slots = await tx.select().from(battleSlots).where(and(eq(battleSlots.roomId, roomId), eq(battleSlots.isBot, false))).orderBy(asc(battleSlots.slot))
-    const caseRow = (await tx.select().from(cases).where(eq(cases.id, room.caseId)).limit(1))[0]
+    const caseRow = room.caseId == null
+      ? undefined
+      : (await tx.select().from(cases).where(eq(cases.id, room.caseId)).limit(1))[0]
 
-    if (room.caseId === 0) {
+    if (room.caseId == null) {
       const entryCost = Number(room.entryCost)
       const playerCount = slots.length
       const grossBank = entryCost * playerCount
@@ -440,7 +444,7 @@ export async function getBattleSessions(): Promise<BattleSession[]> {
   const roomIds = await db
     .select({ id: battleRooms.id })
     .from(battleRooms)
-    .where(and(eq(battleRooms.status, "waiting"), eq(battleRooms.caseId, 0)))
+    .where(and(eq(battleRooms.status, "waiting"), isNull(battleRooms.caseId)))
     .orderBy(asc(battleRooms.createdAt))
     .limit(12)
   if (roomIds.length === 0) return []

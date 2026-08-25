@@ -98,7 +98,9 @@ export const transactions = pgTable("transactions", {
 
 export const battleRooms = pgTable("battle_rooms", {
   id: serial("id").primaryKey(),
-  caseId: integer("case_id").notNull(),
+  // Stake PvP rooms are not tied to a case. NULL is the explicit mode marker;
+  // legacy case-battle rows may still keep a real cases.id here.
+  caseId: integer("case_id"),
   capacity: integer("capacity").notNull(),
   rounds: integer("rounds").notNull(),
   entryCost: numeric("entry_cost", { precision: 20, scale: 2 }).notNull(),

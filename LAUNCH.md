@@ -5,10 +5,11 @@
 - `TELEGRAM_BOT_TOKEN` — Set (encrypted)
 - `TELEGRAM_WEBHOOK_SECRET` — Set (encrypted)
 - `ADMIN_SECRET` — Set (encrypted)
-- `RELAYER_USERNAME` — Set to `fuckfutures` (no @ prefix)
+- `RELAYER_USERNAME` — Set to `pugsrelayer` (no @ prefix)
+- `RELAYER_USER_ID` — Numeric Telegram ID of the `@pugsrelayer` account
 - `TON_RECEIVER_ADDRESS` — Set (encrypted)
 - `TONCENTER_API_KEY` — Set (encrypted)
-- `TELEGRAM_BUSINESS_CONNECTION_ID` — Set (encrypted)
+- `TELEGRAM_BUSINESS_CONNECTION_ID` — Optional; only required for automatic withdrawals
 
 🔒 **Security Hardening**
 - Telegram Web App validation required (no demo auth in production)
@@ -66,7 +67,8 @@
 - ✅ Session auth validates Telegram initData (demo auth disabled in production)
 - ✅ All serverless functions fit within Vercel limits
 - ✅ Database schema includes: `ton_wallet_address`, `last_free_case_at`, `is_free`, `cooldown_hours`
-- ✅ RELAYER_USERNAME normalized (no @ prefix)
+- ✅ Gift deposits use `getUserGifts` and do not require a Business connection
+- ✅ `RELAYER_USERNAME` normalized (no @ prefix) and `RELAYER_USER_ID` configured
 
 📋 **Post-Launch Monitoring**
 - Watch `/api/telegram/webhook` logs for incoming Telegram updates

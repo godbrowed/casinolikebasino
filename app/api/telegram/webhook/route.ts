@@ -3,6 +3,7 @@ import { and, eq, sql } from "drizzle-orm"
 import { db } from "@/lib/db"
 import { users, transactions } from "@/lib/db/schema"
 import { starsToGram } from "@/lib/deposit-shared"
+import { relayerUsername } from "@/lib/telegram-gifts"
 
 const token = process.env.TELEGRAM_BOT_TOKEN
 
@@ -40,6 +41,30 @@ export async function POST(req: Request) {
   // Greet on /start (and any plain text) with an "Open app" Web App button.
   const message = update.message
   const text: string | undefined = message?.text
+  const configuredRelayer = relayerUsername()?.toLowerCase()
+  const senderUsername = String(message?.from?.username ?? "").replace(/^@+/, "").toLowerCase()
+  if (message?.from?.id && configuredRelayer && senderUsername === configuredRelayer) {
+    // One /start from the normal @pugsrelayer account is enough to learn its
+    // numeric Telegram ID. No Business connection is involved.
+    await db
+      .insert(users)
+      .values({
+        id: String(message.from.id),
+        username: message.from.username ?? null,
+        firstName: message.from.first_name ?? "Pugs Relayer",
+        photoUrl: null,
+        isDemo: false,
+        balance: "0",
+      })
+      .onConflictDoUpdate({
+        target: users.id,
+        set: {
+          username: message.from.username ?? null,
+          firstName: message.from.first_name ?? "Pugs Relayer",
+          lastSeen: new Date(),
+        },
+      })
+  }
   if (message?.chat?.id && text && !message.successful_payment) {
     const firstName: string = message.from?.first_name || "there"
     const isStart = text.startsWith("/start")

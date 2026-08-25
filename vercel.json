@@ -1,6 +1,10 @@
 {
   "crons": [
     {
+      "path": "/api/relayer",
+      "schedule": "* * * * *"
+    },
+    {
       "path": "/api/cron/sync-prices",
       "schedule": "0 0 * * *"
     }

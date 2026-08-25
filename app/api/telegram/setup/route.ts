@@ -54,7 +54,7 @@ export async function GET(req: Request) {
   const webhook = await tg("setWebhook", {
     url: `${url}/api/telegram/webhook`,
     secret_token: process.env.TELEGRAM_WEBHOOK_SECRET,
-    allowed_updates: ["message", "pre_checkout_query", "business_connection"],
+    allowed_updates: ["message", "pre_checkout_query"],
   })
   const commands = await tg("setMyCommands", {
     commands: [{ command: "start", description: "Open PugGift" }],

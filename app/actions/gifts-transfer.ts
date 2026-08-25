@@ -69,19 +69,33 @@ export async function createGiftDepositIntent(giftSlug: string): Promise<{
 
   // Random internal correlation id; users no longer need to copy a code.
   const externalId = `gdep_${crypto.randomBytes(12).toString("hex")}`
-  const row = await db
-    .insert(transactions)
-    .values({
-      userId,
-      type: "gift_deposit",
-      currency: "nft",
-      amount: "0",
-      credited: String(starValue),
-      status: "pending",
-      externalId,
-      meta: { giftId: gift.id, giftSlug: gift.slug, giftName: gift.name },
-    })
-    .returning({ id: transactions.id })
+  const row = await db.transaction(async (tx) => {
+    // A fresh selection replaces abandoned intents from the same player. This
+    // keeps code-free matching deterministic, including private gift sends.
+    await tx
+      .update(transactions)
+      .set({ status: "cancelled" })
+      .where(
+        and(
+          eq(transactions.userId, userId),
+          eq(transactions.type, "gift_deposit"),
+          eq(transactions.status, "pending"),
+        ),
+      )
+    return tx
+      .insert(transactions)
+      .values({
+        userId,
+        type: "gift_deposit",
+        currency: "nft",
+        amount: "0",
+        credited: String(starValue),
+        status: "pending",
+        externalId,
+        meta: { giftId: gift.id, giftSlug: gift.slug, giftName: gift.name },
+      })
+      .returning({ id: transactions.id })
+  })
 
   return {
     transactionId: row[0].id,

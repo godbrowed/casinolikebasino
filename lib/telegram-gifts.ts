@@ -12,6 +12,8 @@ import "server-only"
 //   RELAYER_USERNAME                 – @username shown to users for manual deposits
 
 const API = "https://api.telegram.org"
+export const PUGS_RELAYER_USERNAME = "pugsrelayer"
+export const PUGS_RELAYER_USER_ID = 8767189659
 
 export function businessRelayerConfigured(): boolean {
   return Boolean(process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_BUSINESS_CONNECTION_ID)
@@ -22,13 +24,14 @@ export function relayerBotConfigured(): boolean {
 }
 
 export function relayerUsername(): string | null {
-  const username = process.env.RELAYER_USERNAME?.trim().replace(/^@+/, "")
-  return username || "pugsrelayer"
+  // This project has one public relayer. A stale deployment environment must
+  // never be able to silently redirect real deposits to another account.
+  return PUGS_RELAYER_USERNAME
 }
 
 export function configuredRelayerUserId(): number | null {
   const value = Number(process.env.RELAYER_USER_ID)
-  return Number.isSafeInteger(value) && value > 0 ? value : null
+  return Number.isSafeInteger(value) && value > 0 ? value : PUGS_RELAYER_USER_ID
 }
 
 async function call<T = any>(method: string, body: Record<string, unknown>): Promise<T> {
@@ -80,8 +83,14 @@ export async function getRelayerDepositEvents(userId: number): Promise<RelayerDe
     const gift = owned.gift ?? {}
     const senderUserId = owned.sender_user?.id == null ? null : String(owned.sender_user.id)
     const sendDate = Number(owned.send_date ?? 0)
-    const giftId = gift.id == null ? null : String(gift.id)
-    const giftSlug = typeof gift.slug === "string" ? gift.slug : null
+    const giftId = gift.gift_id == null && gift.id == null ? null : String(gift.gift_id ?? gift.id)
+    // Unique Telegram gifts expose their collectible slug as `name`
+    // (for example LibertyFigure-62273), while regular gifts use `id`.
+    const giftSlug = typeof gift.slug === "string"
+      ? gift.slug
+      : owned.type === "unique" && typeof gift.name === "string"
+        ? gift.name
+        : null
     const giftName = gift.base_name ?? gift.name ?? gift.title ?? null
     const fingerprint = giftSlug
       ? `unique:${giftSlug}`

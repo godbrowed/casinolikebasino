@@ -5,7 +5,7 @@
 - `TELEGRAM_BOT_TOKEN` — Set (encrypted)
 - `TELEGRAM_WEBHOOK_SECRET` — Set (encrypted)
 - `ADMIN_SECRET` — Set (encrypted)
-- `RELAYER_USERNAME` — Set to `fuckfutures` (no @ prefix)
+- `RELAYER_USERNAME` — Set to `pugsrelayer` (no @ prefix)
 - `TON_RECEIVER_ADDRESS` — Set (encrypted)
 - `TONCENTER_API_KEY` — Set (encrypted)
 - `TELEGRAM_BUSINESS_CONNECTION_ID` — Set (encrypted)

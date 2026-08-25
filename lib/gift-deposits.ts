@@ -18,8 +18,7 @@ function normalized(value: unknown): string {
   return String(value ?? "").toLowerCase().replace(/[^a-z0-9]/g, "")
 }
 
-function eventMatches(event: RelayerDepositEvent, tx: DepositTransaction): boolean {
-  if (!event.senderUserId || event.senderUserId !== tx.userId) return false
+function eventMatchesGiftAndTime(event: RelayerDepositEvent, tx: DepositTransaction): boolean {
   // Ignore older profile gifts; a transfer must happen after this intent was made.
   if (event.sendDate * 1000 < tx.createdAt.getTime() - 120_000) return false
   const meta = (tx.meta as Record<string, unknown> | null) ?? {}
@@ -136,13 +135,24 @@ export async function processPersonalGiftDeposits(options?: {
   if (!pending.length) return { configured: true, scanned: 0, credited: 0 }
 
   const events = await getRelayerDepositEvents(relayerUserId)
+  const available = [...pending]
   const claimedEvents = new Set<string>()
   let credited = 0
-  for (const tx of pending) {
-    const event = events.find((candidate) => !claimedEvents.has(candidate.fingerprint) && eventMatches(candidate, tx))
-    if (!event) continue
+  for (const event of events) {
+    if (claimedEvents.has(event.fingerprint)) continue
+    const candidates = available.filter((tx) => {
+      if (!eventMatchesGiftAndTime(event, tx)) return false
+      return event.senderUserId ? event.senderUserId === tx.userId : true
+    })
+    // Private Telegram gifts omit sender_user. They can still be credited
+    // without a code when exactly one pending intent matches the gift/time.
+    // Ambiguous transfers are intentionally left pending instead of crediting
+    // the wrong player.
+    if (candidates.length !== 1) continue
+    const tx = candidates[0]
     if (await creditGiftDeposit(tx, event)) {
       claimedEvents.add(event.fingerprint)
+      available.splice(available.findIndex((candidate) => candidate.id === tx.id), 1)
       credited++
     }
   }

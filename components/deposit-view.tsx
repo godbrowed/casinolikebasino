@@ -172,7 +172,7 @@ export function DepositView({
         <Link href="/" aria-label="Back" className="absolute left-0 top-0 flex h-11 w-11 items-center justify-center rounded-full bg-[#111419] text-white/70 transition hover:text-white"><ChevronLeft className="h-6 w-6" /></Link>
         <h1 className="px-12 font-display text-2xl font-black md:px-0 md:text-3xl"><span className="md:hidden">Balance</span><span className="hidden md:inline">Balance replenishment</span></h1>
         <div className="mt-5 grid w-full max-w-[560px] grid-cols-3 gap-1 rounded-[22px] bg-[#3b3f46] p-1.5">
-          <Tab active={method === "ton"} onClick={() => setMethod("ton")} icon={<img src="/icons/ton.svg" alt="" className="h-6 w-6 shrink-0 rounded-full shadow-[0_1px_5px_rgba(0,152,234,.45)] ring-1 ring-white/20" />} label="TON" />
+          <Tab active={method === "ton"} onClick={() => setMethod("ton")} icon={<img src="/icons/ton-network-v2.svg" alt="" className="h-6 w-6 shrink-0" />} label="TON" />
           <Tab active={method === "stars"} onClick={() => setMethod("stars")} icon={<Coin className="h-5 w-5" />} label="Stars" />
           <Tab active={method === "gifts"} onClick={() => setMethod("gifts")} icon={<GiftIcon className="h-5 w-5 text-[#ff6fbd]" />} label="Gifts" />
         </div>
@@ -208,12 +208,12 @@ export function DepositView({
                 <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#2f70ff]/18 text-[#70a0ff] ring-1 ring-[#6f96ff]/30"><ShieldCheck className="h-6 w-6" /></div>
                 <div className="font-display text-xl font-black text-white">Send the gift to @{giftIntent.relayerUsername ?? "pugsrelayer"}</div>
                 <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-white/48">
-                  Transfer <span className="font-black text-white">{giftIntent.giftName}</span>{" "}from this Telegram account. Don&apos;t hide the sender — PugGift will recognize you and add the gift automatically.
+                  Transfer <span className="font-black text-white">{giftIntent.giftName}</span>{" "}from this Telegram account. PugGift will detect it and add the gift automatically.
                 </p>
               </div>
               <a href={giftIntent.relayerUrl} target="_blank" rel="noreferrer" onClick={() => haptic("medium")} className="flex items-center justify-center gap-2 rounded-[20px] bg-[#2f70ff] py-4 font-display text-lg font-black text-white shadow-[0_5px_0_#1945b9] transition active:translate-y-0.5"><ExternalLink className="h-5 w-5" />Open t.me/{giftIntent.relayerUsername ?? "pugsrelayer"}</a>
               <div className="flex items-center justify-center gap-2 rounded-[18px] bg-[#25282f] px-3 py-3 text-xs font-bold text-white/55"><Loader2 className="h-4 w-4 animate-spin text-[#70a0ff]" />Waiting for the transfer · value {fmt(giftIntent.value)} Stars</div>
-              <p className="text-center text-[11px] text-white/35">No code is needed. After detection, the main PugGift bot will message you that the deposit was credited.</p>
+              <p className="text-center text-[11px] text-white/35">No code or Business Connection is needed. Keep the sender visible for instant matching; a private send is credited automatically only when it has one unambiguous pending owner.</p>
               <button
                 onClick={async () => {
                   setBusy(true)

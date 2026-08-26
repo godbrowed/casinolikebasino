@@ -76,10 +76,21 @@ export const referrals = pgTable("referrals", {
   id: serial("id").primaryKey(),
   inviterUserId: text("inviter_user_id").notNull(),
   referredUserId: text("referred_user_id").notNull(),
+  program: text("program").notNull().default("free-case"),
   qualifiedAt: timestamp("qualified_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   referredUserUnique: uniqueIndex("referrals_referred_user_unique").on(table.referredUserId),
+}))
+
+export const referralCommissions = pgTable("referral_commissions", {
+  id: serial("id").primaryKey(),
+  referralId: integer("referral_id").notNull(),
+  depositTransactionId: integer("deposit_transaction_id").notNull(),
+  amount: numeric("amount", { precision: 20, scale: 2 }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  depositUnique: uniqueIndex("referral_commissions_deposit_unique").on(table.depositTransactionId),
 }))
 
 export const inventory = pgTable("inventory", {

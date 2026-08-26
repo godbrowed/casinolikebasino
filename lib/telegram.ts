@@ -8,6 +8,7 @@ export type TelegramUser = {
   isDemo: boolean
   isPremium: boolean
   referrerId: string | null
+  referrerProgram: "free-case" | "commission" | null
 }
 
 /**
@@ -59,9 +60,14 @@ export function validateInitData(initData: string): TelegramUser | null {
       photoUrl: u.photo_url ?? null,
       isDemo: false,
       isPremium: u.is_premium === true,
-      referrerId: /^ref_[0-9]{1,20}$/.test(params.get("start_param") || "")
-        ? (params.get("start_param") || "").slice(4)
+      referrerId: /^(?:ref|refer)_[0-9]{1,20}$/.test(params.get("start_param") || "")
+        ? (params.get("start_param") || "").split("_")[1] || null
         : null,
+      referrerProgram: /^refer_[0-9]{1,20}$/.test(params.get("start_param") || "")
+        ? "commission"
+        : /^ref_[0-9]{1,20}$/.test(params.get("start_param") || "")
+          ? "free-case"
+          : null,
     }
   } catch {
     return null
@@ -77,4 +83,5 @@ export const DEMO_USER: TelegramUser = {
   isDemo: true,
   isPremium: false,
   referrerId: null,
+  referrerProgram: null,
 }

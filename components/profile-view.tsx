@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Package, TrendingUp, Rocket, Gift, Swords, Send, Loader2, Shield, WalletCards, History, Layers3, Plus, ChevronRight, Crown, LockKeyhole, Users, RefreshCw } from "lucide-react"
+import { Package, TrendingUp, Rocket, Gift, Swords, Send, Loader2, Shield, WalletCards, History, Layers3, Plus, ChevronRight, Crown, LockKeyhole, Users, RefreshCw, Copy, CheckCheck } from "lucide-react"
 import Link from "next/link"
 import { Coin } from "@/components/coin"
 import { TonWalletCard } from "@/components/ton-wallet-card"
@@ -15,6 +15,7 @@ import { sellAllGiftsApi, sellGiftApi, withdrawGiftApi } from "@/lib/client-game
 
 type Item = { id: number; name: string; rarity: string; imageUrl: string; value: number; source: string; locked: boolean }
 type FreeCaseClaim = { qualified: number; required: number; ready: boolean; inviteUrl: string } | null
+type ReferralDashboard = { invited: number; earned: number; ratePercent: number; inviteUrl: string } | null
 type Hist = {
   id: number
   game: string
@@ -41,7 +42,7 @@ const GAME_ICON: Record<string, typeof Package> = {
   battle: Swords,
 }
 
-export function ProfileView({ me, inventory, history, freeCaseClaim }: { me: Me; inventory: Item[]; history: Hist[]; freeCaseClaim: FreeCaseClaim }) {
+export function ProfileView({ me, inventory, history, freeCaseClaim, referral }: { me: Me; inventory: Item[]; history: Hist[]; freeCaseClaim: FreeCaseClaim; referral: ReferralDashboard }) {
   const router = useRouter()
   const { setBalance, refresh } = useUser()
   const [items, setItems] = useState(inventory)
@@ -49,7 +50,8 @@ export function ProfileView({ me, inventory, history, freeCaseClaim }: { me: Me;
   const [withdrawing, setWithdrawing] = useState<number | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [showGiveawayTasks, setShowGiveawayTasks] = useState(false)
-  const [view, setView] = useState<"collection" | "activity" | "wallet">("collection")
+  const [view, setView] = useState<"collection" | "activity" | "wallet" | "refer">("collection")
+  const [copiedReferral, setCopiedReferral] = useState(false)
 
   const invValue = items.reduce((s, i) => s + i.value, 0)
   const sellableItems = items.filter((item) => !item.locked)
@@ -149,13 +151,15 @@ export function ProfileView({ me, inventory, history, freeCaseClaim }: { me: Me;
         <div className="relative mt-4 grid grid-cols-2 gap-2"><Link href="/deposit" className="flex items-center justify-center gap-2 rounded-[18px] bg-[#2f70ff] py-3 text-sm font-black shadow-[0_4px_0_#1945b9]"><Plus className="h-4 w-4" />Top up</Link><button onClick={() => setView("wallet")} className="flex items-center justify-center gap-2 rounded-[18px] bg-white/10 py-3 text-sm font-black text-white/75"><WalletCards className="h-4 w-4" />Wallet</button></div>
       </section>
 
-      <div className="grid grid-cols-3 gap-1 rounded-[24px] bg-[#30343b] p-1.5 ring-1 ring-white/[.06]">
+      <div className="grid grid-cols-4 gap-1 rounded-[24px] bg-[#30343b] p-1.5 ring-1 ring-white/[.06]">
         <ProfileTab active={view === "collection"} onClick={() => setView("collection")} icon={Layers3} label="Gifts" />
         <ProfileTab active={view === "activity"} onClick={() => setView("activity")} icon={History} label="Activity" />
         <ProfileTab active={view === "wallet"} onClick={() => setView("wallet")} icon={WalletCards} label="Wallet" />
+        <ProfileTab active={view === "refer"} onClick={() => setView("refer")} icon={Users} label="Refer" />
       </div>
 
       {view === "wallet" && <TonWalletCard linkedAddress={me?.tonWalletAddress ?? null} />}
+      {view === "refer" && referral && <section className="overflow-hidden rounded-[30px] bg-[radial-gradient(circle_at_85%_0%,rgba(54,116,255,.28),transparent_42%),#292d34] p-5 ring-1 ring-white/[.07]"><div className="flex items-start gap-3"><span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#3674ff] shadow-[0_10px_28px_rgba(54,116,255,.3)]"><Users className="h-6 w-6" /></span><div><div className="text-[9px] font-black uppercase tracking-[.16em] text-[#8fabff]">PugGift referrals</div><h2 className="mt-1 font-display text-xl font-black">Earn {referral.ratePercent}% forever</h2><p className="mt-1 text-xs leading-relaxed text-white/45">Receive {referral.ratePercent}% of every confirmed deposit made by friends who join through your personal link.</p></div></div><div className="mt-5 grid grid-cols-2 gap-2"><ProfileMetric label="Invited" value={String(referral.invited)} icon={<Users className="h-4 w-4 text-[#7da0ff]" />} /><ProfileMetric label="Earned" value={fmt(referral.earned)} icon={<Coin className="h-4 w-4" />} /></div><div className="mt-4 rounded-2xl bg-black/20 p-2"><div className="truncate px-2 py-2 font-mono text-[10px] text-white/48">{referral.inviteUrl}</div><div className="grid grid-cols-[1fr_auto] gap-2"><button onClick={() => { const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(referral.inviteUrl)}&text=${encodeURIComponent("🎁 Join PugGift with me!")}`; window.open(shareUrl, "_blank", "noopener,noreferrer") }} className="flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#3674ff] text-xs font-black"><Send className="h-4 w-4" />Invite friends</button><button onClick={async () => { await navigator.clipboard.writeText(referral.inviteUrl); setCopiedReferral(true); window.setTimeout(() => setCopiedReferral(false), 1600) }} aria-label="Copy referral link" className="flex w-12 items-center justify-center rounded-xl bg-white/10 text-white/65">{copiedReferral ? <CheckCheck className="h-4 w-4 text-emerald-300" /> : <Copy className="h-4 w-4" />}</button></div></div><p className="mt-3 text-[10px] leading-relaxed text-white/32">Commission is credited automatically after a Stars, TON or NFT gift deposit is confirmed. Replayed payments cannot be credited twice.</p></section>}
 
       {me?.isAdmin && (
         <Link href="/admin" className="flex items-center justify-between rounded-[24px] border border-primary/30 bg-primary/10 p-4 text-primary">

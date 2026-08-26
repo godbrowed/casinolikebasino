@@ -5,6 +5,7 @@ import { users, transactions } from "@/lib/db/schema"
 import { starsToGram } from "@/lib/deposit-shared"
 import { relayerUsername } from "@/lib/telegram-gifts"
 import { joinGiveawayFromCallback, registerGiveawayChannel, settleGiveaway } from "@/lib/giveaways"
+import { awardReferralCommission } from "@/lib/referrals"
 
 const token = process.env.TELEGRAM_BOT_TOKEN
 
@@ -147,7 +148,7 @@ export async function POST(req: Request) {
     const stars = Number(payment.total_amount)
     if (Number.isSafeInteger(stars) && stars > 0 && payment.currency === "XTR") {
       const credited = starsToGram(stars)
-      await db.transaction(async (t) => {
+      const referralDeposit = await db.transaction(async (t) => {
         // Claim the pending intent first. Replayed Telegram updates cannot claim it twice.
         const claimed = await t
           .update(transactions)
@@ -167,9 +168,9 @@ export async function POST(req: Request) {
               eq(transactions.amount, String(stars)),
             ),
           )
-          .returning({ userId: transactions.userId })
+          .returning({ id: transactions.id, userId: transactions.userId })
 
-        if (claimed.length === 0) return
+        if (claimed.length === 0) return null
         await t
           .update(users)
           .set({
@@ -177,7 +178,9 @@ export async function POST(req: Request) {
             totalDepositedStars: sql`${users.totalDepositedStars} + ${stars}`,
           })
           .where(eq(users.id, claimed[0].userId))
+        return { id: claimed[0].id, userId: claimed[0].userId, credited }
       })
+      if (referralDeposit) await awardReferralCommission(referralDeposit.userId, referralDeposit.id, referralDeposit.credited).catch(() => undefined)
     }
   }
 

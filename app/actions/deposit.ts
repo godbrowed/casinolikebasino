@@ -7,6 +7,7 @@ import { db } from "@/lib/db"
 import { users, transactions } from "@/lib/db/schema"
 import { requireUserId, getCurrentUser } from "@/lib/session"
 import { starsToGram, tonToStars } from "@/lib/deposit-shared"
+import { awardReferralCommission } from "@/lib/referrals"
 
 /** Demo-only instant top up so the preview is fully playable. */
 export async function addDemoBalance(amount: number): Promise<{ balance: number }> {
@@ -166,7 +167,7 @@ export async function verifyTonDeposit(transactionId: number): Promise<{
 
     if (claimed.length === 0) {
       const current = await t.select({ balance: users.balance }).from(users).where(eq(users.id, userId)).limit(1)
-      return current[0]
+      return current[0] ? { ...current[0], claimed: false } : null
     }
 
     const u = await t
@@ -177,10 +178,11 @@ export async function verifyTonDeposit(transactionId: number): Promise<{
       })
       .where(eq(users.id, userId))
       .returning({ balance: users.balance })
-    return u[0]
+    return u[0] ? { ...u[0], claimed: true } : null
   })
 
   if (!updated) throw new Error("User not found")
+  if (updated.claimed) await awardReferralCommission(userId, transactionId, Number(tx.credited)).catch(() => undefined)
   revalidatePath("/deposit")
   return { status: "completed", balance: Number(updated.balance) }
 }

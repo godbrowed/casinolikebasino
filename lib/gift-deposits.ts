@@ -11,6 +11,7 @@ import {
   relayerUsername,
   type RelayerDepositEvent,
 } from "@/lib/telegram-gifts"
+import { awardReferralCommission } from "@/lib/referrals"
 
 type DepositTransaction = typeof transactions.$inferSelect
 
@@ -107,6 +108,7 @@ export async function creditGiftDeposit(tx: DepositTransaction, event?: RelayerD
   })
 
   if (completed) {
+    await awardReferralCommission(tx.userId, tx.id, Number(tx.credited)).catch(() => undefined)
     await notifyUser(
       tx.userId,
       `✅ Поповнення зараховано!\n\n🎁 <b>${String(meta.giftName ?? "Telegram Gift")}</b>\n⭐ Вартість: <b>${Number(tx.credited).toLocaleString("en-US")}</b> Stars\n\nПодарунок уже у твоєму інвентарі PugGift.`,

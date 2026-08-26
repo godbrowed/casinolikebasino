@@ -75,7 +75,7 @@ export async function createSession(tg: TelegramUser) {
     if (inserted.length && tg.referrerId && tg.referrerId !== tg.id) {
       const inviter = await tx.select({ id: users.id }).from(users).where(eq(users.id, tg.referrerId)).limit(1)
       if (inviter.length) {
-        await tx.insert(referrals).values({ inviterUserId: tg.referrerId, referredUserId: tg.id }).onConflictDoNothing()
+        await tx.insert(referrals).values({ inviterUserId: tg.referrerId, referredUserId: tg.id, program: tg.referrerProgram || "free-case" }).onConflictDoNothing()
       }
     }
   })

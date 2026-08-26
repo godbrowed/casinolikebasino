@@ -44,6 +44,7 @@ async function refreshQualifiedReferrals(inviterUserId: string): Promise<void> {
     .innerJoin(users, eq(users.id, referrals.referredUserId))
     .where(and(
       eq(referrals.inviterUserId, inviterUserId),
+      eq(referrals.program, "free-case"),
       eq(users.isPremium, true),
       isNull(referrals.qualifiedAt),
     ))
@@ -61,13 +62,13 @@ export async function getFreeCaseClaimStatus(userId: string, refresh = true): Pr
   const existingQualified = await db
     .select({ id: referrals.id })
     .from(referrals)
-    .where(and(eq(referrals.inviterUserId, userId), isNotNull(referrals.qualifiedAt)))
+    .where(and(eq(referrals.inviterUserId, userId), eq(referrals.program, "free-case"), isNotNull(referrals.qualifiedAt)))
   if (refresh && existingQualified.length < FREE_CASE_REQUIRED_REFERRALS) await refreshQualifiedReferrals(userId)
 
   const qualifiedRows = await db
     .select({ id: referrals.id })
     .from(referrals)
-    .where(and(eq(referrals.inviterUserId, userId), isNotNull(referrals.qualifiedAt)))
+    .where(and(eq(referrals.inviterUserId, userId), eq(referrals.program, "free-case"), isNotNull(referrals.qualifiedAt)))
   const qualified = Math.min(FREE_CASE_REQUIRED_REFERRALS, qualifiedRows.length)
   return {
     qualified,

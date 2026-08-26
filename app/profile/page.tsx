@@ -2,15 +2,17 @@ import { getInventory, getHistory, getMe } from "@/app/actions/user"
 import { AppHeader } from "@/components/app-header"
 import { ProfileView } from "@/components/profile-view"
 import { getFreeCaseClaimStatus } from "@/lib/free-case-referrals"
+import { getReferralDashboard } from "@/lib/referrals"
 
 export const dynamic = "force-dynamic"
 
 export default async function ProfilePage() {
   const me = await getMe().catch(() => null)
   const freeCaseClaim = me ? await getFreeCaseClaimStatus(me.id).catch(() => null) : null
-  const [inventoryResult, historyResult] = await Promise.allSettled([getInventory(true), getHistory()])
+  const [inventoryResult, historyResult, referralResult] = await Promise.allSettled([getInventory(true), getHistory(), me ? getReferralDashboard(me.id) : Promise.resolve(null)])
   const inventory = inventoryResult.status === "fulfilled" ? inventoryResult.value : []
   const history = historyResult.status === "fulfilled" ? historyResult.value : []
+  const referral = referralResult.status === "fulfilled" ? referralResult.value : null
   return (
     <>
       <AppHeader title="Profile" />
@@ -28,6 +30,7 @@ export default async function ProfilePage() {
           }))}
           history={history}
           freeCaseClaim={freeCaseClaim}
+          referral={referral}
         />
       </main>
     </>

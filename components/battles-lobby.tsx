@@ -69,7 +69,7 @@ export function BattlesLobby() {
     stakes: live.slots.map((slot) => slot.stake), chances: live.slots.map((slot) => slot.chance), isYou: live.slots.map((slot) => slot.isYou),
   } : session
 
-  return <div className="mx-auto flex min-h-[calc(var(--tg-viewport-stable-height,100dvh)-84px)] w-full max-w-[760px] flex-col gap-3 pb-5">
+  return <div className="mx-auto flex min-h-[calc(var(--tg-viewport-stable-height,100dvh)-84px)] w-full max-w-[760px] flex-col gap-3 pb-[calc(7rem+var(--tg-content-safe-area-inset-bottom,0px))]">
     <header className="flex items-center justify-between px-1">
       <Link href="/" className="flex h-11 w-11 items-center justify-center rounded-full bg-[#101217] text-white/70 ring-1 ring-white/[.06]"><ArrowLeft className="h-5 w-5" /></Link>
       <div className="text-center"><div className="text-[9px] font-black uppercase tracking-[.2em] text-[#6f91ff]">One room · real players</div><h1 className="font-display text-xl font-black">Global PvP</h1></div>

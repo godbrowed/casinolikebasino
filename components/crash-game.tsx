@@ -200,7 +200,7 @@ export function CrashGame() {
     haptic("light")
   }
 
-  return <div className="crash-board flex min-h-[calc(100dvh-130px)] w-full flex-col bg-[#071126] pb-6">
+  return <div className="crash-board flex min-h-[calc(100dvh-130px)] w-full flex-col bg-[#071126] pb-[calc(7rem+var(--tg-content-safe-area-inset-bottom,0px))]">
     <CrashRocket
       phase={phase === "flying" ? "running" : phase === "crashed" ? "crashed" : "idle"}
       multiplier={multiplier}

@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Plus } from "lucide-react"
+import { ArrowLeft, Plus } from "lucide-react"
 import { usePathname } from "next/navigation"
 import { useUser } from "@/components/user-provider"
 import { Coin } from "@/components/coin"
@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils"
 export function AppHeader({ title }: { title?: string }) {
   const { me, isLoading } = useUser()
   const pathname = usePathname()
+  const backHref = pathname.startsWith("/case/") ? "/cases" : "/"
   const routeColor = pathname === "/upgrade"
     ? "bg-[#2558b8]"
     : pathname === "/giveaways"
@@ -24,7 +25,10 @@ export function AppHeader({ title }: { title?: string }) {
   return (
     <header className={cn("sticky top-0 z-40 w-full px-3", routeColor)}>
       <div className="relative mx-auto flex h-[58px] w-full max-w-[1180px] items-center justify-between">
-        <div className="min-w-[72px] text-[10px] font-black uppercase tracking-[.14em] text-white/38 md:invisible">{title}</div>
+        <div className="flex min-w-[72px] items-center gap-2">
+          {pathname !== "/" && <Link href={backHref} aria-label="Back" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/20 text-white/75 ring-1 ring-white/10 transition active:scale-90"><ArrowLeft className="h-5 w-5" strokeWidth={2.7} /></Link>}
+          {title && <span className="hidden max-w-32 truncate text-[10px] font-black uppercase tracking-[.12em] text-white/38 lg:block">{title}</span>}
+        </div>
 
         <div className="absolute left-1/2 flex -translate-x-1/2 items-center gap-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}

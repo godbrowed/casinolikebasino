@@ -3,9 +3,11 @@
 import { and, desc, eq, isNotNull, or } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { db } from "@/lib/db"
-import { giveawayChannels, giveawayEntries, giveaways, users } from "@/lib/db/schema"
+import { giveawayChannels, giveawayEntries, giveaways, gifts, inventory, users } from "@/lib/db/schema"
 import { requireUserId } from "@/lib/session"
-import { appUrl, giveawayKeyboard, giveawayPostText, joinGiveawayFromCallback, resolveBotUsername, settleExpiredGiveaways, settleGiveaway, telegramCall } from "@/lib/giveaways"
+import { giveawayKeyboard, giveawayPostText, joinGiveawayFromCallback, resolveBotUsername, settleExpiredGiveaways, settleGiveaway, telegramCall } from "@/lib/giveaways"
+import { assertFreeCaseGiftUnlocked, getFreeCaseClaimStatus } from "@/lib/free-case-referrals"
+import { giftValueInStars } from "@/lib/pricing"
 
 export type GiveawayDashboard = {
   botUsername: string
@@ -17,12 +19,20 @@ export type GiveawayDashboard = {
     canPostMessages: boolean
     active: boolean
   }>
+  availableGifts: Array<{
+    inventoryId: number
+    name: string
+    imageUrl: string
+    rarity: string
+    value: number
+  }>
   giveaways: Array<{
     id: number
     channelTitle: string
     title: string
     body: string
     prizeText: string
+    prizeImageUrl: string | null
     ticketPrice: number
     winnerCount: number
     participantCount: number
@@ -41,6 +51,7 @@ export type GiveawayDashboard = {
 export async function getGiveawayDashboard(): Promise<GiveawayDashboard> {
   const userId = await requireUserId()
   await settleExpiredGiveaways()
+  const claim = await getFreeCaseClaimStatus(userId, false)
   const channels = await db.select().from(giveawayChannels)
     .where(eq(giveawayChannels.ownerUserId, userId))
     .orderBy(desc(giveawayChannels.updatedAt))
@@ -49,14 +60,29 @@ export async function getGiveawayDashboard(): Promise<GiveawayDashboard> {
     channelTitle: giveawayChannels.title,
     channelUsername: giveawayChannels.username,
     myTickets: giveawayEntries.tickets,
+    prizeImageUrl: gifts.imageUrl,
   })
     .from(giveaways)
     .innerJoin(giveawayChannels, eq(giveaways.channelId, giveawayChannels.id))
     .leftJoin(giveawayEntries, and(eq(giveawayEntries.giveawayId, giveaways.id), eq(giveawayEntries.userId, userId)))
+    .leftJoin(inventory, eq(giveaways.inventoryId, inventory.id))
+    .leftJoin(gifts, eq(inventory.giftId, gifts.id))
     .where(or(eq(giveaways.status, "active"), eq(giveaways.ownerUserId, userId), isNotNull(giveawayEntries.id)))
     .orderBy(desc(giveaways.createdAt))
     .limit(100)
   const username = await resolveBotUsername()
+  const availableRows = await db.select({
+    inventoryId: inventory.id,
+    name: gifts.name,
+    imageUrl: gifts.imageUrl,
+    rarity: gifts.rarity,
+    value: inventory.value,
+    floorTon: gifts.floorTon,
+    source: inventory.source,
+  }).from(inventory)
+    .innerJoin(gifts, eq(inventory.giftId, gifts.id))
+    .where(and(eq(inventory.userId, userId), eq(inventory.status, "owned")))
+    .orderBy(desc(inventory.value))
   return {
     botUsername: username,
     addChannelUrl: `https://t.me/${username}?startchannel&admin=post_messages+edit_messages`,
@@ -67,12 +93,16 @@ export async function getGiveawayDashboard(): Promise<GiveawayDashboard> {
       canPostMessages: channel.canPostMessages,
       active: channel.active,
     })),
-    giveaways: rows.map(({ giveaway, channelTitle, channelUsername, myTickets }) => ({
+    availableGifts: availableRows
+      .filter((gift) => claim.ready || gift.source !== "free-case")
+      .map(({ floorTon, source: _source, ...gift }) => ({ ...gift, value: giftValueInStars(gift.value, floorTon) })),
+    giveaways: rows.map(({ giveaway, channelTitle, channelUsername, myTickets, prizeImageUrl }) => ({
       id: giveaway.id,
       channelTitle,
       title: giveaway.title,
       body: giveaway.body,
       prizeText: giveaway.prizeText,
+      prizeImageUrl,
       ticketPrice: Number(giveaway.ticketPrice),
       winnerCount: giveaway.winnerCount,
       participantCount: giveaway.participantCount,
@@ -111,30 +141,27 @@ export async function joinGiveaway(giveawayId: number) {
 
 export async function createGiveaway(input: {
   channelId: number
+  inventoryId: number
   title: string
   body: string
-  prizeText: string
   ticketPrice: number
-  winnerCount: number
   durationMinutes: number
   maxTicketsPerUser?: number
 }) {
   const userId = await requireUserId()
   const channelId = Number(input.channelId)
+  const inventoryId = Number(input.inventoryId)
   const title = input.title?.trim()
   const body = input.body?.trim()
-  const prizeText = input.prizeText?.trim()
   const ticketPrice = Number(input.ticketPrice)
-  const winnerCount = Number(input.winnerCount)
   const durationMinutes = Number(input.durationMinutes)
   const maxTickets = ticketPrice > 0 ? Number(input.maxTicketsPerUser || 100) : 1
 
   if (!Number.isSafeInteger(channelId) || channelId <= 0) throw new Error("Choose a channel")
+  if (!Number.isSafeInteger(inventoryId) || inventoryId <= 0) throw new Error("Choose an NFT gift from your profile")
   if (!title || title.length > 80) throw new Error("Title must contain 1–80 characters")
   if (!body || body.length > 1200) throw new Error("Text must contain 1–1,200 characters")
-  if (!prizeText || prizeText.length > 160) throw new Error("Prize must contain 1–160 characters")
   if (!Number.isFinite(ticketPrice) || ticketPrice < 0 || ticketPrice > 100_000) throw new Error("Invalid ticket price")
-  if (!Number.isSafeInteger(winnerCount) || winnerCount < 1 || winnerCount > 10) throw new Error("Choose 1–10 winners")
   if (!Number.isSafeInteger(durationMinutes) || durationMinutes < 5 || durationMinutes > 43_200) throw new Error("Duration must be between 5 minutes and 30 days")
   if (!Number.isSafeInteger(maxTickets) || maxTickets < 1 || maxTickets > 1000) throw new Error("Invalid ticket limit")
 
@@ -146,19 +173,40 @@ export async function createGiveaway(input: {
   )).limit(1))[0]
   if (!channel) throw new Error("The channel is not connected or the bot cannot post")
 
-  const inserted = await db.insert(giveaways).values({
-    ownerUserId: userId,
-    channelId,
-    title,
-    body,
-    prizeText,
-    ticketPrice: ticketPrice.toFixed(2),
-    winnerCount,
-    maxTicketsPerUser: maxTickets,
-    status: "draft",
-    endsAt: new Date(Date.now() + durationMinutes * 60_000),
-  }).returning()
-  const giveaway = inserted[0]
+  const claim = await getFreeCaseClaimStatus(userId)
+  const giveaway = await db.transaction(async (tx) => {
+    const prize = (await tx.select({
+      id: inventory.id,
+      name: gifts.name,
+      source: inventory.source,
+    }).from(inventory)
+      .innerJoin(gifts, eq(inventory.giftId, gifts.id))
+      .where(and(eq(inventory.id, inventoryId), eq(inventory.userId, userId), eq(inventory.status, "owned")))
+      .limit(1))[0]
+    if (!prize) throw new Error("This NFT gift is no longer available")
+    assertFreeCaseGiftUnlocked(prize.source, claim.ready)
+
+    const locked = await tx.update(inventory).set({ status: "giveaway_locked" }).where(and(
+      eq(inventory.id, inventoryId),
+      eq(inventory.userId, userId),
+      eq(inventory.status, "owned"),
+    )).returning({ id: inventory.id })
+    if (!locked[0]) throw new Error("This NFT gift is already in use")
+
+    return (await tx.insert(giveaways).values({
+      ownerUserId: userId,
+      channelId,
+      inventoryId,
+      title,
+      body,
+      prizeText: prize.name,
+      ticketPrice: ticketPrice.toFixed(2),
+      winnerCount: 1,
+      maxTicketsPerUser: maxTickets,
+      status: "draft",
+      endsAt: new Date(Date.now() + durationMinutes * 60_000),
+    }).returning())[0]
+  })
   const post = await telegramCall<{ message_id: number }>("sendMessage", {
     chat_id: channel.chatId,
     text: giveawayPostText({ ...giveaway, status: "active" }),
@@ -167,7 +215,14 @@ export async function createGiveaway(input: {
     reply_markup: giveawayKeyboard({ ...giveaway, status: "active" }),
   })
   if (!post.ok || !post.result?.message_id) {
-    await db.update(giveaways).set({ status: "failed" }).where(eq(giveaways.id, giveaway.id))
+    await db.transaction(async (tx) => {
+      await tx.update(giveaways).set({ status: "failed" }).where(eq(giveaways.id, giveaway.id))
+      await tx.update(inventory).set({ status: "owned" }).where(and(
+        eq(inventory.id, inventoryId),
+        eq(inventory.userId, userId),
+        eq(inventory.status, "giveaway_locked"),
+      ))
+    })
     throw new Error(post.description || "Telegram could not publish the giveaway")
   }
 
@@ -182,11 +237,6 @@ export async function finishGiveaway(giveawayId: number) {
   if (!giveaway || giveaway.status !== "active") throw new Error("Active giveaway not found")
   await settleGiveaway(giveaway.id)
   revalidatePath("/giveaways")
-}
-
-export async function getGiveawayOpenAppUrl() {
-  await requireUserId()
-  return `${appUrl()}/giveaways`
 }
 
 function publicError(error: unknown) {

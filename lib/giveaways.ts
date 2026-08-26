@@ -3,7 +3,8 @@ import "server-only"
 import crypto from "node:crypto"
 import { and, asc, eq, inArray, lte, sql } from "drizzle-orm"
 import { db } from "@/lib/db"
-import { giveawayChannels, giveawayEntries, giveaways, transactions, users } from "@/lib/db/schema"
+import { giveawayChannels, giveawayEntries, giveaways, inventory, transactions, users } from "@/lib/db/schema"
+import { notifyUser } from "@/lib/telegram-gifts"
 
 const token = process.env.TELEGRAM_BOT_TOKEN
 
@@ -29,14 +30,6 @@ export async function resolveBotUsername() {
   if (configured) return configured
   const bot = await telegramCall<{ username?: string }>("getMe", {})
   return bot.ok && bot.result?.username ? bot.result.username : botUsername()
-}
-
-export function appUrl() {
-  const explicit = process.env.TELEGRAM_WEBAPP_URL || process.env.NEXT_PUBLIC_APP_URL
-  if (explicit) return explicit.startsWith("http") ? explicit : `https://${explicit}`
-  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`
-  return "https://t.me"
 }
 
 function escapeHtml(value: string) {
@@ -85,16 +78,13 @@ export function giveawayPostText(giveaway: GiveawayPost, winnerNames: { id: stri
 }
 
 export function giveawayKeyboard(giveaway: Pick<GiveawayPost, "id" | "ticketPrice" | "status">) {
-  if (giveaway.status !== "active") return { inline_keyboard: [[{ text: "🏁 Giveaway finished", url: `${appUrl()}/giveaways` }]] }
+  if (giveaway.status !== "active") return { inline_keyboard: [] }
   const price = Number(giveaway.ticketPrice)
   return {
-    inline_keyboard: [
-      [{
-        text: price > 0 ? `🎟 Buy ticket · ⭐ ${formatStars(price)}` : "🎟 Participate for free",
-        callback_data: `gw_join:${giveaway.id}`,
-      }],
-      [{ text: "🎁 Open PugGift", url: `${appUrl()}/giveaways` }],
-    ],
+    inline_keyboard: [[{
+      text: price > 0 ? `🎟 Buy ticket · ⭐ ${formatStars(price)}` : "🎟 Participate for free",
+      url: `https://t.me/${botUsername()}?startapp=giveaway_${giveaway.id}`,
+    }]],
   }
 }
 
@@ -239,6 +229,20 @@ export async function settleGiveaway(giveawayId: number) {
     const winnerIds = pickWeightedWinners(entries, giveaway.winnerCount)
     await tx.update(giveaways).set({ status: "completed", winnerUserIds: winnerIds, settledAt: new Date() }).where(eq(giveaways.id, giveawayId))
 
+    if (giveaway.inventoryId) {
+      const winnerId = winnerIds[0]
+      const movedPrize = await tx.update(inventory).set({
+        userId: winnerId || giveaway.ownerUserId,
+        status: "owned",
+        source: winnerId ? "giveaway" : "giveaway-returned",
+      }).where(and(
+        eq(inventory.id, giveaway.inventoryId),
+        eq(inventory.userId, giveaway.ownerUserId),
+        eq(inventory.status, "giveaway_locked"),
+      )).returning({ id: inventory.id })
+      if (!movedPrize[0]) throw new Error("Giveaway NFT prize is not locked")
+    }
+
     const pot = Number(giveaway.pot)
     if (pot > 0) {
       await tx.update(users).set({ balance: sql`${users.balance} + ${pot}` }).where(eq(users.id, giveaway.ownerUserId))
@@ -274,6 +278,9 @@ export async function settleGiveaway(giveawayId: number) {
       link_preview_options: { is_disabled: true },
       reply_markup: giveawayKeyboard(settled.giveaway),
     })
+  }
+  if (settled.winnerIds[0]) {
+    await notifyUser(settled.winnerIds[0], `🎉 <b>You won ${escapeHtml(settled.giveaway.prizeText)}!</b>\n\nThe NFT gift is already in your PugGift profile.`)
   }
   return { winnerIds: settled.winnerIds }
 }

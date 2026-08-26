@@ -49,6 +49,11 @@ export function UserProvider({ children }: { children: ReactNode }) {
           return
         }
         setAuthState("ready")
+        const startParam = new URLSearchParams(initData).get("start_param") || ""
+        const giveawayMatch = startParam.match(/^giveaway_([0-9]{1,12})$/)
+        if (giveawayMatch && window.location.pathname !== "/giveaways") {
+          window.location.replace(`/giveaways?giveaway=${giveawayMatch[1]}`)
+        }
       })
       .catch(() => setAuthState("telegram-required"))
   }, [])

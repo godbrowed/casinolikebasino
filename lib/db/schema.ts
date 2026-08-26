@@ -160,6 +160,7 @@ export const giveaways = pgTable("giveaways", {
   id: serial("id").primaryKey(),
   ownerUserId: text("owner_user_id").notNull(),
   channelId: integer("channel_id").notNull(),
+  inventoryId: integer("inventory_id"),
   title: text("title").notNull(),
   body: text("body").notNull(),
   prizeText: text("prize_text").notNull(),

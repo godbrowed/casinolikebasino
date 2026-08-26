@@ -47,10 +47,10 @@ export const settleCrashApi = (token: string) =>
     body: JSON.stringify({ action: "settle", token }),
   })
 
-export const startGiftCrashApi = (inventoryId: number) =>
+export const startGiftCrashApi = (inventoryIds: number[]) =>
   api<{ token: string; startTime: number; stakeValue: number }>("/api/crash/gift-action", {
     method: "POST",
-    body: JSON.stringify({ action: "start", inventoryId }),
+    body: JSON.stringify({ action: "start", inventoryIds }),
   })
 
 export const cashoutGiftCrashApi = (token: string) =>

@@ -27,7 +27,7 @@ export async function getMe() {
   }
 }
 
-export async function getInventory(includeLocked = false) {
+export async function getInventory(includeLocked = false, includePending = false) {
   const userId = await requireUserId()
   const claim = await getFreeCaseClaimStatus(userId, false)
   const rows = await db
@@ -48,7 +48,7 @@ export async function getInventory(includeLocked = false) {
     .innerJoin(gifts, eq(inventory.giftId, gifts.id))
     .where(and(
       eq(inventory.userId, userId),
-      or(eq(inventory.status, "owned"), eq(inventory.status, "withdraw_pending")),
+      includePending ? or(eq(inventory.status, "owned"), eq(inventory.status, "withdraw_pending")) : eq(inventory.status, "owned"),
       includeLocked || claim.ready ? sql`true` : sql`${inventory.source} <> 'free-case'`,
     ))
     .orderBy(desc(inventory.value), desc(inventory.createdAt))

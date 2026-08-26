@@ -172,6 +172,7 @@ export const giveaways = pgTable("giveaways", {
   ownerUserId: text("owner_user_id").notNull(),
   channelId: integer("channel_id").notNull(),
   inventoryId: integer("inventory_id"),
+  inventoryIds: jsonb("inventory_ids"),
   title: text("title").notNull(),
   body: text("body").notNull(),
   photoFileId: text("photo_file_id"),

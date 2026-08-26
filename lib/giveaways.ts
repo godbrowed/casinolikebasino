@@ -277,18 +277,19 @@ export async function settleGiveaway(giveawayId: number) {
     const winnerIds = pickWeightedWinners(entries, giveaway.winnerCount)
     await tx.update(giveaways).set({ status: "completed", winnerUserIds: winnerIds, settledAt: new Date() }).where(eq(giveaways.id, giveawayId))
 
-    if (giveaway.inventoryId) {
+    const prizeIds = Array.isArray(giveaway.inventoryIds) ? giveaway.inventoryIds.map(Number).filter(Number.isSafeInteger) : giveaway.inventoryId ? [giveaway.inventoryId] : []
+    if (prizeIds.length) {
       const winnerId = winnerIds[0]
       const movedPrize = await tx.update(inventory).set({
         userId: winnerId || giveaway.ownerUserId,
         status: "owned",
         source: winnerId ? "giveaway" : "giveaway-returned",
       }).where(and(
-        eq(inventory.id, giveaway.inventoryId),
+        inArray(inventory.id, prizeIds),
         eq(inventory.userId, giveaway.ownerUserId),
         eq(inventory.status, "giveaway_locked"),
       )).returning({ id: inventory.id })
-      if (!movedPrize[0]) throw new Error("Giveaway NFT prize is not locked")
+      if (movedPrize.length !== prizeIds.length) throw new Error("Giveaway NFT prizes are not locked")
     }
 
     const pot = Number(giveaway.pot)

@@ -3,8 +3,8 @@ import { cashoutGiftCrash, settleGiftBust, startGiftCrash } from "@/app/actions/
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json() as { action?: string; inventoryId?: number; token?: string }
-    if (body.action === "start") return NextResponse.json(await startGiftCrash(Number(body.inventoryId)))
+    const body = await request.json() as { action?: string; inventoryIds?: number[]; token?: string }
+    if (body.action === "start") return NextResponse.json(await startGiftCrash(body.inventoryIds ?? []))
     if (body.action === "cashout" && body.token) return NextResponse.json(await cashoutGiftCrash(body.token))
     if (body.action === "settle" && body.token) {
       await settleGiftBust(body.token)

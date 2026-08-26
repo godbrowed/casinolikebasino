@@ -69,7 +69,7 @@ export function GiftCrashGame() {
     haptic("medium")
     playGameSound("bet")
     try {
-      const result = await startGiftCrashApi(selected.id)
+      const result = await startGiftCrashApi([selected.id])
       tokenRef.current = result.token
       setLocalPhase("queued")
       mutateBoard()

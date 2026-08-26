@@ -18,7 +18,7 @@ type Item = { id: number; name: string; rarity: string; imageUrl: string; value:
 export function UpgradeGame({ inventory, targets }: { inventory: Item[]; targets: Item[] }) {
   const router = useRouter()
   const { refresh } = useUser()
-  const [source, setSource] = useState<Item | null>(inventory[0] ?? null)
+  const [sources, setSources] = useState<Item[]>(inventory[0] ? [inventory[0]] : [])
   const [target, setTarget] = useState<Item | null>(null)
   const [spinning, setSpinning] = useState(false)
   const [wheelAnimating, setWheelAnimating] = useState(false)
@@ -27,6 +27,7 @@ export function UpgradeGame({ inventory, targets }: { inventory: Item[]; targets
   const [error, setError] = useState<string | null>(null)
   const [pickerMode, setPickerMode] = useState<"source" | "target">(inventory.length ? "target" : "source")
 
+  const source = useMemo<Item | null>(() => sources.length ? { ...sources[0], name: sources.length > 1 ? `${sources.length} gifts` : sources[0].name, value: sources.reduce((sum, item) => sum + item.value, 0) } : null, [sources])
   const chance = useMemo(() => (!source || !target ? 0 : upgradeChance(source.value, target.value)), [source, target])
   const eligibleTargets = useMemo(() => targets.filter((item) => !source || item.value > source.value), [targets, source])
   const multiplier = source && target ? target.value / source.value : 0
@@ -48,7 +49,7 @@ export function UpgradeGame({ inventory, targets }: { inventory: Item[]; targets
     haptic("medium")
     playGameSound("bet")
     try {
-      const result = await upgradeGift(source.id, target.id)
+      const result = await upgradeGift(sources.map((item) => item.id), target.id)
       const winDegrees = chance * 360
       const landing = result.success
         ? Math.max(2, Math.random() * Math.max(3, winDegrees - 4))
@@ -66,10 +67,10 @@ export function UpgradeGame({ inventory, targets }: { inventory: Item[]; targets
         hapticNotify(result.success ? "success" : "error")
         playGameSound(result.success ? "cashout" : "crash")
         if (result.success) {
-          setSource({ ...result.target, id: source.id })
+          setSources([{ ...result.target, id: sources[0].id }])
           setPickerMode("target")
         } else {
-          setSource(null)
+          setSources([])
           setPickerMode("source")
         }
         setTarget(null)
@@ -122,14 +123,13 @@ export function UpgradeGame({ inventory, targets }: { inventory: Item[]; targets
               <button onClick={() => setPickerMode("source")} disabled={spinning} className={cn("rounded-[14px] px-3 py-2 text-[10px] font-black transition", pickerMode === "source" ? "bg-white text-[#174699] shadow-sm" : "text-white/45")}>Your gift · {inventory.length}</button>
               <button onClick={() => source && setPickerMode("target")} disabled={!source || spinning} className={cn("rounded-[14px] px-3 py-2 text-[10px] font-black transition", pickerMode === "target" ? "bg-white text-[#174699] shadow-sm" : "text-white/45", !source && "opacity-35")}>Target · {eligibleTargets.length}</button>
             </div>
-            {pickerMode === "source" ? <Picker title="Your collection" subtitle="Choose the gift you risk" items={inventory} activeId={source?.id} empty="No gifts available" onPick={(item) => {
+            {pickerMode === "source" ? <Picker title="Your collection" subtitle="Choose one or several gifts" items={inventory} activeIds={sources.map((item) => item.id)} empty="No gifts available" onPick={(item) => {
               if (spinning) return
               haptic("light")
-              setSource(item)
+              setSources((current) => current.some((entry) => entry.id === item.id) ? current.filter((entry) => entry.id !== item.id) : [...current, item])
               setTarget(null)
-              setPickerMode("target")
               resetFlight()
-            }} /> : <Picker title="Upgrade target" subtitle={source ? "Only more valuable gifts" : "Choose your gift first"} items={eligibleTargets} activeId={target?.id} empty="No target available" onPick={(item) => {
+            }} /> : <Picker title="Upgrade target" subtitle={source ? "Only more valuable gifts" : "Choose your gift first"} items={eligibleTargets} activeIds={target ? [target.id] : []} empty="No target available" onPick={(item) => {
               if (spinning) return
               haptic("light")
               setTarget(item)
@@ -199,13 +199,14 @@ function GiftHero({ title, hint, item }: { title: string; hint: string; item: It
   </div>
 }
 
-function Picker({ title, subtitle, items, activeId, empty, onPick }: { title: string; subtitle: string; items: Item[]; activeId?: number; empty: string; onPick: (item: Item) => void }) {
+function Picker({ title, subtitle, items, activeIds, empty, onPick }: { title: string; subtitle: string; items: Item[]; activeIds: number[]; empty: string; onPick: (item: Item) => void }) {
   return <div className="min-w-0">
     <div className="mb-2 flex items-end justify-between gap-3 px-1"><div><h2 className="text-xs font-black">{title}</h2><p className="text-[9px] font-bold text-blue-100/40">{subtitle}</p></div><span className="text-[9px] font-black text-white/30">{items.length} GIFTS</span></div>
     {items.length === 0 ? <p className="rounded-[18px] bg-white/6 py-4 text-center text-[10px] font-bold text-white/35">{empty}</p> : <div className="no-scrollbar flex gap-2 overflow-x-auto px-0.5 pb-1 pt-0.5">{items.map((item) => {
       const rarity = rarityOf(item.rarity)
-      return <button key={item.id} onClick={() => onPick(item)} className={cn("relative flex w-[78px] shrink-0 flex-col items-center rounded-[19px] bg-white/[.055] p-2 ring-1 transition active:scale-95 md:w-[88px]", activeId === item.id ? "bg-[#2f70ff]/28 ring-2 ring-[#8eb0ff] shadow-[0_8px_22px_rgba(17,49,125,.45)]" : rarity.ring)}>
-        {activeId === item.id && <i className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_8px_#6ee7b7]" />}
+      const active = activeIds.includes(item.id)
+      return <button key={item.id} onClick={() => onPick(item)} className={cn("relative flex w-[78px] shrink-0 flex-col items-center rounded-[19px] bg-white/[.055] p-2 ring-1 transition active:scale-95 md:w-[88px]", active ? "bg-[#2f70ff]/28 ring-2 ring-[#8eb0ff] shadow-[0_8px_22px_rgba(17,49,125,.45)]" : rarity.ring)}>
+        {active && <i className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_8px_#6ee7b7]" />}
         <img src={item.imageUrl || "/images/nft-gift.png"} alt={item.name} className="h-12 w-12 object-contain drop-shadow-[0_7px_8px_rgba(3,11,35,.45)]" />
         <span className={cn("mt-1 w-full truncate text-[9px] font-black", rarity.text)}>{item.name}</span>
         <span className="mt-1 flex items-center gap-1 rounded-full bg-white/8 px-2 py-0.5 font-mono text-[9px] font-bold text-white/55"><Coin className="h-2.5 w-2.5" />{fmt(item.value)}</span>

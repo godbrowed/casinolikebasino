@@ -1,6 +1,6 @@
 "use server"
 
-import { and, desc, eq, inArray, isNotNull, or } from "drizzle-orm"
+import { and, desc, eq, inArray, isNotNull, or, sql } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { db } from "@/lib/db"
 import { giveawayChannels, giveawayEntries, giveawayRequiredChannels, giveaways, gifts, inventory, users } from "@/lib/db/schema"
@@ -154,8 +154,8 @@ export async function joinGiveaway(giveawayId: number) {
 }
 
 export async function createGiveaway(input: {
-  channelId: number
-  inventoryId: number
+  channelUsername: string
+  inventoryIds: number[]
   requiredChannelIds: number[]
   title: string
   body: string
@@ -165,8 +165,8 @@ export async function createGiveaway(input: {
   maxTicketsPerUser?: number
 }) {
   const userId = await requireUserId()
-  const channelId = Number(input.channelId)
-  const inventoryId = Number(input.inventoryId)
+  const channelUsername = input.channelUsername?.trim().replace(/^@+/, "").toLowerCase()
+  const inventoryIds = [...new Set((input.inventoryIds || []).map(Number))]
   const requiredChannelIds = [...new Set((input.requiredChannelIds || []).map(Number))]
   const title = input.title?.trim()
   const body = input.body?.trim() ?? ""
@@ -175,8 +175,8 @@ export async function createGiveaway(input: {
   const durationMinutes = Number(input.durationMinutes)
   const maxTickets = ticketPrice > 0 ? Number(input.maxTicketsPerUser || 100) : 1
 
-  if (!Number.isSafeInteger(channelId) || channelId <= 0) throw new Error("Choose a channel")
-  if (!Number.isSafeInteger(inventoryId) || inventoryId <= 0) throw new Error("Choose an NFT gift from your profile")
+  if (!/^[a-zA-Z0-9_]{5,32}$/.test(channelUsername)) throw new Error("Enter a valid public channel username")
+  if (!inventoryIds.length || inventoryIds.length > 20 || inventoryIds.some((id) => !Number.isSafeInteger(id) || id <= 0)) throw new Error("Choose one or several NFT gifts")
   if (requiredChannelIds.length > 10 || requiredChannelIds.some((id) => !Number.isSafeInteger(id) || id <= 0)) throw new Error("Choose valid required channels")
   if (!title || title.length > 80) throw new Error("Title must contain 1–80 characters")
   if (body.length > 1200) throw new Error("Text must contain up to 1,200 characters")
@@ -186,7 +186,7 @@ export async function createGiveaway(input: {
   if (!Number.isSafeInteger(maxTickets) || maxTickets < 1 || maxTickets > 1000) throw new Error("Invalid ticket limit")
 
   const channel = (await db.select().from(giveawayChannels).where(and(
-    eq(giveawayChannels.id, channelId),
+    sql`lower(${giveawayChannels.username}) = ${channelUsername}`,
     eq(giveawayChannels.ownerUserId, userId),
     eq(giveawayChannels.active, true),
     eq(giveawayChannels.canPostMessages, true),
@@ -204,31 +204,31 @@ export async function createGiveaway(input: {
 
   const claim = await getFreeCaseClaimStatus(userId)
   const giveaway = await db.transaction(async (tx) => {
-    const prize = (await tx.select({
+    const prizes = await tx.select({
       id: inventory.id,
       name: gifts.name,
       source: inventory.source,
     }).from(inventory)
       .innerJoin(gifts, eq(inventory.giftId, gifts.id))
-      .where(and(eq(inventory.id, inventoryId), eq(inventory.userId, userId), eq(inventory.status, "owned")))
-      .limit(1))[0]
-    if (!prize) throw new Error("This NFT gift is no longer available")
-    assertFreeCaseGiftUnlocked(prize.source, claim.ready)
+      .where(and(inArray(inventory.id, inventoryIds), eq(inventory.userId, userId), eq(inventory.status, "owned")))
+    if (prizes.length !== inventoryIds.length) throw new Error("One of these NFT gifts is no longer available")
+    prizes.forEach((prize) => assertFreeCaseGiftUnlocked(prize.source, claim.ready))
 
     const locked = await tx.update(inventory).set({ status: "giveaway_locked" }).where(and(
-      eq(inventory.id, inventoryId),
+      inArray(inventory.id, inventoryIds),
       eq(inventory.userId, userId),
       eq(inventory.status, "owned"),
     )).returning({ id: inventory.id })
-    if (!locked[0]) throw new Error("This NFT gift is already in use")
+    if (locked.length !== inventoryIds.length) throw new Error("One of these NFT gifts is already in use")
 
     const created = (await tx.insert(giveaways).values({
       ownerUserId: userId,
-      channelId,
-      inventoryId,
+      channelId: channel.id,
+      inventoryId: inventoryIds[0],
+      inventoryIds,
       title,
       body,
-      prizeText: prize.name,
+      prizeText: prizes.length === 1 ? prizes[0].name : `${prizes.length} NFT gifts: ${prizes.map((prize) => prize.name).join(", ")}`,
       ticketPrice: ticketPrice.toFixed(2),
       winnerCount: 1,
       maxTicketsPerUser: maxTickets,
@@ -254,7 +254,7 @@ export async function createGiveaway(input: {
     await db.transaction(async (tx) => {
       await tx.update(giveaways).set({ status: "failed" }).where(eq(giveaways.id, giveaway.id))
       await tx.update(inventory).set({ status: "owned" }).where(and(
-        eq(inventory.id, inventoryId),
+        inArray(inventory.id, inventoryIds),
         eq(inventory.userId, userId),
         eq(inventory.status, "giveaway_locked"),
       ))

@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic"
 export default async function ProfilePage() {
   const me = await getMe().catch(() => null)
   const freeCaseClaim = me ? await getFreeCaseClaimStatus(me.id).catch(() => null) : null
-  const [inventoryResult, historyResult, referralResult] = await Promise.allSettled([getInventory(true), getHistory(), me ? getReferralDashboard(me.id) : Promise.resolve(null)])
+  const [inventoryResult, historyResult, referralResult] = await Promise.allSettled([getInventory(true, true), getHistory(), me ? getReferralDashboard(me.id) : Promise.resolve(null)])
   const inventory = inventoryResult.status === "fulfilled" ? inventoryResult.value : []
   const history = historyResult.status === "fulfilled" ? historyResult.value : []
   const referral = referralResult.status === "fulfilled" ? referralResult.value : null

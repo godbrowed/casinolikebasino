@@ -1,7 +1,7 @@
 "use server"
 
 import crypto from "crypto"
-import { and, desc, eq, gte, sql } from "drizzle-orm"
+import { and, desc, eq, gte, inArray, sql } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { db } from "@/lib/db"
 import { users, gameHistory, inventory, gifts } from "@/lib/db/schema"
@@ -204,7 +204,7 @@ export async function settleCrashBust(token: string): Promise<void> {
 
 type GiftRound = {
   userId: string
-  inventoryId: number
+  inventoryIds: number[]
   stakeValue: number
   roundId: number
   startTime: number
@@ -257,7 +257,7 @@ export async function getCrashGifts(): Promise<OwnedGift[]> {
     .sort((a, b) => b.value - a.value)
 }
 
-export async function startGiftCrash(inventoryId: number): Promise<{
+export async function startGiftCrash(inventoryIds: number[]): Promise<{
   token: string
   startTime: number
   stakeValue: number
@@ -265,9 +265,10 @@ export async function startGiftCrash(inventoryId: number): Promise<{
   const userId = await requireUserId()
   const claim = await getFreeCaseClaimStatus(userId)
   if (crashRoundPhase() !== "betting") throw new Error("BETTING_CLOSED")
-  return db.transaction(async (tx) => {
-    const item = (
-      await tx
+  const uniqueIds = [...new Set(inventoryIds.map(Number))]
+  if (!uniqueIds.length || uniqueIds.length > 20 || uniqueIds.some((id) => !Number.isSafeInteger(id) || id <= 0)) throw new Error("Choose valid gifts")
+  const result = await db.transaction(async (tx) => {
+    const items = await tx
         .select({
           id: inventory.id,
           value: inventory.value,
@@ -279,19 +280,18 @@ export async function startGiftCrash(inventoryId: number): Promise<{
         })
         .from(inventory)
         .innerJoin(gifts, eq(inventory.giftId, gifts.id))
-        .where(and(eq(inventory.id, inventoryId), eq(inventory.userId, userId), eq(inventory.status, "owned")))
-        .limit(1)
-    )[0]
-    if (!item) throw new Error("Gift not found")
-    assertFreeCaseGiftUnlocked(item.source, claim.ready)
+        .where(and(inArray(inventory.id, uniqueIds), eq(inventory.userId, userId), eq(inventory.status, "owned")))
+    if (items.length !== uniqueIds.length) throw new Error("One of the gifts is no longer available")
+    items.forEach((item) => assertFreeCaseGiftUnlocked(item.source, claim.ready))
+    const item = items[0]
 
     // Lock the gift for the duration of the round.
-    await tx.update(inventory).set({ status: "wagered" }).where(eq(inventory.id, inventoryId))
+    await tx.update(inventory).set({ status: "wagered" }).where(inArray(inventory.id, uniqueIds))
 
     const startTime = sharedFlightStart()
     // Same 90% RTP for gift crash (payout is a real NFT).
     const roundId = sharedRoundId()
-    const stakeValue = giftValueInStars(item.value, item.floorTon)
+    const stakeValue = items.reduce((sum, gift) => sum + giftValueInStars(gift.value, gift.floorTon), 0)
     const history = await tx.insert(gameHistory).values({
       userId,
       game: "crash",
@@ -301,24 +301,26 @@ export async function startGiftCrash(inventoryId: number): Promise<{
         roundId,
         mode: "gift",
         status: "active",
-        giftName: item.name,
+        giftName: items.length > 1 ? `${items.length} gifts` : item.name,
         giftImage: item.imageUrl,
         giftRarity: item.rarity,
       },
     }).returning({ id: gameHistory.id })
     const token = signGiftRound({
       userId,
-      inventoryId,
+      inventoryIds: uniqueIds,
       stakeValue,
       roundId,
       startTime,
       historyId: history[0].id,
-      giftName: item.name,
+      giftName: items.length > 1 ? `${items.length} gifts` : item.name,
       giftImage: item.imageUrl,
       giftRarity: item.rarity,
     })
     return { token, startTime, stakeValue }
   })
+  await notifyAdmins(`🚀 <b>Ставка Gift Crash</b>\n\n👤 User: <code>${userId}</code>\n🎁 ${uniqueIds.length} NFT\n⭐ ${result.stakeValue.toLocaleString("en-US")}`)
+  return result
 }
 
 export async function cashoutGiftCrash(token: string): Promise<{
@@ -337,7 +339,7 @@ export async function cashoutGiftCrash(token: string): Promise<{
 
   if (current >= crashPoint) {
     // Bust — the wagered gift is lost.
-    await db.update(inventory).set({ status: "lost" }).where(eq(inventory.id, round.inventoryId))
+    await db.update(inventory).set({ status: "lost" }).where(inArray(inventory.id, round.inventoryIds))
     await db.update(gameHistory).set({ result: "0", meta: { roundId: round.roundId, mode: "gift", crashPoint, status: "bust", giftName: round.giftName, giftImage: round.giftImage, giftRarity: round.giftRarity } }).where(eq(gameHistory.id, round.historyId))
     revalidatePath("/profile")
     return { success: false, multiplier: crashPoint, crashPoint, gift: null }
@@ -364,7 +366,8 @@ export async function cashoutGiftCrash(token: string): Promise<{
     await tx
       .update(inventory)
       .set({ giftId: chosen.id, value: String(chosenValue), source: "crash", status: "owned" })
-      .where(eq(inventory.id, round.inventoryId))
+      .where(eq(inventory.id, round.inventoryIds[0]))
+    if (round.inventoryIds.length > 1) await tx.update(inventory).set({ status: "lost" }).where(inArray(inventory.id, round.inventoryIds.slice(1)))
 
     await tx.update(gameHistory).set({ result: String(chosenValue), meta: { roundId: round.roundId, mode: "gift", crashPoint, status: "cashed", multiplier: mult, giftName: chosen.name, giftImage: chosen.imageUrl, giftRarity: chosen.rarity } }).where(eq(gameHistory.id, round.historyId))
 
@@ -390,10 +393,10 @@ export async function settleGiftBust(token: string): Promise<void> {
   if (!round || round.userId !== userId) return
   // Only lose it if still wagered (avoid double-settle after cashout).
   const item = (
-    await db.select().from(inventory).where(eq(inventory.id, round.inventoryId)).limit(1)
+    await db.select().from(inventory).where(inArray(inventory.id, round.inventoryIds)).limit(1)
   )[0]
   if (!item || item.status !== "wagered") return
-  await db.update(inventory).set({ status: "lost" }).where(eq(inventory.id, round.inventoryId))
+  await db.update(inventory).set({ status: "lost" }).where(inArray(inventory.id, round.inventoryIds))
   await db.update(gameHistory).set({ result: "0", meta: { roundId: round.roundId, mode: "gift", crashPoint: rollCrashPoint(round.roundId), status: "bust", giftName: round.giftName, giftImage: round.giftImage, giftRarity: round.giftRarity } }).where(eq(gameHistory.id, round.historyId))
   revalidatePath("/profile")
 }

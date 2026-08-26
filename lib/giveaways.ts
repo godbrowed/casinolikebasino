@@ -3,7 +3,7 @@ import "server-only"
 import crypto from "node:crypto"
 import { and, asc, eq, inArray, lte, sql } from "drizzle-orm"
 import { db } from "@/lib/db"
-import { giveawayChannels, giveawayEntries, giveaways, inventory, transactions, users } from "@/lib/db/schema"
+import { giveawayChannels, giveawayEntries, giveawayRequiredChannels, giveaways, inventory, transactions, users } from "@/lib/db/schema"
 import { notifyUser } from "@/lib/telegram-gifts"
 
 const token = process.env.TELEGRAM_BOT_TOKEN
@@ -51,6 +51,7 @@ export type GiveawayPost = {
   participantCount: number
   ticketCount: number
   status: string
+  requiredChannels?: Array<{ title: string; username: string | null }>
 }
 
 export function giveawayPostText(giveaway: GiveawayPost, winnerNames: { id: string; name: string }[] = []) {
@@ -63,6 +64,9 @@ export function giveawayPostText(giveaway: GiveawayPost, winnerNames: { id: stri
     "",
     `🎁 <b>Prize:</b> ${escapeHtml(giveaway.prizeText)}`,
     `🏆 <b>Winners:</b> ${giveaway.winnerCount}`,
+    ...(giveaway.requiredChannels?.length
+      ? [`📣 <b>Required:</b> ${giveaway.requiredChannels.map((channel) => channel.username ? `@${escapeHtml(channel.username)}` : escapeHtml(channel.title)).join(", ")}`]
+      : []),
     paid ? `🎟 <b>Ticket:</b> ⭐ ${formatStars(Number(giveaway.ticketPrice))}` : "🎟 <b>Entry:</b> Free",
     `⏳ <b>Ends:</b> ${new Date(deadline * 1000).toISOString().replace("T", " ").slice(0, 16)} UTC`,
     "",
@@ -124,12 +128,50 @@ export async function registerGiveawayChannel(update: any) {
 
 export type JoinGiveawayResult = { ok: boolean; message: string; showAlert?: boolean }
 
+async function requiredChannelsForGiveaway(giveawayId: number) {
+  return db.select({
+    title: giveawayChannels.title,
+    username: giveawayChannels.username,
+    chatId: giveawayChannels.chatId,
+  }).from(giveawayRequiredChannels)
+    .innerJoin(giveawayChannels, eq(giveawayRequiredChannels.channelId, giveawayChannels.id))
+    .where(eq(giveawayRequiredChannels.giveawayId, giveawayId))
+}
+
+async function missingRequiredSubscriptions(giveawayId: number, telegramUserId: number) {
+  const required = await requiredChannelsForGiveaway(giveawayId)
+  const checks = await Promise.all(required.map(async (channel) => {
+    let member: TelegramApiResult<{ status?: string; is_member?: boolean }>
+    try {
+      member = await telegramCall<{ status?: string; is_member?: boolean }>("getChatMember", {
+        chat_id: channel.chatId,
+        user_id: telegramUserId,
+      })
+    } catch {
+      member = { ok: false }
+    }
+    const status = member.result?.status || ""
+    const subscribed = member.ok && (status === "member" || status === "administrator" || status === "creator" || (status === "restricted" && member.result?.is_member === true))
+    return subscribed ? null : channel
+  }))
+  return checks.filter((channel): channel is NonNullable<typeof channel> => channel !== null)
+}
+
 export async function joinGiveawayFromCallback(input: {
   giveawayId: number
   telegramUser: { id: number; username?: string; first_name?: string; last_name?: string; photo_url?: string }
 }): Promise<JoinGiveawayResult> {
   const { giveawayId, telegramUser } = input
   if (!Number.isSafeInteger(giveawayId) || giveawayId <= 0) return { ok: false, message: "Giveaway not found", showAlert: true }
+
+  const missingChannels = await missingRequiredSubscriptions(giveawayId, telegramUser.id)
+  if (missingChannels.length) {
+    return {
+      ok: false,
+      message: `Subscribe first: ${missingChannels.map((channel) => channel.username ? `@${channel.username}` : channel.title).join(", ")}`,
+      showAlert: true,
+    }
+  }
 
   const result = await db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(519411, ${giveawayId})`)
@@ -192,10 +234,11 @@ export async function refreshGiveawayPost(giveawayId: number) {
     .where(eq(giveaways.id, giveawayId)).limit(1)
   const row = rows[0]
   if (!row?.giveaway.postMessageId) return
+  const requiredChannels = await requiredChannelsForGiveaway(giveawayId)
   await telegramCall("editMessageText", {
     chat_id: row.channel.chatId,
     message_id: row.giveaway.postMessageId,
-    text: giveawayPostText(row.giveaway),
+    text: giveawayPostText({ ...row.giveaway, requiredChannels }),
     parse_mode: "HTML",
     link_preview_options: { is_disabled: true },
     reply_markup: giveawayKeyboard(row.giveaway),
@@ -270,10 +313,11 @@ export async function settleGiveaway(giveawayId: number) {
     return { id, name: winner?.firstName || (winner?.username ? `@${winner.username}` : "Winner") }
   })
   if (row?.channel && settled.giveaway.postMessageId) {
+    const requiredChannels = await requiredChannelsForGiveaway(giveawayId)
     await telegramCall("editMessageText", {
       chat_id: row.channel.chatId,
       message_id: settled.giveaway.postMessageId,
-      text: giveawayPostText(settled.giveaway, winnerNames),
+      text: giveawayPostText({ ...settled.giveaway, requiredChannels }, winnerNames),
       parse_mode: "HTML",
       link_preview_options: { is_disabled: true },
       reply_markup: giveawayKeyboard(settled.giveaway),

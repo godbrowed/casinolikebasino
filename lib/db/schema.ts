@@ -188,3 +188,11 @@ export const giveawayEntries = pgTable("giveaway_entries", {
 }, (table) => ({
   giveawayUserUnique: uniqueIndex("giveaway_entries_giveaway_user_unique").on(table.giveawayId, table.userId),
 }))
+
+export const giveawayRequiredChannels = pgTable("giveaway_required_channels", {
+  id: serial("id").primaryKey(),
+  giveawayId: integer("giveaway_id").notNull(),
+  channelId: integer("channel_id").notNull(),
+}, (table) => ({
+  giveawayChannelUnique: uniqueIndex("giveaway_required_channels_unique").on(table.giveawayId, table.channelId),
+}))

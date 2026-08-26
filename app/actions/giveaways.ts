@@ -1,9 +1,9 @@
 "use server"
 
-import { and, desc, eq, isNotNull, or } from "drizzle-orm"
+import { and, desc, eq, inArray, isNotNull, or } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { db } from "@/lib/db"
-import { giveawayChannels, giveawayEntries, giveaways, gifts, inventory, users } from "@/lib/db/schema"
+import { giveawayChannels, giveawayEntries, giveawayRequiredChannels, giveaways, gifts, inventory, users } from "@/lib/db/schema"
 import { requireUserId } from "@/lib/session"
 import { giveawayKeyboard, giveawayPostText, joinGiveawayFromCallback, resolveBotUsername, settleExpiredGiveaways, settleGiveaway, telegramCall } from "@/lib/giveaways"
 import { assertFreeCaseGiftUnlocked, getFreeCaseClaimStatus } from "@/lib/free-case-referrals"
@@ -45,6 +45,7 @@ export type GiveawayDashboard = {
     channelUrl: string | null
     myTickets: number
     isOwner: boolean
+    requiredChannels: Array<{ title: string; username: string | null; url: string | null }>
   }>
 }
 
@@ -71,6 +72,14 @@ export async function getGiveawayDashboard(): Promise<GiveawayDashboard> {
     .orderBy(desc(giveaways.createdAt))
     .limit(100)
   const username = await resolveBotUsername()
+  const giveawayIds = rows.map(({ giveaway }) => giveaway.id)
+  const requiredRows = giveawayIds.length ? await db.select({
+    giveawayId: giveawayRequiredChannels.giveawayId,
+    title: giveawayChannels.title,
+    username: giveawayChannels.username,
+  }).from(giveawayRequiredChannels)
+    .innerJoin(giveawayChannels, eq(giveawayRequiredChannels.channelId, giveawayChannels.id))
+    .where(inArray(giveawayRequiredChannels.giveawayId, giveawayIds)) : []
   const availableRows = await db.select({
     inventoryId: inventory.id,
     name: gifts.name,
@@ -115,6 +124,11 @@ export async function getGiveawayDashboard(): Promise<GiveawayDashboard> {
       channelUrl: channelUsername && giveaway.postMessageId ? `https://t.me/${channelUsername}/${giveaway.postMessageId}` : null,
       myTickets: Number(myTickets ?? 0),
       isOwner: giveaway.ownerUserId === userId,
+      requiredChannels: requiredRows.filter((required) => required.giveawayId === giveaway.id).map((required) => ({
+        title: required.title,
+        username: required.username,
+        url: required.username ? `https://t.me/${required.username}` : null,
+      })),
     })),
   }
 }
@@ -142,6 +156,7 @@ export async function joinGiveaway(giveawayId: number) {
 export async function createGiveaway(input: {
   channelId: number
   inventoryId: number
+  requiredChannelIds: number[]
   title: string
   body: string
   ticketPrice: number
@@ -151,6 +166,7 @@ export async function createGiveaway(input: {
   const userId = await requireUserId()
   const channelId = Number(input.channelId)
   const inventoryId = Number(input.inventoryId)
+  const requiredChannelIds = [...new Set((input.requiredChannelIds || []).map(Number))]
   const title = input.title?.trim()
   const body = input.body?.trim()
   const ticketPrice = Number(input.ticketPrice)
@@ -159,6 +175,7 @@ export async function createGiveaway(input: {
 
   if (!Number.isSafeInteger(channelId) || channelId <= 0) throw new Error("Choose a channel")
   if (!Number.isSafeInteger(inventoryId) || inventoryId <= 0) throw new Error("Choose an NFT gift from your profile")
+  if (requiredChannelIds.length > 10 || requiredChannelIds.some((id) => !Number.isSafeInteger(id) || id <= 0)) throw new Error("Choose valid required channels")
   if (!title || title.length > 80) throw new Error("Title must contain 1–80 characters")
   if (!body || body.length > 1200) throw new Error("Text must contain 1–1,200 characters")
   if (!Number.isFinite(ticketPrice) || ticketPrice < 0 || ticketPrice > 100_000) throw new Error("Invalid ticket price")
@@ -172,6 +189,15 @@ export async function createGiveaway(input: {
     eq(giveawayChannels.canPostMessages, true),
   )).limit(1))[0]
   if (!channel) throw new Error("The channel is not connected or the bot cannot post")
+
+  const requiredChannels = requiredChannelIds.length ? await db.select().from(giveawayChannels).where(and(
+    eq(giveawayChannels.ownerUserId, userId),
+    eq(giveawayChannels.active, true),
+    eq(giveawayChannels.canPostMessages, true),
+    inArray(giveawayChannels.id, requiredChannelIds),
+  )) : []
+  if (requiredChannels.length !== requiredChannelIds.length) throw new Error("One of the required channels is not connected")
+  if (requiredChannels.some((requiredChannel) => !requiredChannel.username)) throw new Error("Required subscription channels must be public")
 
   const claim = await getFreeCaseClaimStatus(userId)
   const giveaway = await db.transaction(async (tx) => {
@@ -193,7 +219,7 @@ export async function createGiveaway(input: {
     )).returning({ id: inventory.id })
     if (!locked[0]) throw new Error("This NFT gift is already in use")
 
-    return (await tx.insert(giveaways).values({
+    const created = (await tx.insert(giveaways).values({
       ownerUserId: userId,
       channelId,
       inventoryId,
@@ -206,10 +232,17 @@ export async function createGiveaway(input: {
       status: "draft",
       endsAt: new Date(Date.now() + durationMinutes * 60_000),
     }).returning())[0]
+    if (requiredChannelIds.length) {
+      await tx.insert(giveawayRequiredChannels).values(requiredChannelIds.map((requiredChannelId) => ({
+        giveawayId: created.id,
+        channelId: requiredChannelId,
+      })))
+    }
+    return created
   })
   const post = await telegramCall<{ message_id: number }>("sendMessage", {
     chat_id: channel.chatId,
-    text: giveawayPostText({ ...giveaway, status: "active" }),
+    text: giveawayPostText({ ...giveaway, status: "active", requiredChannels }),
     parse_mode: "HTML",
     link_preview_options: { is_disabled: true },
     reply_markup: giveawayKeyboard({ ...giveaway, status: "active" }),

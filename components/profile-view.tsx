@@ -48,6 +48,7 @@ export function ProfileView({ me, inventory, history, freeCaseClaim }: { me: Me;
   const [busy, setBusy] = useState(false)
   const [withdrawing, setWithdrawing] = useState<number | null>(null)
   const [toast, setToast] = useState<string | null>(null)
+  const [showGiveawayTasks, setShowGiveawayTasks] = useState(false)
   const [view, setView] = useState<"collection" | "activity" | "wallet">("collection")
 
   const invValue = items.reduce((s, i) => s + i.value, 0)
@@ -73,7 +74,8 @@ export function ProfileView({ me, inventory, history, freeCaseClaim }: { me: Me;
       setTimeout(() => setToast(null), 4500)
     } catch (e) {
       const message = e instanceof Error ? e.message : "Withdraw failed"
-      setToast(message === "FREE_CASE_REFERRALS_REQUIRED" ? "Invite 3 Premium friends with an NFT gift to unlock this prize." : message)
+      if (message === "GIVEAWAY_WITHDRAW_REQUIREMENTS") setShowGiveawayTasks(true)
+      else setToast(message === "FREE_CASE_REFERRALS_REQUIRED" ? "Invite 3 Premium friends with an NFT gift to unlock this prize." : message)
       setTimeout(() => setToast(null), 4000)
     } finally {
       setWithdrawing(null)
@@ -126,6 +128,7 @@ export function ProfileView({ me, inventory, history, freeCaseClaim }: { me: Me;
           {toast}
         </div>
       )}
+      {showGiveawayTasks && <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 p-4 backdrop-blur-md"><div className="w-full max-w-sm rounded-[28px] bg-[#292d34] p-5 text-center ring-1 ring-white/10"><div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#3674ff]/15 text-3xl">🎁</div><h2 className="mt-4 font-display text-xl font-black">Complete withdrawal tasks</h2><p className="mt-2 text-xs leading-relaxed text-white/50">Before sending a giveaway NFT, share PugGift with one friend and subscribe to @PugGift — the same tasks as the Free Case.</p><Link href="/cases" onClick={() => setShowGiveawayTasks(false)} className="mt-5 flex min-h-12 items-center justify-center rounded-2xl bg-[#3674ff] text-sm font-black">Open Free Case tasks</Link><button onClick={() => setShowGiveawayTasks(false)} className="mt-2 w-full py-2 text-xs font-bold text-white/35">Not now</button></div></div>}
 
       <section className="relative overflow-hidden rounded-[34px] bg-[linear-gradient(145deg,#333842,#292c33)] p-5 shadow-[0_22px_55px_-38px_rgba(47,112,255,.8)] ring-1 ring-white/[.08] md:p-6">
         <div className="absolute -right-16 -top-20 h-64 w-64 rounded-full bg-[#2f70ff]/15 blur-3xl" />

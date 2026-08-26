@@ -10,6 +10,7 @@ import { relayerUsername } from "@/lib/telegram-gifts"
 import { giftValueInStars } from "@/lib/pricing"
 import { personalGiftRelayerReady, processPersonalGiftDeposits } from "@/lib/gift-deposits"
 import { assertFreeCaseGiftUnlocked, getFreeCaseClaimStatus } from "@/lib/free-case-referrals"
+import { freeCaseRequirements, resetFreeCaseProgress } from "@/lib/free-case"
 
 export type DepositGift = {
   slug: string
@@ -161,7 +162,19 @@ export async function cancelGiftDeposit(transactionId: number): Promise<void> {
  */
 export async function requestGiftWithdraw(inventoryId: number): Promise<{ ok: true }> {
   const userId = await requireUserId()
-  const claim = await getFreeCaseClaimStatus(userId)
+  const ruleItem = (await db.select({ source: inventory.source, status: inventory.status }).from(inventory).where(and(
+    eq(inventory.id, inventoryId),
+    eq(inventory.userId, userId),
+  )).limit(1))[0]
+  if (!ruleItem || ruleItem.status !== "owned") throw new Error("Gift is not available to withdraw")
+
+  const freeCaseClaimReady = ruleItem.source === "free-case"
+    ? (await getFreeCaseClaimStatus(userId)).ready
+    : true
+  const giveawayTasksReady = ruleItem.source === "giveaway"
+    ? (await freeCaseRequirements(userId)).ready
+    : true
+  if (!giveawayTasksReady) throw new Error("GIVEAWAY_WITHDRAW_REQUIREMENTS")
 
   await db.transaction(async (tx) => {
     const item = (
@@ -174,7 +187,7 @@ export async function requestGiftWithdraw(inventoryId: number): Promise<{ ok: tr
     )[0]
     if (!item) throw new Error("Gift not found")
     if (item.status !== "owned") throw new Error("Gift is not available to withdraw")
-    assertFreeCaseGiftUnlocked(item.source, claim.ready)
+    assertFreeCaseGiftUnlocked(item.source, freeCaseClaimReady)
 
     const gift = (await tx.select().from(gifts).where(eq(gifts.id, item.giftId)).limit(1))[0]
 
@@ -191,6 +204,8 @@ export async function requestGiftWithdraw(inventoryId: number): Promise<{ ok: tr
       meta: { inventoryId, giftId: item.giftId, giftSlug: gift?.slug, giftName: gift?.name },
     })
   })
+
+  if (ruleItem.source === "giveaway") await resetFreeCaseProgress(userId).catch(() => undefined)
 
   revalidatePath("/profile")
   return { ok: true }

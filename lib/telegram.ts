@@ -6,6 +6,8 @@ export type TelegramUser = {
   firstName: string | null
   photoUrl: string | null
   isDemo: boolean
+  isPremium: boolean
+  referrerId: string | null
 }
 
 /**
@@ -56,6 +58,10 @@ export function validateInitData(initData: string): TelegramUser | null {
       firstName: u.first_name ?? null,
       photoUrl: u.photo_url ?? null,
       isDemo: false,
+      isPremium: u.is_premium === true,
+      referrerId: /^ref_[0-9]{1,20}$/.test(params.get("start_param") || "")
+        ? (params.get("start_param") || "").slice(4)
+        : null,
     }
   } catch {
     return null
@@ -69,4 +75,6 @@ export const DEMO_USER: TelegramUser = {
   firstName: "Demo",
   photoUrl: null,
   isDemo: true,
+  isPremium: false,
+  referrerId: null,
 }

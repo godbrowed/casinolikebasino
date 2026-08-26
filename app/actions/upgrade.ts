@@ -7,6 +7,7 @@ import { inventory, gifts, gameHistory } from "@/lib/db/schema"
 import { requireUserId } from "@/lib/session"
 import { upgradeChance } from "@/lib/upgrade-shared"
 import { giftValueInStars } from "@/lib/pricing"
+import { assertFreeCaseGiftUnlocked, getFreeCaseClaimStatus } from "@/lib/free-case-referrals"
 
 export async function getUpgradeTargets(): Promise<
   { id: number; name: string; rarity: string; imageUrl: string; value: number }[]
@@ -32,6 +33,7 @@ export async function upgradeGift(
   target: { id: number; name: string; rarity: string; imageUrl: string; value: number }
 }> {
   const userId = await requireUserId()
+  const claim = await getFreeCaseClaimStatus(userId)
 
   return db.transaction(async (tx) => {
     const src = (
@@ -40,6 +42,7 @@ export async function upgradeGift(
           id: inventory.id,
           value: inventory.value,
           floorTon: gifts.floorTon,
+          source: inventory.source,
         })
         .from(inventory)
         .innerJoin(gifts, eq(inventory.giftId, gifts.id))
@@ -53,6 +56,7 @@ export async function upgradeGift(
         .limit(1)
     )[0]
     if (!src) throw new Error("Item not found")
+    assertFreeCaseGiftUnlocked(src.source, claim.ready)
 
     const target = (await tx.select().from(gifts).where(eq(gifts.id, targetGiftId)).limit(1))[0]
     if (!target) throw new Error("Target not found")

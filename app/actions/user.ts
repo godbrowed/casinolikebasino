@@ -7,6 +7,7 @@ import { users, inventory, gifts, gameHistory } from "@/lib/db/schema"
 import { requireUserId, getCurrentUser } from "@/lib/session"
 import { isAdminId } from "@/lib/admin"
 import { giftValueInStars } from "@/lib/pricing"
+import { assertFreeCaseGiftUnlocked, getFreeCaseClaimStatus } from "@/lib/free-case-referrals"
 
 export async function getMe() {
   const user = await getCurrentUser()
@@ -26,8 +27,9 @@ export async function getMe() {
   }
 }
 
-export async function getInventory() {
+export async function getInventory(includeLocked = false) {
   const userId = await requireUserId()
+  const claim = await getFreeCaseClaimStatus(userId, false)
   const rows = await db
     .select({
       id: inventory.id,
@@ -44,17 +46,22 @@ export async function getInventory() {
     })
     .from(inventory)
     .innerJoin(gifts, eq(inventory.giftId, gifts.id))
-    .where(and(eq(inventory.userId, userId), eq(inventory.status, "owned")))
+    .where(and(
+      eq(inventory.userId, userId),
+      eq(inventory.status, "owned"),
+      includeLocked || claim.ready ? sql`true` : sql`${inventory.source} <> 'free-case'`,
+    ))
     .orderBy(desc(inventory.value), desc(inventory.createdAt))
 
-  return rows.map(({ floorTon, ...r }) => ({ ...r, value: giftValueInStars(r.value, floorTon) }))
+  return rows.map(({ floorTon, ...r }) => ({ ...r, locked: r.source === "free-case" && !claim.ready, value: giftValueInStars(r.value, floorTon) }))
 }
 
 export async function sellGift(inventoryId: number) {
   const userId = await requireUserId()
+  const claim = await getFreeCaseClaimStatus(userId)
   return db.transaction(async (tx) => {
     const rows = await tx
-      .select({ id: inventory.id, value: inventory.value, floorTon: gifts.floorTon })
+      .select({ id: inventory.id, value: inventory.value, floorTon: gifts.floorTon, source: inventory.source })
       .from(inventory)
       .innerJoin(gifts, eq(inventory.giftId, gifts.id))
       .where(
@@ -67,6 +74,7 @@ export async function sellGift(inventoryId: number) {
       .limit(1)
     const item = rows[0]
     if (!item) throw new Error("Item not found")
+    assertFreeCaseGiftUnlocked(item.source, claim.ready)
     const currentValue = giftValueInStars(item.value, item.floorTon)
 
     await tx.update(inventory).set({ status: "sold" }).where(eq(inventory.id, inventoryId))
@@ -83,19 +91,28 @@ export async function sellGift(inventoryId: number) {
 
 export async function sellAll() {
   const userId = await requireUserId()
+  const claim = await getFreeCaseClaimStatus(userId)
   return db.transaction(async (tx) => {
     const owned = await tx
       .select({ id: inventory.id, value: inventory.value, floorTon: gifts.floorTon })
       .from(inventory)
       .innerJoin(gifts, eq(inventory.giftId, gifts.id))
-      .where(and(eq(inventory.userId, userId), eq(inventory.status, "owned")))
+      .where(and(
+        eq(inventory.userId, userId),
+        eq(inventory.status, "owned"),
+        claim.ready ? sql`true` : sql`${inventory.source} <> 'free-case'`,
+      ))
     if (owned.length === 0) return { balance: null, total: 0 }
 
     const total = owned.reduce((s, r) => s + giftValueInStars(r.value, r.floorTon), 0)
     await tx
       .update(inventory)
       .set({ status: "sold" })
-      .where(and(eq(inventory.userId, userId), eq(inventory.status, "owned")))
+      .where(and(
+        eq(inventory.userId, userId),
+        eq(inventory.status, "owned"),
+        claim.ready ? sql`true` : sql`${inventory.source} <> 'free-case'`,
+      ))
     const updated = await tx
       .update(users)
       .set({ balance: sql`${users.balance} + ${total}` })

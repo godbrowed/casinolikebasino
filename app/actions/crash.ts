@@ -9,6 +9,7 @@ import { requireUserId } from "@/lib/session"
 import { crashRoundPhase, CRASH_ROUND_MS, multiplierAtElapsed, sharedFlightStart, sharedRoundId, sharedRoundStart } from "@/lib/crash-shared"
 import { crashPointForRound as rollCrashPoint, crashSecret } from "@/lib/crash-server"
 import { giftValueInStars } from "@/lib/pricing"
+import { assertFreeCaseGiftUnlocked, getFreeCaseClaimStatus } from "@/lib/free-case-referrals"
 
 type RoundPayload = { userId: string; bet: number; roundId: number; startTime: number; historyId: number }
 
@@ -230,6 +231,7 @@ export async function getGiftImages(): Promise<string[]> {
 
 export async function getCrashGifts(): Promise<OwnedGift[]> {
   const userId = await requireUserId()
+  const claim = await getFreeCaseClaimStatus(userId, false)
   const rows = await db
     .select({
       id: inventory.id,
@@ -241,7 +243,11 @@ export async function getCrashGifts(): Promise<OwnedGift[]> {
     })
     .from(inventory)
     .innerJoin(gifts, eq(inventory.giftId, gifts.id))
-    .where(and(eq(inventory.userId, userId), eq(inventory.status, "owned")))
+    .where(and(
+      eq(inventory.userId, userId),
+      eq(inventory.status, "owned"),
+      claim.ready ? sql`true` : sql`${inventory.source} <> 'free-case'`,
+    ))
     .orderBy(sql`${inventory.value} desc`)
   return rows
     .map(({ floorTon, ...r }) => ({ ...r, value: giftValueInStars(r.value, floorTon) }))
@@ -254,6 +260,7 @@ export async function startGiftCrash(inventoryId: number): Promise<{
   stakeValue: number
 }> {
   const userId = await requireUserId()
+  const claim = await getFreeCaseClaimStatus(userId)
   if (crashRoundPhase() !== "betting") throw new Error("BETTING_CLOSED")
   return db.transaction(async (tx) => {
     const item = (
@@ -265,6 +272,7 @@ export async function startGiftCrash(inventoryId: number): Promise<{
           name: gifts.name,
           rarity: gifts.rarity,
           imageUrl: gifts.imageUrl,
+          source: inventory.source,
         })
         .from(inventory)
         .innerJoin(gifts, eq(inventory.giftId, gifts.id))
@@ -272,6 +280,7 @@ export async function startGiftCrash(inventoryId: number): Promise<{
         .limit(1)
     )[0]
     if (!item) throw new Error("Gift not found")
+    assertFreeCaseGiftUnlocked(item.source, claim.ready)
 
     // Lock the gift for the duration of the round.
     await tx.update(inventory).set({ status: "wagered" }).where(eq(inventory.id, inventoryId))

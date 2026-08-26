@@ -9,6 +9,7 @@ import { requireUserId } from "@/lib/session"
 import { relayerUsername } from "@/lib/telegram-gifts"
 import { giftValueInStars } from "@/lib/pricing"
 import { personalGiftRelayerReady, processPersonalGiftDeposits } from "@/lib/gift-deposits"
+import { assertFreeCaseGiftUnlocked, getFreeCaseClaimStatus } from "@/lib/free-case-referrals"
 
 export type DepositGift = {
   slug: string
@@ -160,11 +161,12 @@ export async function cancelGiftDeposit(transactionId: number): Promise<void> {
  */
 export async function requestGiftWithdraw(inventoryId: number): Promise<{ ok: true }> {
   const userId = await requireUserId()
+  const claim = await getFreeCaseClaimStatus(userId)
 
   await db.transaction(async (tx) => {
     const item = (
       await tx
-        .select({ id: inventory.id, giftId: inventory.giftId, value: inventory.value, status: inventory.status, floorTon: gifts.floorTon })
+        .select({ id: inventory.id, giftId: inventory.giftId, value: inventory.value, status: inventory.status, source: inventory.source, floorTon: gifts.floorTon })
         .from(inventory)
         .innerJoin(gifts, eq(inventory.giftId, gifts.id))
         .where(and(eq(inventory.id, inventoryId), eq(inventory.userId, userId)))
@@ -172,6 +174,7 @@ export async function requestGiftWithdraw(inventoryId: number): Promise<{ ok: tr
     )[0]
     if (!item) throw new Error("Gift not found")
     if (item.status !== "owned") throw new Error("Gift is not available to withdraw")
+    assertFreeCaseGiftUnlocked(item.source, claim.ready)
 
     const gift = (await tx.select().from(gifts).where(eq(gifts.id, item.giftId)).limit(1))[0]
 

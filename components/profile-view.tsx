@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Package, TrendingUp, Rocket, Gift, Swords, Send, Loader2, Shield, WalletCards, History, Layers3, Plus, ChevronRight } from "lucide-react"
+import { Package, TrendingUp, Rocket, Gift, Swords, Send, Loader2, Shield, WalletCards, History, Layers3, Plus, ChevronRight, Crown, LockKeyhole, Users, RefreshCw } from "lucide-react"
 import Link from "next/link"
 import { Coin } from "@/components/coin"
 import { TonWalletCard } from "@/components/ton-wallet-card"
@@ -13,7 +13,8 @@ import { haptic } from "@/lib/telegram-webapp"
 import { cn } from "@/lib/utils"
 import { sellAllGiftsApi, sellGiftApi, withdrawGiftApi } from "@/lib/client-game-api"
 
-type Item = { id: number; name: string; rarity: string; imageUrl: string; value: number }
+type Item = { id: number; name: string; rarity: string; imageUrl: string; value: number; source: string; locked: boolean }
+type FreeCaseClaim = { qualified: number; required: number; ready: boolean; inviteUrl: string } | null
 type Hist = {
   id: number
   game: string
@@ -40,7 +41,7 @@ const GAME_ICON: Record<string, typeof Package> = {
   battle: Swords,
 }
 
-export function ProfileView({ me, inventory, history }: { me: Me; inventory: Item[]; history: Hist[] }) {
+export function ProfileView({ me, inventory, history, freeCaseClaim }: { me: Me; inventory: Item[]; history: Hist[]; freeCaseClaim: FreeCaseClaim }) {
   const router = useRouter()
   const { setBalance, refresh } = useUser()
   const [items, setItems] = useState(inventory)
@@ -50,6 +51,17 @@ export function ProfileView({ me, inventory, history }: { me: Me; inventory: Ite
   const [view, setView] = useState<"collection" | "activity" | "wallet">("collection")
 
   const invValue = items.reduce((s, i) => s + i.value, 0)
+  const sellableItems = items.filter((item) => !item.locked)
+  const sellableValue = sellableItems.reduce((sum, item) => sum + item.value, 0)
+  const lockedFreeGifts = items.filter((item) => item.locked).length
+
+  useEffect(() => setItems(inventory), [inventory])
+
+  function inviteFriends() {
+    if (!freeCaseClaim?.inviteUrl) return
+    const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(freeCaseClaim.inviteUrl)}&text=${encodeURIComponent("🎁 Join PugGift with me and open Telegram NFT gifts!")}`
+    window.open(shareUrl, "_blank", "noopener,noreferrer")
+  }
 
   async function handleWithdraw(id: number, name: string) {
     setWithdrawing(id)
@@ -60,7 +72,8 @@ export function ProfileView({ me, inventory, history }: { me: Me; inventory: Ite
       setToast(`Withdrawal requested for ${name}. It will be sent to your Telegram once processed.`)
       setTimeout(() => setToast(null), 4500)
     } catch (e) {
-      setToast(e instanceof Error ? e.message : "Withdraw failed")
+      const message = e instanceof Error ? e.message : "Withdraw failed"
+      setToast(message === "FREE_CASE_REFERRALS_REQUIRED" ? "Invite 3 Premium friends with an NFT gift to unlock this prize." : message)
       setTimeout(() => setToast(null), 4000)
     } finally {
       setWithdrawing(null)
@@ -76,8 +89,10 @@ export function ProfileView({ me, inventory, history }: { me: Me; inventory: Ite
       const res = await sellGiftApi(id)
       setItems((prev) => prev.filter((i) => i.id !== id))
       setBalance(res.balance)
-    } catch {
-      // ignore
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Sell failed"
+      setToast(message === "FREE_CASE_REFERRALS_REQUIRED" ? "This free-case gift is locked until 3 qualified friends join." : message)
+      setTimeout(() => setToast(null), 4000)
     } finally {
       setBusy(false)
       refresh()
@@ -86,13 +101,13 @@ export function ProfileView({ me, inventory, history }: { me: Me; inventory: Ite
   }
 
   async function handleSellAll() {
-    if (items.length === 0) return
+    if (sellableItems.length === 0) return
     setBusy(true)
     haptic("medium")
     try {
       const res = await sellAllGiftsApi()
       if (res.balance != null) setBalance(res.balance)
-      setItems([])
+      setItems((current) => current.filter((item) => item.locked))
     } catch {
       // ignore
     } finally {
@@ -147,15 +162,16 @@ export function ProfileView({ me, inventory, history }: { me: Me; inventory: Ite
       )}
 
       {view === "collection" && <section className="rounded-[30px] bg-[#292d34] p-4 ring-1 ring-white/[.06]">
+        {lockedFreeGifts > 0 && freeCaseClaim && !freeCaseClaim.ready && <div className="mb-4 overflow-hidden rounded-[24px] bg-[linear-gradient(135deg,#342a17,#252a38)] p-4 ring-1 ring-amber-300/20"><div className="flex items-start gap-3"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-300 text-amber-950"><Crown className="h-5 w-5" /></span><div className="min-w-0 flex-1"><div className="text-[9px] font-black uppercase tracking-[.16em] text-amber-200/70">Free case prize</div><h3 className="mt-0.5 font-display text-base font-black">Invite 3 qualified friends</h3><p className="mt-1 text-[11px] leading-relaxed text-white/45">Each new friend needs Telegram Premium and at least one Telegram NFT gift in their profile.</p></div></div><div className="mt-3 flex items-center gap-2"><div className="h-2 flex-1 overflow-hidden rounded-full bg-black/25"><div className="h-full rounded-full bg-amber-300 transition-all" style={{ width: `${Math.min(100, freeCaseClaim.qualified / freeCaseClaim.required * 100)}%` }} /></div><b className="text-xs text-amber-200">{freeCaseClaim.qualified}/{freeCaseClaim.required}</b></div><div className="mt-3 grid grid-cols-[1fr_auto] gap-2"><button onClick={inviteFriends} className="flex items-center justify-center gap-2 rounded-2xl bg-[#2f70ff] py-3 text-xs font-black shadow-[0_4px_0_#1945b9]"><Users className="h-4 w-4" />Invite friends</button><button onClick={() => router.refresh()} aria-label="Check referral progress" className="flex w-12 items-center justify-center rounded-2xl bg-white/10 text-white/65"><RefreshCw className="h-4 w-4" /></button></div></div>}
         <div className="mb-4 flex items-center justify-between">
           <div><div className="text-[9px] font-black uppercase tracking-[.16em] text-[#6e96ff]">Collection</div><h2 className="font-display text-xl font-black">Your gifts · {items.length}</h2></div>
-          {items.length > 0 && (
+          {sellableItems.length > 0 && (
             <button
               onClick={handleSellAll}
               disabled={busy}
               className="rounded-full bg-white/10 px-3 py-2 text-[10px] font-black text-white/65 transition hover:bg-white/15 disabled:opacity-50"
             >
-              Sell all · {fmt(invValue)}
+              Sell all · {fmt(sellableValue)}
             </button>
           )}
         </div>
@@ -176,9 +192,10 @@ export function ProfileView({ me, inventory, history }: { me: Me; inventory: Ite
                   <div className="relative mx-auto h-20 w-20">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={it.imageUrl || "/images/nft-gift.png"} alt={it.name} className="h-full w-full object-contain" />
+                    {it.locked && <span className="absolute right-0 top-0 flex h-7 w-7 items-center justify-center rounded-full bg-amber-300 text-amber-950 shadow-lg"><LockKeyhole className="h-3.5 w-3.5" /></span>}
                   </div>
                   <div className={cn("mt-1 truncate text-xs font-black", r.text)}>{it.name}</div><div className="mt-1 flex items-center justify-center gap-1 text-[10px] text-white/50"><Coin className="h-3 w-3" />{fmt(it.value)}</div>
-                  <div className="mt-2 grid grid-cols-2 gap-1">
+                  {it.locked ? <button onClick={inviteFriends} className="mt-2 flex w-full items-center justify-center gap-1 rounded-xl bg-amber-300 py-2 text-[9px] font-black text-amber-950"><Users className="h-3 w-3" />Invite to unlock</button> : <div className="mt-2 grid grid-cols-2 gap-1">
                   <button
                     onClick={() => handleSell(it.id)}
                     disabled={busy || withdrawing === it.id}
@@ -200,6 +217,7 @@ export function ProfileView({ me, inventory, history }: { me: Me; inventory: Ite
                     )}
                   </button>
                   </div>
+                  }
                 </div>
               )
             })}

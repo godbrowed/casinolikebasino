@@ -10,9 +10,10 @@ type Props = {
   onSell: () => void
   onKeep: () => void
   busy?: boolean
+  locked?: boolean
 }
 
-export function WinModal({ gift, onSell, onKeep, busy }: Props) {
+export function WinModal({ gift, onSell, onKeep, busy, locked = false }: Props) {
   if (!gift) return null
   const r = rarityOf(gift.rarity)
   return (
@@ -46,6 +47,12 @@ export function WinModal({ gift, onSell, onKeep, busy }: Props) {
             >
               Added to balance
             </button>
+          ) : locked ? (
+            <div className="mt-5 w-full rounded-2xl bg-amber-400/10 p-3 ring-1 ring-amber-300/20">
+              <b className="block text-sm text-amber-200">Gift saved — invite 3 friends to unlock</b>
+              <p className="mt-1 text-[11px] leading-relaxed text-white/50">Each friend must be new to PugGift, have Telegram Premium and own at least one Telegram NFT gift.</p>
+              <button onClick={onKeep} disabled={busy} className="mt-3 w-full rounded-xl bg-primary py-3 text-sm font-bold text-primary-foreground disabled:opacity-50">Keep in profile</button>
+            </div>
           ) : (
             <div className="mt-5 grid w-full grid-cols-2 gap-2">
               <button

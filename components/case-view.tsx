@@ -189,7 +189,7 @@ export function CaseView({ c }: { c: CaseDTO }) {
         </div>
       </main>
 
-      {showWin && <WinModal gift={result} onSell={handleSell} onKeep={closeWin} busy={busy} />}
+      {showWin && <WinModal gift={result} onSell={handleSell} onKeep={closeWin} busy={busy} locked={c.isFree && result?.rewardType === "gift"} />}
       {c.isFree && showRequirements && requirements && <FreeCaseRequirementsModal
         requirements={requirements}
         busy={requirementBusy}

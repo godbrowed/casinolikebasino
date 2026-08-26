@@ -3,7 +3,7 @@ import crypto from "crypto"
 import { cookies } from "next/headers"
 import { eq } from "drizzle-orm"
 import { db } from "./db"
-import { users } from "./db/schema"
+import { referrals, users } from "./db/schema"
 import type { TelegramUser } from "./telegram"
 
 const COOKIE = "casino_session"
@@ -45,25 +45,40 @@ function unsign(value: string | undefined): string | null {
 export async function createSession(tg: TelegramUser) {
   // Telegram user ID is the account identity. Atomic upsert avoids duplicate
   // account races when the Mini App sends parallel startup requests.
-  await db
-    .insert(users)
-    .values({
-      id: tg.id,
-      username: tg.username,
-      firstName: tg.firstName,
-      photoUrl: tg.photoUrl,
-      isDemo: tg.isDemo,
-      balance: tg.isDemo ? "5000" : "0",
-    })
-    .onConflictDoUpdate({
-      target: users.id,
-      set: {
+  await db.transaction(async (tx) => {
+    const inserted = await tx
+      .insert(users)
+      .values({
+        id: tg.id,
         username: tg.username,
         firstName: tg.firstName,
         photoUrl: tg.photoUrl,
+        isDemo: tg.isDemo,
+        isPremium: tg.isPremium,
+        balance: tg.isDemo ? "5000" : "0",
+      })
+      .onConflictDoNothing()
+      .returning({ id: users.id })
+
+    if (!inserted.length) {
+      await tx.update(users).set({
+        username: tg.username,
+        firstName: tg.firstName,
+        photoUrl: tg.photoUrl,
+        isPremium: tg.isPremium,
         lastSeen: new Date(),
-      },
-    })
+      }).where(eq(users.id, tg.id))
+    }
+
+    // A referral belongs to the first account creation only. Existing users
+    // cannot be reassigned by reopening somebody else's deep link.
+    if (inserted.length && tg.referrerId && tg.referrerId !== tg.id) {
+      const inviter = await tx.select({ id: users.id }).from(users).where(eq(users.id, tg.referrerId)).limit(1)
+      if (inviter.length) {
+        await tx.insert(referrals).values({ inviterUserId: tg.referrerId, referredUserId: tg.id }).onConflictDoNothing()
+      }
+    }
+  })
 
   const store = await cookies()
   store.set(COOKIE, sign(tg.id), {

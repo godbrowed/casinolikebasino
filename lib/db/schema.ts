@@ -23,6 +23,7 @@ export const users = pgTable("users", {
     .notNull()
     .default("0"),
   isDemo: boolean("is_demo").notNull().default(false),
+  isPremium: boolean("is_premium").notNull().default(false),
   xp: numeric("xp", { precision: 20, scale: 2 }).notNull().default("0"),
   dailyStreak: integer("daily_streak").notNull().default(0),
   lastDailyClaim: timestamp("last_daily_claim", { withTimezone: true }),
@@ -70,6 +71,16 @@ export const freeCaseProgress = pgTable("free_case_progress", {
   tradeVisitedAt: timestamp("trade_visited_at", { withTimezone: true }),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 })
+
+export const referrals = pgTable("referrals", {
+  id: serial("id").primaryKey(),
+  inviterUserId: text("inviter_user_id").notNull(),
+  referredUserId: text("referred_user_id").notNull(),
+  qualifiedAt: timestamp("qualified_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  referredUserUnique: uniqueIndex("referrals_referred_user_unique").on(table.referredUserId),
+}))
 
 export const inventory = pgTable("inventory", {
   id: serial("id").primaryKey(),

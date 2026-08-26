@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Package, TrendingUp, Rocket, Gift, Swords, Send, Loader2, Shield, WalletCards, History, Layers3, Plus, ChevronRight, Crown, LockKeyhole, Users, RefreshCw, Copy, CheckCheck } from "lucide-react"
+import { Bomb, Package, TrendingUp, Rocket, Gift, Swords, Send, Loader2, Shield, WalletCards, History, Layers3, Plus, ChevronRight, Crown, LockKeyhole, Users, RefreshCw, Copy, CheckCheck } from "lucide-react"
 import Link from "next/link"
 import { Coin } from "@/components/coin"
 import { TonWalletCard } from "@/components/ton-wallet-card"
@@ -40,6 +40,7 @@ const GAME_ICON: Record<string, typeof Package> = {
   crash: Rocket,
   upgrade: TrendingUp,
   battle: Swords,
+  mines: Bomb,
 }
 
 export function ProfileView({ me, inventory, history, freeCaseClaim, referral }: { me: Me; inventory: Item[]; history: Hist[]; freeCaseClaim: FreeCaseClaim; referral: ReferralDashboard }) {

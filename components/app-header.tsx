@@ -18,6 +18,8 @@ export function AppHeader({ title }: { title?: string }) {
       ? "bg-[#1a1722]"
     : pathname === "/crash"
       ? "bg-[#071126]"
+      : pathname === "/mines"
+        ? "bg-[#102417]"
       : pathname.startsWith("/case/")
         ? "bg-[#173c82]"
         : "bg-[#1c1e20]"

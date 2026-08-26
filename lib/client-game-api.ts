@@ -3,6 +3,7 @@
 import type { CrashBoard, OwnedGift } from "@/app/actions/crash"
 import type { BattleSession, MatchState } from "@/app/actions/battles"
 import type { GiftDTO } from "@/app/actions/cases"
+import type { MinesState } from "@/app/actions/mines"
 
 type ApiError = { error?: string }
 export type LiveDrop = { id: number; name: string; rarity: string; imageUrl: string; value: number }
@@ -64,6 +65,11 @@ export const settleGiftCrashApi = (token: string) =>
     method: "POST",
     body: JSON.stringify({ action: "settle", token }),
   })
+
+export const startMinesApi = (bet: number, mineCount: number) => api<MinesState>("/api/mines/action", { method: "POST", body: JSON.stringify({ action: "start", bet, mineCount }) })
+export const fetchActiveMinesApi = () => api<MinesState | null>("/api/mines/action")
+export const revealMineApi = (roundId: number, tile: number) => api<MinesState>("/api/mines/action", { method: "POST", body: JSON.stringify({ action: "reveal", roundId, tile }) })
+export const cashoutMinesApi = (roundId: number) => api<MinesState>("/api/mines/action", { method: "POST", body: JSON.stringify({ action: "cashout", roundId }) })
 
 export const fetchBattleSessions = () => api<BattleSession[]>("/api/battles/sessions")
 export const fetchMatchState = (roomId: number) => api<MatchState>(`/api/battles/match/${roomId}`)

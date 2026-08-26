@@ -2,13 +2,13 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Boxes, Rocket, TrendingUp, UserRound, Swords } from "lucide-react"
+import { Bomb, Boxes, Rocket, TrendingUp, UserRound, Swords } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { haptic } from "@/lib/telegram-webapp"
 import { useLanguage } from "@/components/language-provider"
 
 const ITEMS = [
-  { href: "/", label: "games", icon: Boxes }, { href: "/battles", label: "battles", icon: Swords }, { href: "/crash", label: "crash", icon: Rocket }, { href: "/upgrade", label: "upgrade", icon: TrendingUp }, { href: "/profile", label: "profile", icon: UserRound },
+  { href: "/", label: "games", icon: Boxes }, { href: "/battles", label: "battles", icon: Swords }, { href: "/crash", label: "crash", icon: Rocket }, { href: "/mines", label: "mines", icon: Bomb }, { href: "/upgrade", label: "upgrade", icon: TrendingUp }, { href: "/profile", label: "profile", icon: UserRound },
 ]
 
 export function BottomNav() {
@@ -19,7 +19,7 @@ export function BottomNav() {
   return (
     <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-50 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px))]">
       <div className="pointer-events-auto mx-auto w-full max-w-[680px] rounded-[26px] bg-[#15191d]/96 p-1.5 shadow-[0_18px_55px_rgba(0,0,0,.5),inset_0_1px_0_rgba(255,255,255,.045)] backdrop-blur-xl">
-        <ul className="grid grid-cols-5 gap-0.5">
+        <ul className="grid grid-cols-6 gap-0.5">
           {ITEMS.map((item) => {
             const active = pathname === item.href
             const Icon = item.icon
@@ -41,7 +41,7 @@ export function BottomNav() {
                   >
                     <Icon className="h-5 w-5" strokeWidth={active ? 2.6 : 2.1} />
                   </span>
-                  <span>{t(item.label as "games")}</span>
+                  <span>{t(item.label as "games" | "battles" | "crash" | "mines" | "upgrade" | "profile")}</span>
                 </Link>
               </li>
             )

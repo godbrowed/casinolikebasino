@@ -1,532 +1,262 @@
 "use server"
 
 import crypto from "node:crypto"
-import { eq, sql, desc, and, asc, inArray, isNull } from "drizzle-orm"
+import { and, asc, desc, eq, isNull, sql } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { db } from "@/lib/db"
-import { cases, caseItems, gifts, users, gameHistory, battleRooms, battleSlots } from "@/lib/db/schema"
+import { battleRooms, battleSlots, gameHistory, users } from "@/lib/db/schema"
 import { requireUserId } from "@/lib/session"
-import { giftValueInStars } from "@/lib/pricing"
-
-export type BattlePull = { round: number; gift: BattleGift }
-export type BattleGift = {
-  id: number
-  name: string
-  rarity: string
-  imageUrl: string
-  value: number
-}
-export type BattlePlayer = {
-  slot: number
-  name: string
-  photoUrl: string | null
-  isBot: boolean
-  isYou: boolean
-  pulls: BattleGift[]
-  total: number
-}
-export type BattleResult = {
-  caseName: string
-  coverUrl: string
-  rounds: number
-  players: BattlePlayer[]
-  winnerSlot: number
-  pot: number
-  youWon: boolean
-  youWinAmount: number
-  balance: number
-}
-
-function weightedPick(items: { weight: number }[]): number {
-  const total = items.reduce((s, i) => s + i.weight, 0)
-  let r = Math.random() * total
-  for (let i = 0; i < items.length; i++) {
-    r -= items[i].weight
-    if (r <= 0) return i
-  }
-  return items.length - 1
-}
-
-/* --------------------------- Live matchmaking --------------------------- */
-// The first stake creates a public room. The second participant arms one
-// shared 30-second deadline; everybody in that room sees the same result.
 
 const MATCH_WINDOW_MS = 30_000
 const UNARMED_ROOM_MS = 24 * 60 * 60 * 1000
-const MAX_STAKE_PLAYERS = 2
+const GLOBAL_CAPACITY = 1_000
+const MIN_BET = 10
+const MAX_BET_PER_ACTION = 100_000
+const HOUSE_PAYOUT = 0.9
+
+export type BattleGift = { id: number; name: string; rarity: string; imageUrl: string; value: number }
+export type BattlePull = { round: number; gift: BattleGift }
+export type BattlePlayer = {
+  slot: number; name: string; photoUrl: string | null; isBot: boolean; isYou: boolean
+  pulls: BattleGift[]; total: number
+}
+export type BattleResult = {
+  caseName: string; coverUrl: string; rounds: number; players: BattlePlayer[]
+  winnerSlot: number; pot: number; grossBank: number; youWon: boolean; youWinAmount: number; balance: number
+}
+export type MatchSlot = {
+  slot: number; name: string; photoUrl: string | null; isBot: boolean; isYou: boolean
+  stake: number; chance: number
+}
+export type MatchState = {
+  roomId: number; status: "waiting" | "countdown" | "resolving" | "done"
+  capacity: number; rounds: number; entryCost: number; caseName: string
+  bank: number; payout: number; myStake: number; secondsLeft: number | null
+  slots: MatchSlot[]; result: BattleResult | null
+}
+export type BattleSession = {
+  roomId: number; bet: number; bank: number; payout: number; myStake: number
+  players: number; capacity: number; status: "waiting" | "countdown"; secondsLeft: number | null
+  names: string[]; photos: (string | null)[]; stakes: number[]; chances: number[]; isYou: boolean[]
+}
+
+type StoredPlayer = Omit<BattlePlayer, "isYou"> & { userId: string | null }
+type StoredResult = {
+  caseName: string; coverUrl: string; rounds: number; pot: number; grossBank: number
+  winnerSlot: number; players: StoredPlayer[]
+}
 
 function countdownStarted(room: { createdAt: Date; startsAt: Date }) {
   return room.startsAt.getTime() - room.createdAt.getTime() < 5 * 60 * 1000
 }
+function payoutFor(bank: number) { return Math.max(0, Math.floor(bank * HOUSE_PAYOUT)) }
+function chanceFor(stake: number, bank: number) { return bank > 0 ? (stake / bank) * 100 : 0 }
 
-export type MatchSlot = {
-  slot: number
-  name: string
-  photoUrl: string | null
-  isBot: boolean
-  isYou: boolean
+async function resolveExpiredGlobalRoom() {
+  const expired = (await db
+    .select({ id: battleRooms.id, startsAt: battleRooms.startsAt, createdAt: battleRooms.createdAt })
+    .from(battleRooms)
+    .where(and(eq(battleRooms.status, "waiting"), isNull(battleRooms.caseId)))
+    .orderBy(asc(battleRooms.createdAt))
+  ).find((room) => countdownStarted(room) && room.startsAt.getTime() <= Date.now())
+  if (expired) await resolveRoom(expired.id)
 }
 
-export type MatchState = {
-  roomId: number
-  status: "waiting" | "countdown" | "resolving" | "done"
-  capacity: number
-  rounds: number
-  entryCost: number
-  caseName: string
-  secondsLeft: number | null
-  slots: MatchSlot[]
-  result: BattleResult | null
-}
-
-export async function joinBattle(input: {
-  bet: number
-  capacity?: number
-  roomId?: number
-}): Promise<{ roomId: number }> {
+export async function joinBattle(input: { bet: number; roomId?: number }): Promise<{ roomId: number }> {
   const userId = await requireUserId()
-  const capacity = MAX_STAKE_PLAYERS
-  const entryCost = Math.round(Number(input.bet))
-  const rounds = 1
-  if (!Number.isFinite(entryCost) || entryCost < 10 || entryCost > 100_000) throw new Error("INVALID_BET")
+  const stake = Math.round(Number(input.bet))
+  if (!Number.isFinite(stake) || stake < MIN_BET || stake > MAX_BET_PER_ACTION) throw new Error("INVALID_BET")
+  await resolveExpiredGlobalRoom()
 
-  return db.transaction(async (tx) => {
-    // Serialize joins for the same stake so two simultaneous requests cannot
-    // both claim the last seat or charge the same player twice.
-    await tx.execute(sql`select pg_advisory_xact_lock(748219, ${entryCost})`)
-    const u = (await tx.select().from(users).where(eq(users.id, userId)).limit(1))[0]
-    if (!u) throw new Error("Unauthorized")
-    if (Number(u.balance) < entryCost) throw new Error("INSUFFICIENT_FUNDS")
+  const joined = await db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(748219, 1)`)
+    const user = (await tx.select().from(users).where(eq(users.id, userId)).limit(1))[0]
+    if (!user) throw new Error("Unauthorized")
 
-    // Find an open room for the same params with a free slot.
-    const now = new Date()
-    const openRooms = await tx
-      .select()
-      .from(battleRooms)
-      .where(
-        and(
-          eq(battleRooms.status, "waiting"),
-          isNull(battleRooms.caseId),
-          eq(battleRooms.capacity, capacity),
-          eq(battleRooms.rounds, rounds),
-          eq(battleRooms.entryCost, entryCost.toFixed(2)),
-        ),
-      )
-      .orderBy(asc(battleRooms.createdAt))
-
-    let roomId: number | null = null
-    const orderedRooms = [...openRooms].sort((a, b) => Number(b.id === input.roomId) - Number(a.id === input.roomId))
-    for (const room of orderedRooms) {
-      if (input.roomId != null && room.id !== input.roomId) continue
-      const slots = (await tx.select().from(battleSlots).where(eq(battleSlots.roomId, room.id))).filter((s) => !s.isBot)
-      if (slots.some((s) => s.userId === userId)) return { roomId: room.id } // already queued
-      if (countdownStarted(room) && room.startsAt.getTime() <= Date.now()) continue
-      if (slots.length < room.capacity) {
-        roomId = room.id
-        break
-      }
-    }
-
-    if (roomId === null && input.roomId != null) throw new Error("SESSION_CLOSED")
-
-    if (roomId === null) {
-      const created = await tx
-        .insert(battleRooms)
-        .values({
-          capacity,
-          rounds,
-          entryCost: entryCost.toFixed(2),
-          status: "waiting",
-          // The clock is intentionally unarmed. It starts only when a second
-          // stake reaches this public room.
-          startsAt: new Date(Date.now() + UNARMED_ROOM_MS),
-        })
-        .returning({ id: battleRooms.id })
-      roomId = created[0].id
-    }
-
-    // Legacy practice slots never participate in real-money matchmaking.
-    await tx.delete(battleSlots).where(and(eq(battleSlots.roomId, roomId), eq(battleSlots.isBot, true)))
-
-    // Charge entry and take the lowest free slot.
-    const charged = await tx
-      .update(users)
-      .set({ balance: sql`${users.balance} - ${entryCost}` })
-      .where(and(eq(users.id, userId), sql`${users.balance} >= ${entryCost}`))
+    const charged = await tx.update(users)
+      .set({ balance: sql`${users.balance} - ${stake}` })
+      .where(and(eq(users.id, userId), sql`${users.balance} >= ${stake}`))
       .returning({ balance: users.balance })
     if (charged.length === 0) throw new Error("INSUFFICIENT_FUNDS")
-    const taken = await tx.select().from(battleSlots).where(eq(battleSlots.roomId, roomId))
-    const used = new Set(taken.map((s) => s.slot))
-    let slot = 0
-    while (used.has(slot)) slot++
-    await tx.insert(battleSlots).values({
-      roomId,
-      slot,
-      userId,
-      name: u.firstName || u.username || "You",
-      photoUrl: u.photoUrl,
-      isBot: false,
-    })
 
-    const joined = (await tx.select().from(battleSlots).where(eq(battleSlots.roomId, roomId))).filter((s) => !s.isBot)
-    const currentRoom = (await tx.select().from(battleRooms).where(eq(battleRooms.id, roomId)).limit(1))[0]
-    if (joined.length >= 2 && currentRoom && !countdownStarted(currentRoom)) {
-      await tx.update(battleRooms).set({ startsAt: new Date(Date.now() + MATCH_WINDOW_MS) }).where(eq(battleRooms.id, roomId))
+    let room = (await tx.select().from(battleRooms)
+      .where(and(eq(battleRooms.status, "waiting"), isNull(battleRooms.caseId)))
+      .orderBy(asc(battleRooms.createdAt)).limit(1))[0]
+    if (!room) {
+      room = (await tx.insert(battleRooms).values({
+        capacity: GLOBAL_CAPACITY, rounds: 1, entryCost: "0", status: "waiting",
+        startsAt: new Date(Date.now() + UNARMED_ROOM_MS),
+      }).returning())[0]
     }
 
-    return { roomId }
+    const existing = (await tx.select().from(battleSlots)
+      .where(and(eq(battleSlots.roomId, room.id), eq(battleSlots.userId, userId), eq(battleSlots.isBot, false)))
+      .limit(1))[0]
+    if (existing) {
+      await tx.update(battleSlots).set({ stake: sql`${battleSlots.stake} + ${stake}` }).where(eq(battleSlots.id, existing.id))
+    } else {
+      const taken = await tx.select({ slot: battleSlots.slot }).from(battleSlots).where(eq(battleSlots.roomId, room.id))
+      const used = new Set(taken.map((item) => item.slot))
+      let slot = 0
+      while (used.has(slot)) slot++
+      await tx.insert(battleSlots).values({
+        roomId: room.id, slot, userId, name: user.firstName || user.username || "Player",
+        photoUrl: user.photoUrl, isBot: false, stake: stake.toFixed(2),
+      })
+    }
+
+    const participantCount = (await tx.select({ count: sql<number>`count(*)::int` }).from(battleSlots)
+      .where(and(eq(battleSlots.roomId, room.id), eq(battleSlots.isBot, false))))[0]?.count ?? 0
+    if (participantCount >= 2 && !countdownStarted(room)) {
+      await tx.update(battleRooms).set({ startsAt: new Date(Date.now() + MATCH_WINDOW_MS) }).where(eq(battleRooms.id, room.id))
+    }
+    return { roomId: room.id }
   })
+  revalidatePath("/battles")
+  return joined
 }
 
 export async function leaveBattle(roomId: number): Promise<void> {
   const userId = await requireUserId()
   await db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(748219, 1)`)
     const room = (await tx.select().from(battleRooms).where(eq(battleRooms.id, roomId)).limit(1))[0]
-    // A stake can be withdrawn only before the second player starts the clock.
-    if (!room || room.status !== "waiting") return
-    if (countdownStarted(room)) return
-    const mine = (
-      await tx
-        .select()
-        .from(battleSlots)
-        .where(and(eq(battleSlots.roomId, roomId), eq(battleSlots.userId, userId)))
-        .limit(1)
-    )[0]
+    if (!room || room.status !== "waiting" || countdownStarted(room)) return
+    const mine = (await tx.select().from(battleSlots)
+      .where(and(eq(battleSlots.roomId, roomId), eq(battleSlots.userId, userId), eq(battleSlots.isBot, false)))
+      .limit(1))[0]
     if (!mine) return
+    const refund = Number(mine.stake)
     await tx.delete(battleSlots).where(eq(battleSlots.id, mine.id))
-    await tx
-      .update(users)
-      .set({ balance: sql`${users.balance} + ${Number(room.entryCost)}` })
-      .where(eq(users.id, userId))
-    const remaining = await tx.select({ id: battleSlots.id }).from(battleSlots).where(and(eq(battleSlots.roomId, roomId), eq(battleSlots.isBot, false)))
-    if (remaining.length === 0) {
-      await tx.delete(battleRooms).where(eq(battleRooms.id, roomId))
-      return
-    }
+    await tx.update(users).set({ balance: sql`${users.balance} + ${refund}` }).where(eq(users.id, userId))
+    const left = (await tx.select({ count: sql<number>`count(*)::int` }).from(battleSlots)
+      .where(and(eq(battleSlots.roomId, roomId), eq(battleSlots.isBot, false))))[0]?.count ?? 0
+    if (left === 0) await tx.delete(battleRooms).where(eq(battleRooms.id, roomId))
   })
   revalidatePath("/battles")
 }
 
-export async function getMatchState(roomId: number): Promise<MatchState> {
-  const userId = await requireUserId()
-  const room = (await db.select().from(battleRooms).where(eq(battleRooms.id, roomId)).limit(1))[0]
-  if (!room) throw new Error("Room not found")
-  const caseRow = room.caseId == null
-    ? undefined
-    : (await db.select().from(cases).where(eq(cases.id, room.caseId)).limit(1))[0]
-
-  if (room.status === "waiting") {
-    const realPlayers = (await db.select().from(battleSlots).where(eq(battleSlots.roomId, roomId))).filter((slot) => !slot.isBot)
-    // Only the second real stake arms the shared countdown.
-    if (realPlayers.length >= 2 && countdownStarted(room) && room.startsAt.getTime() <= Date.now()) {
-      await resolveRoom(roomId)
-    }
-  }
-
-  const fresh = (await db.select().from(battleRooms).where(eq(battleRooms.id, roomId)).limit(1))[0]
-  const slots = (await db.select().from(battleSlots).where(eq(battleSlots.roomId, roomId)).orderBy(asc(battleSlots.slot))).filter((slot) => !slot.isBot)
-
-  return {
-    roomId,
-    status: fresh.status === "waiting" && countdownStarted(fresh) ? "countdown" : fresh.status as MatchState["status"],
-    capacity: fresh.capacity,
-    rounds: fresh.rounds,
-    entryCost: Number(fresh.entryCost),
-    caseName: room.caseId == null ? "Stars PvP" : caseRow?.name ?? "Case",
-    secondsLeft: countdownStarted(fresh) ? Math.max(0, Math.ceil((fresh.startsAt.getTime() - Date.now()) / 1000)) : null,
-    slots: slots.map((s) => ({
-      slot: s.slot,
-      name: s.name,
-      photoUrl: s.photoUrl,
-      isBot: s.isBot,
-      isYou: s.userId === userId,
-    })),
-    result: fresh.status === "done" && fresh.result ? personalizeResult(fresh.result as StoredResult, userId) : null,
-  }
+async function roomSlots(roomId: number) {
+  return db.select().from(battleSlots)
+    .where(and(eq(battleSlots.roomId, roomId), eq(battleSlots.isBot, false)))
+    .orderBy(asc(battleSlots.slot))
 }
 
-type StoredResult = {
-  caseName: string
-  coverUrl: string
-  rounds: number
-  pot: number
-  winnerSlot: number
-  players: (Omit<BattlePlayer, "isYou"> & { userId: string | null })[]
+export async function getMatchState(roomId: number): Promise<MatchState> {
+  const userId = await requireUserId()
+  let room = (await db.select().from(battleRooms).where(eq(battleRooms.id, roomId)).limit(1))[0]
+  if (!room) throw new Error("Room not found")
+  if (room.status === "waiting" && countdownStarted(room) && room.startsAt.getTime() <= Date.now()) {
+    await resolveRoom(roomId)
+    room = (await db.select().from(battleRooms).where(eq(battleRooms.id, roomId)).limit(1))[0]
+  }
+  const slots = await roomSlots(roomId)
+  const bank = slots.reduce((sum, slot) => sum + Number(slot.stake), 0)
+  return {
+    roomId,
+    status: room.status === "waiting" && countdownStarted(room) ? "countdown" : room.status as MatchState["status"],
+    capacity: room.capacity, rounds: 1, entryCost: 0, caseName: "Global PvP",
+    bank, payout: payoutFor(bank), myStake: Number(slots.find((slot) => slot.userId === userId)?.stake ?? 0),
+    secondsLeft: countdownStarted(room) ? Math.max(0, Math.ceil((room.startsAt.getTime() - Date.now()) / 1000)) : null,
+    slots: slots.map((slot) => ({
+      slot: slot.slot, name: slot.name, photoUrl: slot.photoUrl, isBot: false, isYou: slot.userId === userId,
+      stake: Number(slot.stake), chance: chanceFor(Number(slot.stake), bank),
+    })),
+    result: room.status === "done" && room.result ? personalizeResult(room.result as StoredResult, userId) : null,
+  }
 }
 
 async function resolveRoom(roomId: number): Promise<void> {
   await db.transaction(async (tx) => {
-    // Claim the room so only one caller resolves it.
-    const claimed = await tx
-      .update(battleRooms)
-      .set({ status: "resolving" })
-      .where(and(eq(battleRooms.id, roomId), eq(battleRooms.status, "waiting")))
-      .returning()
+    const claimed = await tx.update(battleRooms).set({ status: "resolving" })
+      .where(and(eq(battleRooms.id, roomId), eq(battleRooms.status, "waiting"))).returning()
     if (claimed.length === 0) return
-    const room = claimed[0]
-
-    await tx.delete(battleSlots).where(and(eq(battleSlots.roomId, roomId), eq(battleSlots.isBot, true)))
-    const existing = await tx.select().from(battleSlots).where(and(eq(battleSlots.roomId, roomId), eq(battleSlots.isBot, false)))
-    if (existing.length < 2) {
+    const slots = await tx.select().from(battleSlots)
+      .where(and(eq(battleSlots.roomId, roomId), eq(battleSlots.isBot, false))).orderBy(asc(battleSlots.slot))
+    if (slots.length < 2) {
       await tx.update(battleRooms).set({ status: "waiting", startsAt: new Date(Date.now() + UNARMED_ROOM_MS) }).where(eq(battleRooms.id, roomId))
       return
     }
 
-    const slots = await tx.select().from(battleSlots).where(and(eq(battleSlots.roomId, roomId), eq(battleSlots.isBot, false))).orderBy(asc(battleSlots.slot))
-    const caseRow = room.caseId == null
-      ? undefined
-      : (await tx.select().from(cases).where(eq(cases.id, room.caseId)).limit(1))[0]
-
-    if (room.caseId == null) {
-      const entryCost = Number(room.entryCost)
-      const playerCount = slots.length
-      const grossBank = entryCost * playerCount
-      // Equal-stake PvP with a 90% RTP: every occupied seat has the same
-      // probability and the winner receives 90% of the shared bank.
-      const payout = Math.max(entryCost, Math.floor(grossBank * 0.9))
-      const players: StoredResult["players"] = slots.map((s) => ({
-        slot: s.slot,
-        name: s.name,
-        photoUrl: s.photoUrl,
-        isBot: s.isBot,
-        userId: s.userId,
-        pulls: [],
-        total: entryCost,
-      }))
-      const winnerSlot = players[crypto.randomInt(players.length)].slot
-      const winner = players.find((p) => p.slot === winnerSlot)!
-
-      if (!winner.isBot && winner.userId) {
-        await tx.update(users).set({ balance: sql`${users.balance} + ${payout}` }).where(eq(users.id, winner.userId))
-      }
-      for (const p of players) {
-        if (p.isBot || !p.userId) continue
-        const youWon = p.slot === winnerSlot
-        await tx.update(users).set({ xp: sql`${users.xp} + ${entryCost}` }).where(eq(users.id, p.userId))
-        await tx.insert(gameHistory).values({
-          userId: p.userId,
-          game: "battle",
-          bet: String(entryCost),
-          result: String(youWon ? payout : 0),
-          meta: { roomId, mode: "stake", caseName: "Stars PvP", players: playerCount, rounds: 1, winnerName: winner.name, winnerIsYou: youWon, pot: payout, grossBank },
-        })
-      }
-      const stored: StoredResult = { caseName: "Stars PvP", coverUrl: "", rounds: 1, pot: payout, winnerSlot, players }
-      await tx.update(battleRooms).set({ status: "done", result: stored }).where(eq(battleRooms.id, roomId))
-      return
+    const grossBank = slots.reduce((sum, slot) => sum + Math.round(Number(slot.stake)), 0)
+    const payout = payoutFor(grossBank)
+    let ticket = crypto.randomInt(grossBank)
+    let winnerSlot = slots[slots.length - 1].slot
+    for (const slot of slots) {
+      ticket -= Math.round(Number(slot.stake))
+      if (ticket < 0) { winnerSlot = slot.slot; break }
     }
-
-    const list = await tx
-      .select({
-        weight: caseItems.weight,
-        id: gifts.id,
-        name: gifts.name,
-        rarity: gifts.rarity,
-        imageUrl: gifts.imageUrl,
-        value: gifts.value,
-        floorTon: gifts.floorTon,
-      })
-      .from(caseItems)
-      .innerJoin(gifts, eq(caseItems.giftId, gifts.id))
-      .where(eq(caseItems.caseId, room.caseId))
-
-    const players: StoredResult["players"] = slots.map((s) => ({
-      slot: s.slot,
-      name: s.name,
-      photoUrl: s.photoUrl,
-      isBot: s.isBot,
-      userId: s.userId,
-      pulls: [],
-      total: 0,
+    const players: StoredPlayer[] = slots.map((slot) => ({
+      slot: slot.slot, name: slot.name, photoUrl: slot.photoUrl, isBot: false, userId: slot.userId,
+      pulls: [], total: Number(slot.stake),
     }))
+    const winner = players.find((player) => player.slot === winnerSlot)!
+    if (winner.userId) await tx.update(users).set({ balance: sql`${users.balance} + ${payout}` }).where(eq(users.id, winner.userId))
 
-    for (let r = 0; r < room.rounds; r++) {
-      for (const p of players) {
-        const idx = weightedPick(list.map((i) => ({ weight: Number(i.weight) })))
-        const g = list[idx]
-        const gift: BattleGift = { id: g.id, name: g.name, rarity: g.rarity, imageUrl: g.imageUrl, value: giftValueInStars(g.value, g.floorTon) }
-        p.pulls.push(gift)
-        p.total += gift.value
-      }
-    }
-
-    const pot = players.reduce((s, p) => s + p.total, 0)
-    let winnerSlot = 0
-    let best = -1
-    for (const p of players) {
-      if (p.total > best) {
-        best = p.total
-        winnerSlot = p.slot
-      }
-    }
-    const winner = players.find((p) => p.slot === winnerSlot)!
-    const entryCost = Number(room.entryCost)
-
-    // Credit the winner (if a real player) with the whole pot.
-    if (!winner.isBot && winner.userId) {
-      await tx.update(users).set({ balance: sql`${users.balance} + ${pot}` }).where(eq(users.id, winner.userId))
-    }
-
-    // Award XP and record history for every real player.
-    for (const p of players) {
-      if (p.isBot || !p.userId) continue
-      const youWon = p.slot === winnerSlot
-      await tx.update(users).set({ xp: sql`${users.xp} + ${entryCost}` }).where(eq(users.id, p.userId))
+    for (const player of players) {
+      if (!player.userId) continue
+      const won = player.slot === winnerSlot
+      await tx.update(users).set({ xp: sql`${users.xp} + ${Math.round(player.total)}` }).where(eq(users.id, player.userId))
       await tx.insert(gameHistory).values({
-        userId: p.userId,
-        game: "battle",
-        bet: String(entryCost),
-        result: String(youWon ? pot : 0),
-        meta: {
-          roomId,
-          caseName: caseRow?.name ?? "Case",
-          players: room.capacity,
-          rounds: room.rounds,
-          winnerName: winner.name,
-          winnerIsYou: youWon,
-          pot,
-        },
+        userId: player.userId, game: "battle", bet: String(player.total), result: String(won ? payout : 0),
+        meta: { roomId, mode: "global-jackpot", caseName: "Global PvP", players: players.length, rounds: 1,
+          winnerName: winner.name, winnerIsYou: won, chance: chanceFor(player.total, grossBank), pot: payout, grossBank },
       })
     }
-
-    const stored: StoredResult = {
-      caseName: caseRow?.name ?? "Case",
-      coverUrl: caseRow?.coverUrl ?? "",
-      rounds: room.rounds,
-      pot,
-      winnerSlot,
-      players,
-    }
+    const stored: StoredResult = { caseName: "Global PvP", coverUrl: "", rounds: 1, pot: payout, grossBank, winnerSlot, players }
     await tx.update(battleRooms).set({ status: "done", result: stored }).where(eq(battleRooms.id, roomId))
   })
-
   revalidatePath("/battles")
   revalidatePath("/profile")
 }
 
 function personalizeResult(stored: StoredResult, userId: string): BattleResult {
-  const you = stored.players.find((p) => p.userId === userId)
-  const youWon = you ? you.slot === stored.winnerSlot : false
+  const mine = stored.players.find((player) => player.userId === userId)
+  const youWon = mine?.slot === stored.winnerSlot
   return {
-    caseName: stored.caseName,
-    coverUrl: stored.coverUrl,
-    rounds: stored.rounds,
-    players: stored.players.map((p) => ({
-      slot: p.slot,
-      name: p.name,
-      photoUrl: p.photoUrl,
-      isBot: p.isBot,
-      isYou: p.userId === userId,
-      pulls: p.pulls,
-      total: p.total,
-    })),
-    winnerSlot: stored.winnerSlot,
-    pot: stored.pot,
-    youWon,
-    youWinAmount: youWon ? stored.pot : 0,
-    balance: 0,
+    caseName: stored.caseName, coverUrl: stored.coverUrl, rounds: stored.rounds,
+    players: stored.players.map((player) => ({ ...player, isYou: player.userId === userId })),
+    winnerSlot: stored.winnerSlot, pot: stored.pot, grossBank: stored.grossBank ?? stored.pot,
+    youWon, youWinAmount: youWon ? stored.pot : 0, balance: 0,
   }
-}
-
-export type BattleSession = {
-  roomId: number
-  bet: number
-  players: number
-  capacity: number
-  status: "waiting" | "countdown"
-  secondsLeft: number | null
-  names: string[]
-  photos: (string | null)[]
 }
 
 export async function getBattleSessions(): Promise<BattleSession[]> {
-  const roomIds = await db
-    .select({ id: battleRooms.id })
-    .from(battleRooms)
+  const userId = await requireUserId()
+  await resolveExpiredGlobalRoom()
+  const room = (await db.select().from(battleRooms)
     .where(and(eq(battleRooms.status, "waiting"), isNull(battleRooms.caseId)))
-    .orderBy(asc(battleRooms.createdAt))
-    .limit(12)
-  if (roomIds.length === 0) return []
-
-  const rows = await db
-    .select({
-      id: battleRooms.id,
-      entryCost: battleRooms.entryCost,
-      capacity: battleRooms.capacity,
-      startsAt: battleRooms.startsAt,
-      createdAt: battleRooms.createdAt,
-      name: battleSlots.name,
-      photoUrl: battleSlots.photoUrl,
-    })
-    .from(battleRooms)
-    .innerJoin(battleSlots, and(eq(battleSlots.roomId, battleRooms.id), eq(battleSlots.isBot, false)))
-    .where(inArray(battleRooms.id, roomIds.map((room) => room.id)))
-    .orderBy(asc(battleRooms.createdAt), asc(battleSlots.slot))
-
-  const grouped = new Map<number, {
-    id: number
-    entryCost: string
-    capacity: number
-    startsAt: Date
-    createdAt: Date
-    names: string[]
-    photos: (string | null)[]
-  }>()
-  for (const row of rows) {
-    const current = grouped.get(row.id)
-    if (current) {
-      current.names.push(row.name)
-      current.photos.push(row.photoUrl)
-    } else grouped.set(row.id, { ...row, names: [row.name], photos: [row.photoUrl] })
-  }
-
-  const now = Date.now()
-  const sessions: BattleSession[] = []
-  for (const room of grouped.values()) {
-    const started = countdownStarted(room)
-    if (started && room.startsAt.getTime() <= now) continue
-    sessions.push({
-      roomId: room.id,
-      bet: Number(room.entryCost),
-      players: room.names.length,
-      capacity: room.capacity,
-      status: started ? "countdown" : "waiting",
-      secondsLeft: started ? Math.max(0, Math.ceil((room.startsAt.getTime() - now) / 1000)) : null,
-      names: room.names,
-      photos: room.photos,
-    })
-  }
-  return sessions
+    .orderBy(asc(battleRooms.createdAt)).limit(1))[0]
+  if (!room) return []
+  const slots = await roomSlots(room.id)
+  const bank = slots.reduce((sum, slot) => sum + Number(slot.stake), 0)
+  const started = countdownStarted(room)
+  return [{
+    roomId: room.id, bet: 0, bank, payout: payoutFor(bank),
+    myStake: Number(slots.find((slot) => slot.userId === userId)?.stake ?? 0),
+    players: slots.length, capacity: room.capacity, status: started ? "countdown" : "waiting",
+    secondsLeft: started ? Math.max(0, Math.ceil((room.startsAt.getTime() - Date.now()) / 1000)) : null,
+    names: slots.map((slot) => slot.name), photos: slots.map((slot) => slot.photoUrl),
+    stakes: slots.map((slot) => Number(slot.stake)), chances: slots.map((slot) => chanceFor(Number(slot.stake), bank)),
+    isYou: slots.map((slot) => slot.userId === userId),
+  }]
 }
 
 export async function getRecentBattles(): Promise<
   { id: number; caseName: string; winnerName: string; pot: number; players: number; youWon: boolean }[]
 > {
-  const rows = await db
-    .select()
-    .from(gameHistory)
-    .where(eq(gameHistory.game, "battle"))
-    .orderBy(desc(gameHistory.createdAt))
-    .limit(40)
+  const rows = await db.select().from(gameHistory).where(eq(gameHistory.game, "battle")).orderBy(desc(gameHistory.createdAt)).limit(40)
   const seen = new Set<number>()
-  const out: { id: number; caseName: string; winnerName: string; pot: number; players: number; youWon: boolean }[] = []
-  for (const r of rows) {
-    const m = (r.meta ?? {}) as Record<string, unknown>
-    // Multi-player rooms write one row per real player — dedupe by roomId.
-    const roomId = m.roomId != null ? Number(m.roomId) : null
-    if (roomId != null) {
-      if (seen.has(roomId)) continue
-      seen.add(roomId)
-    }
-    out.push({
-      id: r.id,
-      caseName: (m.caseName as string) ?? "Case",
-      winnerName: (m.winnerName as string) ?? "Player",
-      pot: Number(m.pot ?? 0),
-      players: Number(m.players ?? 2),
-      youWon: Boolean(m.winnerIsYou),
-    })
-    if (out.length >= 15) break
+  const output: { id: number; caseName: string; winnerName: string; pot: number; players: number; youWon: boolean }[] = []
+  for (const row of rows) {
+    const meta = (row.meta ?? {}) as Record<string, unknown>
+    const roomId = meta.roomId != null ? Number(meta.roomId) : null
+    if (roomId != null && seen.has(roomId)) continue
+    if (roomId != null) seen.add(roomId)
+    output.push({ id: row.id, caseName: (meta.caseName as string) ?? "Global PvP",
+      winnerName: (meta.winnerName as string) ?? "Player", pot: Number(meta.pot ?? 0),
+      players: Number(meta.players ?? 2), youWon: Boolean(meta.winnerIsYou) })
+    if (output.length >= 15) break
   }
-  return out
+  return output
 }

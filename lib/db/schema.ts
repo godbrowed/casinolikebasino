@@ -119,6 +119,7 @@ export const battleSlots = pgTable("battle_slots", {
   name: text("name").notNull(),
   photoUrl: text("photo_url"),
   isBot: boolean("is_bot").notNull().default(false),
+  stake: numeric("stake", { precision: 20, scale: 2 }).notNull().default("0"),
   joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
 })
 

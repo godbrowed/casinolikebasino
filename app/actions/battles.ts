@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache"
 import { db } from "@/lib/db"
 import { battleRooms, battleSlots, gameHistory, users } from "@/lib/db/schema"
 import { requireUserId } from "@/lib/session"
+import { notifyAdmins } from "@/lib/admin-notify"
 
 const MATCH_WINDOW_MS = 30_000
 const UNARMED_ROOM_MS = 24 * 60 * 60 * 1000
@@ -113,6 +114,7 @@ export async function joinBattle(input: { bet: number; roomId?: number }): Promi
     return { roomId: room.id }
   })
   revalidatePath("/battles")
+  await notifyAdmins(`⚔️ <b>Ставка PvP</b>\n\n👤 User: <code>${userId}</code>\n⭐ ${stake.toLocaleString("en-US")}\n🎮 Room: ${joined.roomId}`)
   return joined
 }
 

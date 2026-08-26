@@ -12,6 +12,7 @@ import {
   type RelayerDepositEvent,
 } from "@/lib/telegram-gifts"
 import { awardReferralCommission } from "@/lib/referrals"
+import { notifyAdmins } from "@/lib/admin-notify"
 
 type DepositTransaction = typeof transactions.$inferSelect
 
@@ -108,6 +109,7 @@ export async function creditGiftDeposit(tx: DepositTransaction, event?: RelayerD
   })
 
   if (completed) {
+    await notifyAdmins(`📥 <b>NFT депозит зараховано</b>\n\n👤 User: <code>${tx.userId}</code>\n🎁 ${String(meta.giftName ?? "Telegram Gift")}\n⭐ ${Number(tx.credited).toLocaleString("en-US")}`)
     await awardReferralCommission(tx.userId, tx.id, Number(tx.credited)).catch(() => undefined)
     await notifyUser(
       tx.userId,

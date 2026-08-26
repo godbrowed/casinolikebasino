@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useTransition, type ReactNode } from "react"
 import { useSearchParams } from "next/navigation"
-import { ArrowLeft, CalendarClock, Check, ChevronRight, CircleDollarSign, ExternalLink, Gift, LoaderCircle, Megaphone, Plus, RefreshCw, Send, Sparkles, Ticket, Trophy, Users } from "lucide-react"
+import { ArrowLeft, CalendarClock, Check, ChevronRight, CircleDollarSign, ExternalLink, Gift, ImagePlus, LoaderCircle, Megaphone, Plus, RefreshCw, Send, Sparkles, Ticket, Trophy, X } from "lucide-react"
 import { createGiveawaySafe, finishGiveawaySafe, getGiveawayDashboardSafe, joinGiveawaySafe, type GiveawayDashboard } from "@/app/actions/giveaways"
 import { Coin } from "@/components/coin"
 import { useUser } from "@/components/user-provider"
@@ -133,6 +133,7 @@ function Creator({ dashboard, pending, error, success, onBack, onRefresh, setErr
   const [requiredChannelIds, setRequiredChannelIds] = useState<number[]>(defaultRequiredChannel ? [defaultRequiredChannel.id] : [])
   const [inventoryId, setInventoryId] = useState(String(dashboard.availableGifts[0]?.inventoryId ?? ""))
   const [title, setTitle] = useState(""); const [body, setBody] = useState("")
+  const [photoDataUrl, setPhotoDataUrl] = useState("")
   const [price, setPrice] = useState("50"); const [duration, setDuration] = useState("1440")
   const activeChannel = dashboard.channels.find((channel) => String(channel.id) === channelId)
   useEffect(() => {
@@ -142,7 +143,7 @@ function Creator({ dashboard, pending, error, success, onBack, onRefresh, setErr
   function publish() {
     setError(""); setSuccess(""); haptic("medium")
     startTransition(async () => {
-      const result = await createGiveawaySafe({ channelId: Number(channelId), inventoryId: Number(inventoryId), requiredChannelIds, title, body,
+      const result = await createGiveawaySafe({ channelId: Number(channelId), inventoryId: Number(inventoryId), requiredChannelIds, title, body, photoDataUrl: photoDataUrl || undefined,
         ticketPrice: mode === "paid" ? Number(price) : 0, durationMinutes: Number(duration), maxTicketsPerUser: mode === "paid" ? 100 : 1 })
       if (!result.ok) { setError(result.error); return }
       setSuccess("Giveaway published in the channel")
@@ -163,10 +164,11 @@ function Creator({ dashboard, pending, error, success, onBack, onRefresh, setErr
     <section className="rounded-[27px] bg-[#292c32] p-4 ring-1 ring-white/[.08] sm:p-5">
       <div className="mb-4 grid grid-cols-2 rounded-2xl bg-black/20 p-1"><Mode active={mode === "free"} icon={Gift} label="Free" onClick={() => setMode("free")} /><Mode active={mode === "paid"} icon={CircleDollarSign} label="Paid tickets" onClick={() => setMode("paid")} /></div>
       <Field label="Giveaway title"><input className="giveaway-input" value={title} maxLength={80} onChange={(event) => setTitle(event.target.value)} placeholder="Summer Pug Drop" /></Field>
+      <Field label="Post photo · optional">{photoDataUrl ? <div className="relative overflow-hidden rounded-2xl bg-black/20"><img src={photoDataUrl} alt="Giveaway preview" className="max-h-64 w-full object-cover" /><button type="button" onClick={() => setPhotoDataUrl("")} className="absolute right-2 top-2 flex h-9 w-9 items-center justify-center rounded-full bg-black/70"><X className="h-4 w-4" /></button></div> : <label className="flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-white/15 bg-black/10 text-white/40"><ImagePlus className="h-6 w-6" /><b className="mt-2 text-xs">Add JPG, PNG or WebP</b><span className="mt-1 text-[9px]">Up to 3 MB</span><input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (!file) return; if (file.size > 3 * 1024 * 1024) { setError("Photo must be smaller than 3 MB"); return } const reader = new FileReader(); reader.onload = () => setPhotoDataUrl(String(reader.result || "")); reader.readAsDataURL(file) }} /></label>}</Field>
       <Field label="NFT prize from your profile"><div className="grid max-h-64 grid-cols-2 gap-2 overflow-y-auto pr-1 sm:grid-cols-3">{dashboard.availableGifts.map((gift) => <button type="button" key={gift.inventoryId} onClick={() => setInventoryId(String(gift.inventoryId))} className={cn("relative flex min-w-0 flex-col items-center rounded-2xl bg-black/20 p-2.5 text-center ring-2 transition", inventoryId === String(gift.inventoryId) ? "ring-[#5c8cff]" : "ring-transparent")}><img src={gift.imageUrl} alt={gift.name} className="h-20 w-20 object-contain" /><b className="mt-1 w-full truncate text-[11px]">{gift.name}</b><span className="mt-1 flex items-center gap-1 text-[9px] text-white/42"><Coin className="h-3 w-3" />{fmt(gift.value)}</span>{inventoryId === String(gift.inventoryId) && <span className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-[#3674ff]"><Check className="h-3 w-3" /></span>}</button>)}</div>{dashboard.availableGifts.length === 0 && <div className="rounded-2xl border border-dashed border-white/10 p-5 text-center text-xs text-white/40">No available NFT gifts. Open a case or deposit a gift first.</div>}</Field>
-      <Field label="Your post text"><textarea className="giveaway-input min-h-28 resize-none py-3" value={body} maxLength={1200} onChange={(event) => setBody(event.target.value)} placeholder="Rules, requirements and details…" /></Field>
+      <Field label="Description · optional"><textarea className="giveaway-input min-h-28 resize-none py-3" value={body} maxLength={photoDataUrl ? 500 : 1200} onChange={(event) => setBody(event.target.value)} placeholder="Rules, requirements and details…" /></Field>
       <div className="grid grid-cols-2 gap-3">{mode === "paid" && <Field label="Ticket price"><div className="relative"><Coin className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2" /><input inputMode="decimal" className="giveaway-input pl-10" value={price} onChange={(event) => setPrice(event.target.value.replace(/[^0-9.]/g, ""))} /></div></Field>}<Field label="Duration"><select className="giveaway-input" value={duration} onChange={(event) => setDuration(event.target.value)}><option value="5">5 min</option><option value="60">1 hour</option><option value="360">6 hours</option><option value="1440">24 hours</option><option value="4320">3 days</option><option value="10080">7 days</option><option value="43200">30 days</option></select></Field></div>
-      <button disabled={pending || !activeChannel || !inventoryId || !title.trim() || !body.trim()} onClick={publish} className="mt-1 flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#3674ff] text-sm font-black shadow-[0_8px_0_#193e9d] active:translate-y-1 active:shadow-none disabled:opacity-35">{pending ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}Lock NFT & publish</button>
+      <button disabled={pending || !activeChannel || !inventoryId || !title.trim()} onClick={publish} className="mt-1 flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#3674ff] text-sm font-black shadow-[0_8px_0_#193e9d] active:translate-y-1 active:shadow-none disabled:opacity-35">{pending ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}Lock NFT & publish</button>
     </section>
   </div>
 }

@@ -11,6 +11,7 @@ import { giftValueInStars } from "@/lib/pricing"
 import { personalGiftRelayerReady, processPersonalGiftDeposits } from "@/lib/gift-deposits"
 import { assertFreeCaseGiftUnlocked, getFreeCaseClaimStatus } from "@/lib/free-case-referrals"
 import { freeCaseRequirements, resetFreeCaseProgress } from "@/lib/free-case"
+import { notifyAdmins } from "@/lib/admin-notify"
 
 export type DepositGift = {
   slug: string
@@ -176,7 +177,7 @@ export async function requestGiftWithdraw(inventoryId: number): Promise<{ ok: tr
     : true
   if (!giveawayTasksReady) throw new Error("GIVEAWAY_WITHDRAW_REQUIREMENTS")
 
-  await db.transaction(async (tx) => {
+  const withdraw = await db.transaction(async (tx) => {
     const item = (
       await tx
         .select({ id: inventory.id, giftId: inventory.giftId, value: inventory.value, status: inventory.status, source: inventory.source, floorTon: gifts.floorTon })
@@ -193,7 +194,7 @@ export async function requestGiftWithdraw(inventoryId: number): Promise<{ ok: tr
 
     await tx.update(inventory).set({ status: "withdraw_pending" }).where(eq(inventory.id, inventoryId))
 
-    await tx.insert(transactions).values({
+    const created = await tx.insert(transactions).values({
       userId,
       type: "gift_withdraw",
       currency: "nft",
@@ -202,7 +203,12 @@ export async function requestGiftWithdraw(inventoryId: number): Promise<{ ok: tr
       status: "pending",
       externalId: `wd_${inventoryId}`,
       meta: { inventoryId, giftId: item.giftId, giftSlug: gift?.slug, giftName: gift?.name },
-    })
+    }).returning({ id: transactions.id })
+    return { transactionId: created[0].id, giftName: gift?.name ?? "Telegram Gift" }
+  })
+
+  await notifyAdmins(`📤 <b>Новий вивід NFT</b>\n\n👤 User: <code>${userId}</code>\n🎁 ${withdraw.giftName}\n🧾 ID: <code>${withdraw.transactionId}</code>\n\nПісля ручної відправки натисни підтвердження.`, {
+    inline_keyboard: [[{ text: "✅ Підтвердити відправку", callback_data: `admin_wd_confirm:${withdraw.transactionId}` }]],
   })
 
   if (ruleItem.source === "giveaway") await resetFreeCaseProgress(userId).catch(() => undefined)

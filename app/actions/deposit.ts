@@ -8,6 +8,7 @@ import { users, transactions } from "@/lib/db/schema"
 import { requireUserId, getCurrentUser } from "@/lib/session"
 import { starsToGram, tonToStars } from "@/lib/deposit-shared"
 import { awardReferralCommission } from "@/lib/referrals"
+import { notifyAdmins } from "@/lib/admin-notify"
 
 /** Demo-only instant top up so the preview is fully playable. */
 export async function addDemoBalance(amount: number): Promise<{ balance: number }> {
@@ -182,7 +183,10 @@ export async function verifyTonDeposit(transactionId: number): Promise<{
   })
 
   if (!updated) throw new Error("User not found")
-  if (updated.claimed) await awardReferralCommission(userId, transactionId, Number(tx.credited)).catch(() => undefined)
+  if (updated.claimed) {
+    await awardReferralCommission(userId, transactionId, Number(tx.credited)).catch(() => undefined)
+    await notifyAdmins(`📥 <b>TON депозит зараховано</b>\n\n👤 User: <code>${userId}</code>\n💎 ${Number(tx.amount)} TON\n⭐ ${Number(tx.credited).toLocaleString("en-US")}`)
+  }
   revalidatePath("/deposit")
   return { status: "completed", balance: Number(updated.balance) }
 }

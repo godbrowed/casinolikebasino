@@ -174,6 +174,7 @@ export const giveaways = pgTable("giveaways", {
   inventoryId: integer("inventory_id"),
   title: text("title").notNull(),
   body: text("body").notNull(),
+  photoFileId: text("photo_file_id"),
   prizeText: text("prize_text").notNull(),
   ticketPrice: numeric("ticket_price", { precision: 20, scale: 2 }).notNull().default("0"),
   winnerCount: integer("winner_count").notNull().default(1),

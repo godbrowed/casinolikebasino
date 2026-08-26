@@ -21,6 +21,12 @@ export async function telegramCall<T = unknown>(method: string, body: unknown): 
   return response.json().catch(() => ({ ok: false, description: "Invalid Telegram response" }))
 }
 
+export async function telegramCallMultipart<T = unknown>(method: string, form: FormData): Promise<TelegramApiResult<T>> {
+  if (!token) return { ok: false, description: "TELEGRAM_BOT_TOKEN is not configured" }
+  const response = await fetch(`https://api.telegram.org/bot${token}/${method}`, { method: "POST", body: form, cache: "no-store" })
+  return response.json().catch(() => ({ ok: false, description: "Invalid Telegram response" }))
+}
+
 export function botUsername() {
   return (process.env.TELEGRAM_BOT_USERNAME || "mopsgift_bot").replace(/^@+/, "")
 }
@@ -60,8 +66,7 @@ export function giveawayPostText(giveaway: GiveawayPost, winnerNames: { id: stri
   const lines = [
     `🎉 <b>${escapeHtml(giveaway.title)}</b>`,
     "",
-    escapeHtml(giveaway.body),
-    "",
+    ...(giveaway.body.trim() ? [escapeHtml(giveaway.body), ""] : []),
     `🎁 <b>Prize:</b> ${escapeHtml(giveaway.prizeText)}`,
     `🏆 <b>Winners:</b> ${giveaway.winnerCount}`,
     ...(giveaway.requiredChannels?.length
@@ -235,10 +240,10 @@ export async function refreshGiveawayPost(giveawayId: number) {
   const row = rows[0]
   if (!row?.giveaway.postMessageId) return
   const requiredChannels = await requiredChannelsForGiveaway(giveawayId)
-  await telegramCall("editMessageText", {
+  await telegramCall(row.giveaway.photoFileId ? "editMessageCaption" : "editMessageText", {
     chat_id: row.channel.chatId,
     message_id: row.giveaway.postMessageId,
-    text: giveawayPostText({ ...row.giveaway, requiredChannels }),
+    [row.giveaway.photoFileId ? "caption" : "text"]: giveawayPostText({ ...row.giveaway, requiredChannels }),
     parse_mode: "HTML",
     link_preview_options: { is_disabled: true },
     reply_markup: giveawayKeyboard(row.giveaway),
@@ -314,10 +319,10 @@ export async function settleGiveaway(giveawayId: number) {
   })
   if (row?.channel && settled.giveaway.postMessageId) {
     const requiredChannels = await requiredChannelsForGiveaway(giveawayId)
-    await telegramCall("editMessageText", {
+    await telegramCall(settled.giveaway.photoFileId ? "editMessageCaption" : "editMessageText", {
       chat_id: row.channel.chatId,
       message_id: settled.giveaway.postMessageId,
-      text: giveawayPostText({ ...settled.giveaway, requiredChannels }, winnerNames),
+      [settled.giveaway.photoFileId ? "caption" : "text"]: giveawayPostText({ ...settled.giveaway, requiredChannels }, winnerNames),
       parse_mode: "HTML",
       link_preview_options: { is_disabled: true },
       reply_markup: giveawayKeyboard(settled.giveaway),

@@ -10,6 +10,7 @@ import { crashRoundPhase, CRASH_ROUND_MS, multiplierAtElapsed, sharedFlightStart
 import { crashPointForRound as rollCrashPoint, crashSecret } from "@/lib/crash-server"
 import { giftValueInStars } from "@/lib/pricing"
 import { assertFreeCaseGiftUnlocked, getFreeCaseClaimStatus } from "@/lib/free-case-referrals"
+import { notifyAdmins } from "@/lib/admin-notify"
 
 type RoundPayload = { userId: string; bet: number; roundId: number; startTime: number; historyId: number }
 
@@ -115,7 +116,7 @@ export async function startCrash(bet: number): Promise<{
   if (!(bet > 0)) throw new Error("Invalid bet")
   if (crashRoundPhase() !== "betting") throw new Error("BETTING_CLOSED")
 
-  return db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx) => {
     const user = (await tx.select().from(users).where(eq(users.id, userId)).limit(1))[0]
     if (!user) throw new Error("Unauthorized")
     if (Number(user.balance) < bet) throw new Error("INSUFFICIENT_FUNDS")
@@ -137,6 +138,8 @@ export async function startCrash(bet: number): Promise<{
 
     return { token, startTime, balance: Number(updated[0].balance) }
   })
+  await notifyAdmins(`🚀 <b>Ставка Crash</b>\n\n👤 User: <code>${userId}</code>\n⭐ ${bet.toLocaleString("en-US")}\n🎮 Round: ${sharedRoundId()}`)
+  return result
 }
 
 export async function cashoutCrash(token: string): Promise<{

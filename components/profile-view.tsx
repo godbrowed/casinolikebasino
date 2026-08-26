@@ -13,7 +13,7 @@ import { haptic } from "@/lib/telegram-webapp"
 import { cn } from "@/lib/utils"
 import { sellAllGiftsApi, sellGiftApi, withdrawGiftApi } from "@/lib/client-game-api"
 
-type Item = { id: number; name: string; rarity: string; imageUrl: string; value: number; source: string; locked: boolean }
+type Item = { id: number; name: string; rarity: string; imageUrl: string; value: number; source: string; locked: boolean; sending: boolean }
 type FreeCaseClaim = { qualified: number; required: number; ready: boolean; inviteUrl: string } | null
 type ReferralDashboard = { invited: number; earned: number; ratePercent: number; inviteUrl: string } | null
 type Hist = {
@@ -54,7 +54,7 @@ export function ProfileView({ me, inventory, history, freeCaseClaim, referral }:
   const [copiedReferral, setCopiedReferral] = useState(false)
 
   const invValue = items.reduce((s, i) => s + i.value, 0)
-  const sellableItems = items.filter((item) => !item.locked)
+  const sellableItems = items.filter((item) => !item.locked && !item.sending)
   const sellableValue = sellableItems.reduce((sum, item) => sum + item.value, 0)
   const lockedFreeGifts = items.filter((item) => item.locked).length
 
@@ -202,7 +202,7 @@ export function ProfileView({ me, inventory, history, freeCaseClaim, referral }:
                     {it.locked && <span className="absolute right-0 top-0 flex h-7 w-7 items-center justify-center rounded-full bg-amber-300 text-amber-950 shadow-lg"><LockKeyhole className="h-3.5 w-3.5" /></span>}
                   </div>
                   <div className={cn("mt-1 truncate text-xs font-black", r.text)}>{it.name}</div><div className="mt-1 flex items-center justify-center gap-1 text-[10px] text-white/50"><Coin className="h-3 w-3" />{fmt(it.value)}</div>
-                  {it.locked ? <button onClick={inviteFriends} className="mt-2 flex w-full items-center justify-center gap-1 rounded-xl bg-amber-300 py-2 text-[9px] font-black text-amber-950"><Users className="h-3 w-3" />Invite to unlock</button> : <div className="mt-2 grid grid-cols-2 gap-1">
+                  {it.sending ? <button disabled className="mt-2 flex w-full items-center justify-center gap-1 rounded-xl bg-[#2f70ff]/20 py-2 text-[9px] font-black text-[#8eb0ff]"><Loader2 className="h-3 w-3 animate-spin" />Sending</button> : it.locked ? <button onClick={inviteFriends} className="mt-2 flex w-full items-center justify-center gap-1 rounded-xl bg-amber-300 py-2 text-[9px] font-black text-amber-950"><Users className="h-3 w-3" />Invite to unlock</button> : <div className="mt-2 grid grid-cols-2 gap-1">
                   <button
                     onClick={() => handleSell(it.id)}
                     disabled={busy || withdrawing === it.id}

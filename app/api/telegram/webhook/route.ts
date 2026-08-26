@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server"
 import { and, eq, sql } from "drizzle-orm"
 import { db } from "@/lib/db"
-import { users, transactions } from "@/lib/db/schema"
+import { inventory, users, transactions } from "@/lib/db/schema"
 import { starsToGram } from "@/lib/deposit-shared"
 import { relayerUsername } from "@/lib/telegram-gifts"
 import { joinGiveawayFromCallback, registerGiveawayChannel, settleGiveaway } from "@/lib/giveaways"
 import { awardReferralCommission } from "@/lib/referrals"
+import { isAdminId } from "@/lib/admin"
+import { notifyAdmins } from "@/lib/admin-notify"
 
 const token = process.env.TELEGRAM_BOT_TOKEN
 
@@ -46,6 +48,26 @@ export async function POST(req: Request) {
   }
 
   const callback = update.callback_query
+  if (callback?.id && typeof callback.data === "string" && callback.data.startsWith("admin_wd_confirm:")) {
+    if (!isAdminId(String(callback.from?.id))) {
+      await tg("answerCallbackQuery", { callback_query_id: callback.id, text: "Not allowed", show_alert: true })
+      return NextResponse.json({ ok: true })
+    }
+    const transactionId = Number(callback.data.slice("admin_wd_confirm:".length))
+    const withdrawal = (await db.select().from(transactions).where(and(eq(transactions.id, transactionId), eq(transactions.type, "gift_withdraw"), eq(transactions.status, "pending"))).limit(1))[0]
+    if (!withdrawal) {
+      await tg("answerCallbackQuery", { callback_query_id: callback.id, text: "Already confirmed or not found", show_alert: true })
+      return NextResponse.json({ ok: true })
+    }
+    const meta = (withdrawal.meta ?? {}) as Record<string, unknown>
+    await db.transaction(async (tx) => {
+      if (Number.isSafeInteger(Number(meta.inventoryId))) await tx.update(inventory).set({ status: "withdrawn" }).where(eq(inventory.id, Number(meta.inventoryId)))
+      await tx.update(transactions).set({ status: "completed" }).where(eq(transactions.id, transactionId))
+    })
+    await tg("answerCallbackQuery", { callback_query_id: callback.id, text: "Withdrawal confirmed" })
+    await tg("sendMessage", { chat_id: withdrawal.userId, text: `✅ Your ${String(meta.giftName ?? "gift")} has been sent to your Telegram account.` })
+    return NextResponse.json({ ok: true })
+  }
   if (callback?.id && typeof callback.data === "string" && callback.data.startsWith("gw_join:")) {
     const giveawayId = Number(callback.data.slice("gw_join:".length))
     const result = await joinGiveawayFromCallback({ giveawayId, telegramUser: callback.from })
@@ -180,7 +202,10 @@ export async function POST(req: Request) {
           .where(eq(users.id, claimed[0].userId))
         return { id: claimed[0].id, userId: claimed[0].userId, credited }
       })
-      if (referralDeposit) await awardReferralCommission(referralDeposit.userId, referralDeposit.id, referralDeposit.credited).catch(() => undefined)
+      if (referralDeposit) {
+        await awardReferralCommission(referralDeposit.userId, referralDeposit.id, referralDeposit.credited).catch(() => undefined)
+        await notifyAdmins(`📥 <b>Stars депозит зараховано</b>\n\n👤 User: <code>${referralDeposit.userId}</code>\n⭐ ${stars} Stars`)
+      }
     }
   }
 

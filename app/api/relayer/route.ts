@@ -68,30 +68,15 @@ export async function POST(req: Request) {
     error: error instanceof Error ? error.message : "deposit scan failed",
   }))
 
-  // A Business connection remains optional and is only used for withdrawals.
-  if (!businessRelayerConfigured()) {
-    return NextResponse.json({ ok: true, automated: deposits.configured, deposits, withdrawals: { configured: false } })
-  }
-
   const pending = await db
     .select()
     .from(transactions)
     .where(and(sql`${transactions.type} = 'gift_withdraw'`, eq(transactions.status, "pending")))
     .limit(50)
 
-  let fulfilled = 0
-  if (pending.length) {
-    const pool = await getRelayerGifts()
-    for (const tx of pending) {
-      try {
-        if (await fulfillWithdraw(tx, pool)) fulfilled++
-      } catch {
-        // leave pending for next run
-      }
-    }
-  }
-
-  return NextResponse.json({ ok: true, automated: true, deposits, withdrawals: { configured: true, pending: pending.length, fulfilled } })
+  // Withdrawals intentionally stay pending until an administrator confirms
+  // the inline request in Telegram after manually sending the NFT.
+  return NextResponse.json({ ok: true, automated: deposits.configured, deposits, withdrawals: { configured: businessRelayerConfigured(), pending: pending.length, fulfilled: 0, manualConfirmation: true } })
 }
 
 export async function GET(req: Request) {

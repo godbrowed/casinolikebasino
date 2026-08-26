@@ -27,6 +27,7 @@ export default async function ProfilePage() {
             value: i.value,
             source: i.source,
             locked: i.locked,
+            sending: i.sending,
           }))}
           history={history}
           freeCaseClaim={freeCaseClaim}

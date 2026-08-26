@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache"
 import { db } from "@/lib/db"
 import { giveawayChannels, giveawayEntries, giveawayRequiredChannels, giveaways, gifts, inventory, users } from "@/lib/db/schema"
 import { requireUserId } from "@/lib/session"
-import { giveawayKeyboard, giveawayPostText, joinGiveawayFromCallback, resolveBotUsername, settleExpiredGiveaways, settleGiveaway, telegramCall } from "@/lib/giveaways"
+import { giveawayKeyboard, giveawayPostText, joinGiveawayFromCallback, resolveBotUsername, settleExpiredGiveaways, settleGiveaway, telegramCall, telegramCallMultipart } from "@/lib/giveaways"
 import { assertFreeCaseGiftUnlocked, getFreeCaseClaimStatus } from "@/lib/free-case-referrals"
 import { giftValueInStars } from "@/lib/pricing"
 
@@ -159,6 +159,7 @@ export async function createGiveaway(input: {
   requiredChannelIds: number[]
   title: string
   body: string
+  photoDataUrl?: string
   ticketPrice: number
   durationMinutes: number
   maxTicketsPerUser?: number
@@ -168,7 +169,8 @@ export async function createGiveaway(input: {
   const inventoryId = Number(input.inventoryId)
   const requiredChannelIds = [...new Set((input.requiredChannelIds || []).map(Number))]
   const title = input.title?.trim()
-  const body = input.body?.trim()
+  const body = input.body?.trim() ?? ""
+  const photo = parseGiveawayPhoto(input.photoDataUrl)
   const ticketPrice = Number(input.ticketPrice)
   const durationMinutes = Number(input.durationMinutes)
   const maxTickets = ticketPrice > 0 ? Number(input.maxTicketsPerUser || 100) : 1
@@ -177,7 +179,8 @@ export async function createGiveaway(input: {
   if (!Number.isSafeInteger(inventoryId) || inventoryId <= 0) throw new Error("Choose an NFT gift from your profile")
   if (requiredChannelIds.length > 10 || requiredChannelIds.some((id) => !Number.isSafeInteger(id) || id <= 0)) throw new Error("Choose valid required channels")
   if (!title || title.length > 80) throw new Error("Title must contain 1–80 characters")
-  if (!body || body.length > 1200) throw new Error("Text must contain 1–1,200 characters")
+  if (body.length > 1200) throw new Error("Text must contain up to 1,200 characters")
+  if (photo && body.length > 500) throw new Error("With a photo, keep the description under 500 characters")
   if (!Number.isFinite(ticketPrice) || ticketPrice < 0 || ticketPrice > 100_000) throw new Error("Invalid ticket price")
   if (!Number.isSafeInteger(durationMinutes) || durationMinutes < 5 || durationMinutes > 43_200) throw new Error("Duration must be between 5 minutes and 30 days")
   if (!Number.isSafeInteger(maxTickets) || maxTickets < 1 || maxTickets > 1000) throw new Error("Invalid ticket limit")
@@ -240,13 +243,13 @@ export async function createGiveaway(input: {
     }
     return created
   })
-  const post = await telegramCall<{ message_id: number }>("sendMessage", {
-    chat_id: channel.chatId,
-    text: giveawayPostText({ ...giveaway, status: "active", requiredChannels }),
-    parse_mode: "HTML",
-    link_preview_options: { is_disabled: true },
-    reply_markup: giveawayKeyboard({ ...giveaway, status: "active" }),
-  })
+  const postText = giveawayPostText({ ...giveaway, status: "active", requiredChannels })
+  const post = photo
+    ? await sendGiveawayPhoto(channel.chatId, photo, postText, giveawayKeyboard({ ...giveaway, status: "active" }))
+    : await telegramCall<TelegramPostedMessage>("sendMessage", {
+        chat_id: channel.chatId, text: postText, parse_mode: "HTML",
+        link_preview_options: { is_disabled: true }, reply_markup: giveawayKeyboard({ ...giveaway, status: "active" }),
+      })
   if (!post.ok || !post.result?.message_id) {
     await db.transaction(async (tx) => {
       await tx.update(giveaways).set({ status: "failed" }).where(eq(giveaways.id, giveaway.id))
@@ -259,9 +262,31 @@ export async function createGiveaway(input: {
     throw new Error(post.description || "Telegram could not publish the giveaway")
   }
 
-  await db.update(giveaways).set({ status: "active", postMessageId: post.result.message_id }).where(eq(giveaways.id, giveaway.id))
+  const photoFileId = post.result.photo?.at(-1)?.file_id ?? null
+  await db.update(giveaways).set({ status: "active", postMessageId: post.result.message_id, photoFileId }).where(eq(giveaways.id, giveaway.id))
   revalidatePath("/giveaways")
   return { id: giveaway.id, channelUrl: channel.username ? `https://t.me/${channel.username}/${post.result.message_id}` : null }
+}
+
+type TelegramPostedMessage = { message_id: number; photo?: Array<{ file_id: string }> }
+
+function parseGiveawayPhoto(dataUrl?: string) {
+  if (!dataUrl) return null
+  const match = dataUrl.match(/^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/)
+  if (!match) throw new Error("Choose a JPG, PNG or WebP image")
+  const bytes = Buffer.from(match[2], "base64")
+  if (!bytes.length || bytes.length > 3 * 1024 * 1024) throw new Error("Photo must be smaller than 3 MB")
+  return { bytes, mime: match[1], extension: match[1].split("/")[1].replace("jpeg", "jpg") }
+}
+
+async function sendGiveawayPhoto(chatId: string, photo: NonNullable<ReturnType<typeof parseGiveawayPhoto>>, caption: string, keyboard: unknown) {
+  const form = new FormData()
+  form.set("chat_id", chatId)
+  form.set("photo", new Blob([photo.bytes], { type: photo.mime }), `giveaway.${photo.extension}`)
+  form.set("caption", caption)
+  form.set("parse_mode", "HTML")
+  form.set("reply_markup", JSON.stringify(keyboard))
+  return telegramCallMultipart<TelegramPostedMessage>("sendPhoto", form)
 }
 
 export async function finishGiveaway(giveawayId: number) {

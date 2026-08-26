@@ -1,6 +1,6 @@
 "use server"
 
-import { and, desc, eq, sql } from "drizzle-orm"
+import { and, desc, eq, or, sql } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { db } from "@/lib/db"
 import { users, inventory, gifts, gameHistory } from "@/lib/db/schema"
@@ -48,12 +48,12 @@ export async function getInventory(includeLocked = false) {
     .innerJoin(gifts, eq(inventory.giftId, gifts.id))
     .where(and(
       eq(inventory.userId, userId),
-      eq(inventory.status, "owned"),
+      or(eq(inventory.status, "owned"), eq(inventory.status, "withdraw_pending")),
       includeLocked || claim.ready ? sql`true` : sql`${inventory.source} <> 'free-case'`,
     ))
     .orderBy(desc(inventory.value), desc(inventory.createdAt))
 
-  return rows.map(({ floorTon, ...r }) => ({ ...r, locked: r.source === "free-case" && !claim.ready, value: giftValueInStars(r.value, floorTon) }))
+  return rows.map(({ floorTon, ...r }) => ({ ...r, sending: r.status === "withdraw_pending", locked: r.source === "free-case" && !claim.ready, value: giftValueInStars(r.value, floorTon) }))
 }
 
 export async function sellGift(inventoryId: number) {

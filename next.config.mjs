@@ -7,6 +7,9 @@ const nextConfig = {
     root: process.cwd(),
   },
   outputFileTracingRoot: process.cwd(),
+  experimental: {
+    serverActions: { bodySizeLimit: "4mb" },
+  },
   typescript: {
     ignoreBuildErrors: true,
   },

@@ -10,7 +10,7 @@ import { useUser } from "@/components/user-provider"
 import { fmt, rarityOf } from "@/lib/format"
 import { haptic, hapticNotify } from "@/lib/telegram-webapp"
 import { cn } from "@/lib/utils"
-import { multiplierAtElapsed } from "@/lib/crash-shared"
+import { CRASH_BETTING_MS, CRASH_ROUND_MS, multiplierAtElapsed } from "@/lib/crash-shared"
 import { playGameSound } from "@/lib/game-sound"
 import {
   cashoutCrashApi,
@@ -35,7 +35,9 @@ type CrashSignal = { roundId: number; multiplier: number }
 export function CrashGame() {
   const { me, setBalance, refresh } = useUser()
   const { data: board, mutate } = useSWR<CrashBoard>("shared-crash-board", fetchCrashBoard, {
-    refreshInterval: 1000,
+    // The round crash is delivered by /watch. This is only a safety snapshot,
+    // not the animation clock, so it should not hammer the DB every second.
+    refreshInterval: 4000,
     revalidateOnFocus: true,
   })
   const { data: giftData, mutate: mutateGifts } = useSWR("crash-gifts", fetchCrashGifts, {
@@ -62,7 +64,7 @@ export function CrashGame() {
   const stakeValue = wager?.kind === "gift" ? wager.gift.value : wager?.kind === "stars" ? wager.amount : stakeKind === "gift" ? selectedGift?.value ?? 0 : bet
 
   useEffect(() => {
-    const id = window.setInterval(() => setClock(Date.now()), 100)
+    const id = window.setInterval(() => setClock(Date.now()), 250)
     return () => window.clearInterval(id)
   }, [])
 
@@ -85,6 +87,13 @@ export function CrashGame() {
     }).catch(() => undefined)
     return () => controller.abort()
   }, [board?.roundId])
+
+  useEffect(() => {
+    if (!board) return
+    const nextRoundAt = board.flightStart + (CRASH_ROUND_MS - CRASH_BETTING_MS)
+    const timer = window.setTimeout(() => void mutate(), Math.max(50, nextRoundAt - Date.now() + 80))
+    return () => window.clearTimeout(timer)
+  }, [board?.flightStart, mutate])
 
   useEffect(() => {
     if (phase !== "crashed" || !wager || settling.current) return

@@ -37,7 +37,7 @@ export function GiftCrashGame() {
   const canJoin = boardPhase === "betting" && localPhase === "select" && Boolean(selected)
 
   useEffect(() => {
-    const id = window.setInterval(() => setClock(Date.now()), 100)
+    const id = window.setInterval(() => setClock(Date.now()), 125)
     return () => window.clearInterval(id)
   }, [])
 

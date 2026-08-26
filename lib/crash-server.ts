@@ -12,5 +12,7 @@ export function crashPointForRound(roundId: number, edge = 0.9): number {
   const hash = crypto.createHmac("sha256", crashSecret()).update(`crash:${roundId}`).digest()
   const roll = hash.readUInt32BE(0) / 0x1_0000_0000
   const point = edge / (1 - roll)
-  return Math.min(20, Math.max(1, Math.floor(point * 100) / 100))
+  // Keep extreme hash tails finite so every global round still settles before
+  // the next one, while allowing rare flights far beyond the old 20x ceiling.
+  return Math.min(100, Math.max(1, Math.floor(point * 100) / 100))
 }

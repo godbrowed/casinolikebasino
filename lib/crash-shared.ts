@@ -11,7 +11,8 @@ export const CRASH_ROUND_MS = 20_000
 export const CRASH_BETTING_MS = 5_000
 // A calmer curve keeps the flight readable on a phone: 2× takes ~3 seconds,
 // rather than jumping there almost immediately.
-export const CRASH_GROWTH_K = 0.22 // growth rate per second (exponential)
+// Reaches the rare 100x ceiling in ~14.4s, still inside the 15s shared flight.
+export const CRASH_GROWTH_K = 0.32 // growth rate per second (exponential)
 
 export function sharedRoundStart(now = Date.now()): number {
   return Math.floor(now / CRASH_ROUND_MS) * CRASH_ROUND_MS

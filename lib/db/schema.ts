@@ -64,6 +64,13 @@ export const caseItems = pgTable("case_items", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 })
 
+export const freeCaseProgress = pgTable("free_case_progress", {
+  userId: text("user_id").primaryKey(),
+  shareCount: integer("share_count").notNull().default(0),
+  tradeVisitedAt: timestamp("trade_visited_at", { withTimezone: true }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+})
+
 export const inventory = pgTable("inventory", {
   id: serial("id").primaryKey(),
   userId: text("user_id").notNull(),

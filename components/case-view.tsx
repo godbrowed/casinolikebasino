@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import useSWR from "swr"
-import { ArrowLeft, Gift, SlidersHorizontal, Trophy, X } from "lucide-react"
+import { ArrowLeft, Check, ChevronRight, ExternalLink, Gift, Loader2, Send, SlidersHorizontal, Trophy, X } from "lucide-react"
 import Link from "next/link"
 import type { CaseDTO, GiftDTO } from "@/app/actions/cases"
 import { AppHeader } from "@/components/app-header"
@@ -11,9 +11,9 @@ import { WinModal } from "@/components/win-modal"
 import { Coin } from "@/components/coin"
 import { useUser } from "@/components/user-provider"
 import { rarityOf, fmt } from "@/lib/format"
-import { haptic, hapticNotify } from "@/lib/telegram-webapp"
+import { haptic, hapticNotify, sharePreparedMessage } from "@/lib/telegram-webapp"
 import { cn } from "@/lib/utils"
-import { fetchLiveDrops, openCasesApi, sellGiftApi } from "@/lib/client-game-api"
+import { fetchFreeCaseRequirements, fetchLiveDrops, openCasesApi, sellGiftApi, updateFreeCaseRequirement } from "@/lib/client-game-api"
 
 export function CaseView({ c }: { c: CaseDTO }) {
   const { me, setBalance, refresh } = useUser()
@@ -28,15 +28,23 @@ export function CaseView({ c }: { c: CaseDTO }) {
   const [showOptions, setShowOptions] = useState(false)
   const [showPrizes, setShowPrizes] = useState(false)
   const [clientNow, setClientNow] = useState<number | null>(null)
+  const [showRequirements, setShowRequirements] = useState(c.isFree)
+  const [requirementBusy, setRequirementBusy] = useState<string | null>(null)
+  const { data: requirements, mutate: refreshRequirements } = useSWR(c.isFree ? "free-case-requirements" : null, fetchFreeCaseRequirements, { revalidateOnFocus: true })
 
   useEffect(() => { setClientNow(Date.now()) }, [])
 
   const balance = me?.balance ?? 0
   const freeReady = !c.isFree || !c.nextFreeAt || (clientNow != null && new Date(c.nextFreeAt).getTime() <= clientNow)
-  const canAfford = c.items.length > 0 && (c.isFree || balance >= c.price * openCount) && freeReady
+  const requirementsReady = !c.isFree || requirements?.ready === true
+  const canAfford = c.items.length > 0 && (c.isFree || balance >= c.price * openCount) && freeReady && requirementsReady
 
   async function handleSpin() {
     if (spinning || busy) return
+    if (c.isFree && !requirementsReady) {
+      setShowRequirements(true)
+      return
+    }
     if (!canAfford) {
       setError(c.isFree ? "Your free case is recharging. Come back a little later." : "Not enough balance. Deposit to play.")
       return
@@ -58,10 +66,57 @@ export function CaseView({ c }: { c: CaseDTO }) {
           ? "Not enough balance. Deposit to play."
           : msg === "FREE_CASE_COOLDOWN"
             ? "Your free case is recharging. Come back a little later."
+            : msg === "FREE_CASE_REQUIREMENTS"
+              ? "Complete the free case requirements first."
             : msg,
       )
     } finally {
       setBusy(false)
+    }
+  }
+
+  async function shareWithFriend() {
+    if (requirementBusy || requirements?.shares === requirements?.requiredShares) return
+    setRequirementBusy("share")
+    setError(null)
+    try {
+      const prepared = await updateFreeCaseRequirement("prepare-share")
+      if (!prepared.messageId) throw new Error("Telegram could not prepare the share message.")
+      const sent = await sharePreparedMessage(prepared.messageId)
+      if (!sent) throw new Error("Message was not sent. Choose a chat and send it to continue.")
+      await updateFreeCaseRequirement("share-complete")
+      await refreshRequirements()
+      hapticNotify("success")
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not verify the share")
+    } finally {
+      setRequirementBusy(null)
+    }
+  }
+
+  async function visitTradeApp() {
+    if (!requirements) return
+    setRequirementBusy("trade")
+    try {
+      await updateFreeCaseRequirement("trade-visit")
+      await refreshRequirements()
+      window.open(requirements.tradeUrl, "_blank", "noopener,noreferrer")
+    } finally {
+      setRequirementBusy(null)
+    }
+  }
+
+  async function verifyRequirements() {
+    setRequirementBusy("verify")
+    const fresh = await refreshRequirements()
+    setRequirementBusy(null)
+    if (fresh?.ready) {
+      setShowRequirements(false)
+      hapticNotify("success")
+    } else if (fresh && !fresh.channelCheckAvailable) {
+      setError("Subscription check is unavailable. Add the bot as an admin of @PugGift and try again.")
+    } else {
+      setError("Complete all required steps, then tap Done again.")
     }
   }
 
@@ -129,14 +184,55 @@ export function CaseView({ c }: { c: CaseDTO }) {
           {showPrizes && <section className="rounded-[24px] bg-[#102854]/90 p-3 ring-1 ring-white/10 backdrop-blur-xl"><div className="mb-2 flex items-center justify-between"><h2 className="flex items-center gap-1.5 text-sm font-black"><Gift className="h-4 w-4 text-blue-200" />Case prizes</h2><button onClick={() => setShowPrizes(false)} className="flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-white/60"><X className="h-3.5 w-3.5" /></button></div><div className="no-scrollbar flex gap-2 overflow-x-auto pb-1">{c.items.map((gift) => { const rarity = rarityOf(gift.rarity); return <div key={gift.id} className="w-24 shrink-0 rounded-[18px] bg-white/[.07] p-2 text-center ring-1 ring-white/10"><img src={gift.imageUrl || "/images/nft-gift.png"} alt={gift.name} className="mx-auto h-14 w-14 object-contain" /><div className={cn("mt-1 truncate text-[9px] font-black", rarity.text)}>{gift.name}</div><div className="mt-1 flex items-center justify-center gap-1 text-[9px] font-bold text-white/60"><Coin className="h-3 w-3" />{fmt(gift.value)}</div></div> })}</div></section>}
 
           <button onClick={handleSpin} disabled={spinning || busy} className={cn("flex w-full items-center justify-center gap-2 rounded-[20px] py-4 font-display text-base font-black transition-all active:scale-[0.98]", canAfford ? "bg-[#2f70ff] text-white shadow-[0_13px_34px_-8px_rgba(21,40,110,.7),inset_0_1px_0_rgba(255,255,255,.3)]" : "bg-white/12 text-white/35", (spinning || busy) && "opacity-70")}>
-            {spinning ? "Spinning…" : <><span>{c.isFree ? (freeReady ? "Spin free" : "Free case recharging") : "Spin for"}</span><span className="flex items-center gap-1 rounded-full bg-black/18 px-2.5 py-0.5">{!c.isFree && <Coin className="h-3.5 w-3.5" />}<span className="font-mono">{c.isFree ? "FREE" : fmt(c.price * openCount)}</span></span></>}
+            {spinning ? "Spinning…" : <><span>{c.isFree ? (!freeReady ? "Free case recharging" : requirementsReady ? "Spin free" : "Complete requirements") : "Spin for"}</span><span className="flex items-center gap-1 rounded-full bg-black/18 px-2.5 py-0.5">{!c.isFree && <Coin className="h-3.5 w-3.5" />}<span className="font-mono">{c.isFree ? "FREE" : fmt(c.price * openCount)}</span></span></>}
           </button>
         </div>
       </main>
 
       {showWin && <WinModal gift={result} onSell={handleSell} onKeep={closeWin} busy={busy} />}
+      {c.isFree && showRequirements && requirements && <FreeCaseRequirementsModal
+        requirements={requirements}
+        busy={requirementBusy}
+        onClose={() => setShowRequirements(false)}
+        onShare={shareWithFriend}
+        onTrade={visitTradeApp}
+        onChannel={() => window.open(requirements.channelUrl, "_blank", "noopener,noreferrer")}
+        onDone={verifyRequirements}
+      />}
     </>
   )
+}
+
+function FreeCaseRequirementsModal({ requirements, busy, onClose, onShare, onTrade, onChannel, onDone }: {
+  requirements: NonNullable<Awaited<ReturnType<typeof fetchFreeCaseRequirements>>>
+  busy: string | null
+  onClose: () => void
+  onShare: () => void
+  onTrade: () => void
+  onChannel: () => void
+  onDone: () => void
+}) {
+  const shared = requirements.shares >= requirements.requiredShares
+  return <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#020817]/75 p-4 backdrop-blur-md">
+    <section className="w-full max-w-[560px] rounded-[30px] bg-[#202328] p-5 text-white shadow-[0_30px_100px_rgba(0,0,0,.65)] ring-1 ring-white/10 md:p-6">
+      <div className="flex items-start justify-between gap-4"><div className="flex-1 text-center"><h2 className="font-display text-2xl font-black md:text-3xl">Complete the requirements</h2><p className="mt-1 text-sm font-bold text-white/50">To spin this free case</p></div><button onClick={onClose} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/5 text-white/45"><X className="h-5 w-5" /></button></div>
+      <div className="mt-5 overflow-hidden rounded-[24px] bg-[#3a3d42] p-2 ring-1 ring-white/[.06]">
+        <RequirementRow icon={<Send className="h-5 w-5" />} tone="blue" title={`Send to ${requirements.requiredShares} friends`} description={shared ? "All shares confirmed" : `${requirements.shares} of ${requirements.requiredShares} sent`} done={shared} busy={busy === "share"} onClick={onShare} />
+        <RequirementRow icon={<span className="text-lg">📣</span>} tone="orange" title="Subscribe to @PugGift" description={requirements.subscribed ? "Subscription confirmed" : "Join the channel and come back"} done={requirements.subscribed} onClick={onChannel} />
+        <RequirementRow icon={<ExternalLink className="h-5 w-5" />} tone="orange" title="Visit the Trade app" description={requirements.tradeVisited ? "App opened" : "Open it and come back here"} done={requirements.tradeVisited} busy={busy === "trade"} onClick={onTrade} />
+      </div>
+      <button onClick={onDone} disabled={busy !== null} className="mt-5 flex w-full items-center justify-center rounded-[18px] bg-[#3275ff] py-4 font-display text-lg font-black shadow-[0_12px_30px_rgba(36,92,230,.35)] disabled:opacity-60">{busy === "verify" ? <Loader2 className="h-5 w-5 animate-spin" /> : requirements.ready ? "Ready to spin" : "Done"}</button>
+      {!requirements.channelCheckAvailable && <p className="mt-3 text-center text-[11px] font-bold text-amber-200/80">The bot must be an admin of @PugGift to verify subscriptions.</p>}
+    </section>
+  </div>
+}
+
+function RequirementRow({ icon, tone, title, description, done, busy, onClick }: { icon: React.ReactNode; tone: "blue" | "orange"; title: string; description: string; done: boolean; busy?: boolean; onClick: () => void }) {
+  return <button type="button" onClick={onClick} disabled={done || busy} className="flex w-full items-center gap-3 rounded-[18px] px-3 py-3 text-left transition hover:bg-white/[.04] disabled:opacity-80">
+    <span className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-white", tone === "blue" ? "bg-[#4384ff]" : "bg-[#ef6a3a]")}>{busy ? <Loader2 className="h-5 w-5 animate-spin" /> : icon}</span>
+    <span className="min-w-0 flex-1"><b className="block text-[15px] font-black">{title}</b><small className="block truncate text-xs font-bold text-white/45">{description}</small></span>
+    {done ? <span className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-400 text-emerald-950"><Check className="h-4 w-4 stroke-[3]" /></span> : <ChevronRight className="h-5 w-5 text-white/30" />}
+  </button>
 }
 
 function CaseLiveStrip() {

@@ -4,9 +4,10 @@ import { and, asc, desc, eq, inArray, isNull, lte, or, sql } from "drizzle-orm"
 import crypto from "crypto"
 import { revalidatePath } from "next/cache"
 import { db } from "@/lib/db"
-import { cases, caseItems, gifts, users, inventory, gameHistory } from "@/lib/db/schema"
+import { cases, caseItems, gifts, users, inventory, gameHistory, freeCaseProgress } from "@/lib/db/schema"
 import { getCurrentUserId, requireUserId } from "@/lib/session"
 import { BALANCE_REWARD_MAX_CASE_PRICE, giftValueInStars, priceFromContents } from "@/lib/pricing"
+import { freeCaseRequirements } from "@/lib/free-case"
 
 export type GiftDTO = {
   id: number
@@ -83,9 +84,31 @@ export async function getCases(): Promise<CaseDTO[]> {
     })
     .from(caseItems)
     .innerJoin(gifts, eq(caseItems.giftId, gifts.id))
+  const promoItems = (await db.select().from(gifts))
+    .map((gift) => ({
+      caseId: -1,
+      weight: "1",
+      ...gift,
+    }))
+    .sort((a, b) => starValue(a.value, a.floorTon) - starValue(b.value, b.floorTon))
+    .slice(0, 12)
 
   return rows.map((c) => {
     const list = items.filter((i) => i.caseId === c.id)
+    const freeSource = list.length ? list : promoItems
+    const freeGiftItems = freeSource.length ? freeSource.map((i) => ({
+      id: i.id,
+      slug: i.slug,
+      name: i.name,
+      rarity: i.rarity,
+      imageUrl: i.imageUrl,
+      value: starValue(i.value, i.floorTon),
+      floorTon: Number(i.floorTon),
+      weight: Number(i.weight),
+      rewardType: "gift" as const,
+    })).sort((a, b) => b.value - a.value) : [
+      { id: 37, slug: "snakebox", name: "Snake Box NFT", rarity: "mythic", imageUrl: "https://storage.portal-market.com/portals-market/gifts/snakebox/models/png/aquarium.png", value: 280, weight: 1, rewardType: "gift" as const },
+    ]
     const livePrice = c.isFree ? 0 : priceFromContents(list.map((i) => ({ weight: Number(i.weight), value: starValue(i.value, i.floorTon) })))
     const nextFreeAt = c.isFree && lastFreeCaseAt
       ? new Date(lastFreeCaseAt.getTime() + (c.cooldownHours ?? 24) * 60 * 60 * 1000).toISOString()
@@ -102,7 +125,7 @@ export async function getCases(): Promise<CaseDTO[]> {
       nextFreeAt,
       items: c.isFree
         ? [
-            { id: 37, slug: "snakebox", name: "Snake Box NFT", rarity: "mythic", imageUrl: "https://storage.portal-market.com/portals-market/gifts/snakebox/models/png/aquarium.png", value: 280, rewardType: "gift" as const },
+            ...freeGiftItems,
             ...FREE_CURRENCY_REWARDS,
           ]
         : [
@@ -149,7 +172,7 @@ export async function openCase(caseId: number): Promise<{
 
   const caseRow = (await db.select().from(cases).where(eq(cases.id, caseId)).limit(1))[0]
   if (!caseRow) throw new Error("Case not found")
-  const list = await db
+  let list = await db
     .select({
       weight: caseItems.weight,
       id: gifts.id,
@@ -164,9 +187,28 @@ export async function openCase(caseId: number): Promise<{
     .innerJoin(gifts, eq(caseItems.giftId, gifts.id))
     .where(eq(caseItems.caseId, caseId))
 
+  if (caseRow.isFree && list.length === 0) {
+    list = (await db.select({
+      weight: sql<string>`1`,
+      id: gifts.id,
+      slug: gifts.slug,
+      name: gifts.name,
+      rarity: gifts.rarity,
+      imageUrl: gifts.imageUrl,
+      value: gifts.value,
+      floorTon: gifts.floorTon,
+    }).from(gifts))
+      .sort((a, b) => starValue(a.value, a.floorTon) - starValue(b.value, b.floorTon))
+      .slice(0, 12)
+  }
+
   const price = caseRow.isFree ? 0 : priceFromContents(list.map((item) => ({ weight: Number(item.weight), value: starValue(item.value, item.floorTon) }))) || Number(caseRow.price)
 
   if (!caseRow.isFree && list.length === 0) throw new Error("Empty case")
+  if (caseRow.isFree) {
+    const requirements = await freeCaseRequirements(userId)
+    if (!requirements.ready) throw new Error("FREE_CASE_REQUIREMENTS")
+  }
 
   return db.transaction(async (tx) => {
     const userRows = await tx.select().from(users).where(eq(users.id, userId)).limit(1)
@@ -178,12 +220,15 @@ export async function openCase(caseId: number): Promise<{
       const cooldownMs = (caseRow.cooldownHours ?? 24) * 60 * 60 * 1000
       const eligibleBefore = new Date(now.getTime() - cooldownMs)
       const roll = crypto.randomInt(10_000)
-      const currencyValue = roll < 4500 ? 2 : roll < 7500 ? 5 : roll < 9000 ? 10 : roll < 9700 ? 25 : roll < 9900 ? 50 : 100
-      const wonGift = roll >= 9980
+      // The promo case is intentionally NFT-forward: 65% of eligible spins
+      // settle as a real inventory gift; the remaining outcomes are Stars.
+      const wonGift = roll < 6500
+      const currencyRoll = crypto.randomInt(10_000)
+      const currencyValue = currencyRoll < 4500 ? 2 : currencyRoll < 7500 ? 5 : currencyRoll < 9000 ? 10 : currencyRoll < 9700 ? 25 : currencyRoll < 9900 ? 50 : 100
 
       if (wonGift) {
-        const giftRows = await tx.select().from(gifts).where(eq(gifts.id, 37)).limit(1)
-        const gift = giftRows[0]
+        const idx = list.length ? weightedPick(list.map((item) => ({ weight: Number(item.weight) }))) : -1
+        const gift = idx >= 0 ? list[idx] : (await tx.select().from(gifts).where(eq(gifts.id, 37)).limit(1))[0]
         if (gift) {
           const giftWinValue = starValue(gift.value, gift.floorTon)
           const claimed = await tx
@@ -199,6 +244,10 @@ export async function openCase(caseId: number): Promise<{
             bet: "0",
             result: String(giftWinValue),
             meta: { caseName: caseRow.name, giftName: gift.name, rarity: gift.rarity, imageUrl: gift.imageUrl, rewardType: "gift" },
+          })
+          await tx.insert(freeCaseProgress).values({ userId }).onConflictDoUpdate({
+            target: freeCaseProgress.userId,
+            set: { shareCount: 0, tradeVisitedAt: null, updatedAt: now },
           })
           return {
             won: { id: gift.id, slug: gift.slug, name: gift.name, rarity: gift.rarity, imageUrl: gift.imageUrl, value: giftWinValue, rewardType: "gift" },
@@ -229,6 +278,10 @@ export async function openCase(caseId: number): Promise<{
         bet: "0",
         result: String(currencyValue),
         meta: { caseName: caseRow.name, giftName: won.name, rarity: won.rarity, imageUrl: won.imageUrl, rewardType: "currency" },
+      })
+      await tx.insert(freeCaseProgress).values({ userId }).onConflictDoUpdate({
+        target: freeCaseProgress.userId,
+        set: { shareCount: 0, tradeVisitedAt: null, updatedAt: now },
       })
       revalidatePath("/")
       return { won, balance: Number(updated[0].balance), inventoryId: null }

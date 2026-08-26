@@ -67,9 +67,9 @@ export async function getCrashBoard(): Promise<CrashBoard> {
       .select({ bet: gameHistory.bet, result: gameHistory.result, meta: gameHistory.meta, username: users.username, firstName: users.firstName })
       .from(gameHistory)
       .innerJoin(users, eq(gameHistory.userId, users.id))
-      .where(and(eq(gameHistory.game, "crash"), gte(gameHistory.createdAt, new Date(now - 24 * 60 * 60 * 1000))))
+      .where(and(eq(gameHistory.game, "crash"), gte(gameHistory.createdAt, new Date(sharedRoundStart(now)))))
       .orderBy(desc(gameHistory.createdAt))
-      .limit(80)
+      .limit(60)
   } catch {
     // The board must still render during a transient database reconnect.
     // It will populate again on the next lightweight refresh.

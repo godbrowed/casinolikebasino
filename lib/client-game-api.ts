@@ -6,6 +6,7 @@ import type { GiftDTO } from "@/app/actions/cases"
 
 type ApiError = { error?: string }
 export type LiveDrop = { id: number; name: string; rarity: string; imageUrl: string; value: number }
+export type FreeCaseRequirements = { shares: number; requiredShares: number; subscribed: boolean; channelCheckAvailable: boolean; tradeVisited: boolean; ready: boolean; channelUrl: string; tradeUrl: string }
 
 async function api<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, {
@@ -21,6 +22,9 @@ async function api<T>(url: string, init?: RequestInit): Promise<T> {
 
 export const fetchCrashBoard = () => api<CrashBoard>("/api/crash/board")
 export const fetchLiveDrops = () => api<LiveDrop[]>("/api/live-drops")
+export const fetchFreeCaseRequirements = () => api<FreeCaseRequirements>("/api/cases/requirements")
+export const updateFreeCaseRequirement = (action: "prepare-share" | "share-complete" | "trade-visit") =>
+  api<FreeCaseRequirements & { messageId?: string }>("/api/cases/requirements", { method: "POST", body: JSON.stringify({ action }) })
 
 export const fetchCrashGifts = () =>
   api<{ gifts: OwnedGift[]; rewardImages: string[] }>("/api/crash/gifts")

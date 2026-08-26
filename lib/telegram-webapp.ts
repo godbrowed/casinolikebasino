@@ -19,6 +19,7 @@ type WebApp = {
     selectionChanged: () => void
   }
   openInvoice?: (url: string, callback: (status: string) => void) => void
+  shareMessage?: (messageId: string, callback?: (sent: boolean) => void) => void
 }
 
 declare global {
@@ -65,6 +66,14 @@ export function requestAppFullscreen() {
 
 export function getInitData(): string {
   return getWebApp()?.initData ?? ""
+}
+
+export function sharePreparedMessage(messageId: string): Promise<boolean> {
+  const wa = getWebApp()
+  if (!wa?.shareMessage || !(wa.isVersionAtLeast?.("8.0") ?? false)) return Promise.resolve(false)
+  return new Promise((resolve) => {
+    try { wa.shareMessage?.(messageId, (sent) => resolve(sent)) } catch { resolve(false) }
+  })
 }
 
 function hapticSupported(wa: WebApp | null): wa is WebApp {

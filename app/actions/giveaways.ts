@@ -1,11 +1,11 @@
 "use server"
 
-import { and, desc, eq } from "drizzle-orm"
+import { and, desc, eq, isNotNull, or } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { db } from "@/lib/db"
-import { giveawayChannels, giveaways } from "@/lib/db/schema"
+import { giveawayChannels, giveawayEntries, giveaways, users } from "@/lib/db/schema"
 import { requireUserId } from "@/lib/session"
-import { appUrl, giveawayKeyboard, giveawayPostText, resolveBotUsername, settleExpiredGiveaways, settleGiveaway, telegramCall } from "@/lib/giveaways"
+import { appUrl, giveawayKeyboard, giveawayPostText, joinGiveawayFromCallback, resolveBotUsername, settleExpiredGiveaways, settleGiveaway, telegramCall } from "@/lib/giveaways"
 
 export type GiveawayDashboard = {
   botUsername: string
@@ -31,21 +31,31 @@ export type GiveawayDashboard = {
     status: string
     endsAt: string
     createdAt: string
+    channelUsername: string | null
+    channelUrl: string | null
+    myTickets: number
+    isOwner: boolean
   }>
 }
 
 export async function getGiveawayDashboard(): Promise<GiveawayDashboard> {
   const userId = await requireUserId()
-  await settleExpiredGiveaways(userId)
+  await settleExpiredGiveaways()
   const channels = await db.select().from(giveawayChannels)
     .where(eq(giveawayChannels.ownerUserId, userId))
     .orderBy(desc(giveawayChannels.updatedAt))
-  const rows = await db.select({ giveaway: giveaways, channelTitle: giveawayChannels.title })
+  const rows = await db.select({
+    giveaway: giveaways,
+    channelTitle: giveawayChannels.title,
+    channelUsername: giveawayChannels.username,
+    myTickets: giveawayEntries.tickets,
+  })
     .from(giveaways)
     .innerJoin(giveawayChannels, eq(giveaways.channelId, giveawayChannels.id))
-    .where(eq(giveaways.ownerUserId, userId))
+    .leftJoin(giveawayEntries, and(eq(giveawayEntries.giveawayId, giveaways.id), eq(giveawayEntries.userId, userId)))
+    .where(or(eq(giveaways.status, "active"), eq(giveaways.ownerUserId, userId), isNotNull(giveawayEntries.id)))
     .orderBy(desc(giveaways.createdAt))
-    .limit(50)
+    .limit(100)
   const username = await resolveBotUsername()
   return {
     botUsername: username,
@@ -57,7 +67,7 @@ export async function getGiveawayDashboard(): Promise<GiveawayDashboard> {
       canPostMessages: channel.canPostMessages,
       active: channel.active,
     })),
-    giveaways: rows.map(({ giveaway, channelTitle }) => ({
+    giveaways: rows.map(({ giveaway, channelTitle, channelUsername, myTickets }) => ({
       id: giveaway.id,
       channelTitle,
       title: giveaway.title,
@@ -71,8 +81,32 @@ export async function getGiveawayDashboard(): Promise<GiveawayDashboard> {
       status: giveaway.status,
       endsAt: giveaway.endsAt.toISOString(),
       createdAt: giveaway.createdAt.toISOString(),
+      channelUsername,
+      channelUrl: channelUsername && giveaway.postMessageId ? `https://t.me/${channelUsername}/${giveaway.postMessageId}` : null,
+      myTickets: Number(myTickets ?? 0),
+      isOwner: giveaway.ownerUserId === userId,
     })),
   }
+}
+
+export async function joinGiveaway(giveawayId: number) {
+  const userId = await requireUserId()
+  const telegramId = Number(userId)
+  if (!Number.isSafeInteger(telegramId) || telegramId <= 0) throw new Error("Telegram account is required")
+  const user = (await db.select().from(users).where(eq(users.id, userId)).limit(1))[0]
+  if (!user) throw new Error("User not found")
+  const result = await joinGiveawayFromCallback({
+    giveawayId: Number(giveawayId),
+    telegramUser: {
+      id: telegramId,
+      username: user.username ?? undefined,
+      first_name: user.firstName || "Participant",
+      photo_url: user.photoUrl ?? undefined,
+    },
+  })
+  if (!result.ok) throw new Error(result.message)
+  revalidatePath("/giveaways")
+  return { message: result.message }
 }
 
 export async function createGiveaway(input: {
@@ -171,5 +205,10 @@ export async function createGiveawaySafe(input: Parameters<typeof createGiveaway
 
 export async function finishGiveawaySafe(giveawayId: number) {
   try { await finishGiveaway(giveawayId); return { ok: true as const } }
+  catch (error) { return { ok: false as const, error: publicError(error) } }
+}
+
+export async function joinGiveawaySafe(giveawayId: number) {
+  try { return { ok: true as const, data: await joinGiveaway(giveawayId) } }
   catch (error) { return { ok: false as const, error: publicError(error) } }
 }

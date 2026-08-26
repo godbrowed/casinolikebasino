@@ -1,46 +1,35 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react"
-import type { ReactNode } from "react"
-import { CalendarClock, Check, ChevronRight, CircleDollarSign, Gift, LoaderCircle, Megaphone, Plus, Radio, RefreshCw, Send, Sparkles, Ticket, Trophy, Users } from "lucide-react"
-import { createGiveawaySafe, finishGiveawaySafe, getGiveawayDashboardSafe, type GiveawayDashboard } from "@/app/actions/giveaways"
+import { useCallback, useEffect, useMemo, useState, useTransition, type ReactNode } from "react"
+import { ArrowLeft, CalendarClock, Check, ChevronRight, CircleDollarSign, ExternalLink, Gift, LoaderCircle, Megaphone, Plus, RefreshCw, Send, Sparkles, Ticket, Trophy, Users } from "lucide-react"
+import { createGiveawaySafe, finishGiveawaySafe, getGiveawayDashboardSafe, joinGiveawaySafe, type GiveawayDashboard } from "@/app/actions/giveaways"
 import { Coin } from "@/components/coin"
 import { useUser } from "@/components/user-provider"
-import { cn } from "@/lib/utils"
+import { fmt } from "@/lib/format"
 import { haptic } from "@/lib/telegram-webapp"
+import { cn } from "@/lib/utils"
 
-const EMPTY: GiveawayDashboard = { botUsername: "PugGift", addChannelUrl: "", channels: [], giveaways: [] }
+const EMPTY: GiveawayDashboard = { botUsername: "mopsgift_bot", addChannelUrl: "", channels: [], giveaways: [] }
+type Tab = "free" | "paid" | "joined" | "mine"
 
 export function GiveawaysView() {
-  const { me, isLoading: userLoading } = useUser()
+  const { me, refresh: refreshUser } = useUser()
   const [dashboard, setDashboard] = useState(EMPTY)
   const [loading, setLoading] = useState(true)
   const [pending, startTransition] = useTransition()
+  const [screen, setScreen] = useState<"catalog" | "create">("catalog")
+  const [tab, setTab] = useState<Tab>("free")
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
-  const [mode, setMode] = useState<"free" | "paid">("free")
-  const [channelId, setChannelId] = useState("")
-  const [title, setTitle] = useState("")
-  const [prize, setPrize] = useState("")
-  const [body, setBody] = useState("")
-  const [price, setPrice] = useState("50")
-  const [duration, setDuration] = useState("1440")
-  const [winners, setWinners] = useState("1")
 
   const refresh = useCallback(async (quiet = false) => {
     if (!quiet) setLoading(true)
     try {
       const result = await getGiveawayDashboardSafe()
       if (!result.ok) throw new Error(result.error)
-      const data = result.data
-      setDashboard(data)
-      setChannelId((current) => current || String(data.channels.find((item) => item.active)?.id || ""))
-      setError("")
-    } catch (cause) {
-      setError(messageOf(cause))
-    } finally {
-      if (!quiet) setLoading(false)
-    }
+      setDashboard(result.data); setError("")
+    } catch (cause) { setError(messageOf(cause)) }
+    finally { if (!quiet) setLoading(false) }
   }, [])
 
   useEffect(() => { if (me) void refresh() }, [me, refresh])
@@ -50,120 +39,125 @@ export function GiveawaysView() {
     return () => window.clearInterval(timer)
   }, [me, refresh])
 
-  const activeChannel = dashboard.channels.find((channel) => String(channel.id) === channelId)
-  const previewEnds = useMemo(() => new Date(Date.now() + Number(duration) * 60_000), [duration])
-
-  function publish() {
-    setError("")
-    setSuccess("")
-    haptic("medium")
+  function join(id: number) {
+    setError(""); setSuccess(""); haptic("medium")
     startTransition(async () => {
-      try {
-        const result = await createGiveawaySafe({
-          channelId: Number(channelId), title, body, prizeText: prize,
-          ticketPrice: mode === "paid" ? Number(price) : 0,
-          winnerCount: Number(winners), durationMinutes: Number(duration),
-          maxTicketsPerUser: mode === "paid" ? 100 : 1,
-        })
-        if (!result.ok) throw new Error(result.error)
-        setSuccess("Giveaway published in the channel")
-        setTitle(""); setPrize(""); setBody("")
-        await refresh(true)
-        if (result.data.channelUrl) window.open(result.data.channelUrl, "_blank", "noopener,noreferrer")
-      } catch (cause) { setError(messageOf(cause)) }
+      const result = await joinGiveawaySafe(id)
+      if (!result.ok) { setError(result.error); return }
+      setSuccess(result.data.message)
+      await Promise.all([refresh(true), refreshUser()])
     })
   }
 
-  function drawNow(id: number) {
-    setError("")
+  function draw(id: number) {
+    setError(""); setSuccess("")
     startTransition(async () => {
-      try { const result = await finishGiveawaySafe(id); if (!result.ok) throw new Error(result.error); await refresh(true); setSuccess("Winner selected and the channel post updated") }
-      catch (cause) { setError(messageOf(cause)) }
+      const result = await finishGiveawaySafe(id)
+      if (!result.ok) { setError(result.error); return }
+      setSuccess("Winner selected and the channel post updated")
+      await refresh(true)
     })
   }
 
-  const active = dashboard.giveaways.filter((item) => item.status === "active")
-  const history = dashboard.giveaways.filter((item) => item.status !== "active" && item.status !== "draft")
+  if (screen === "create") return <Creator dashboard={dashboard} pending={pending} error={error} success={success} onBack={() => { setScreen("catalog"); setError(""); setSuccess(""); void refresh(true) }} onRefresh={() => refresh()} setError={setError} setSuccess={setSuccess} startTransition={startTransition} />
 
-  return <div className="space-y-5">
-    <section className="giveaway-hero relative overflow-hidden rounded-[32px] p-5 md:p-8">
-      <div className="absolute -right-12 -top-14 h-52 w-52 rounded-full bg-[#8b5cf6]/25 blur-3xl" />
-      <div className="absolute bottom-0 right-2 hidden h-[185px] w-[240px] md:block">
-        <img src="/images/puggift-mascot-share-v1.png" alt="PugGift mascot" className="h-full w-full object-contain object-bottom drop-shadow-[0_18px_22px_rgba(0,0,0,.5)]" />
-      </div>
-      <div className="relative z-10 max-w-[680px]">
-        <span className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[.14em] text-violet-200 ring-1 ring-white/10"><Sparkles className="h-3.5 w-3.5" />Creator studio</span>
-        <h1 className="font-display text-3xl font-black leading-[1.05] md:text-5xl">Giveaways that live<br /><span className="text-[#9e7bff]">inside your channel</span></h1>
-        <p className="mt-3 max-w-[560px] text-sm leading-relaxed text-white/60 md:text-base">Connect your channel, add your own prize and text, then publish a free giveaway or sell tickets for Stars. Participation happens directly under the channel post.</p>
-        <div className="mt-5 flex flex-wrap gap-2">
-          <a href={dashboard.addChannelUrl || "#"} aria-disabled={!dashboard.addChannelUrl} target="_blank" rel="noreferrer" className={cn("flex items-center gap-2 rounded-2xl bg-[#3674ff] px-4 py-3 text-sm font-black shadow-[0_10px_30px_rgba(54,116,255,.3)] transition active:scale-95", !dashboard.addChannelUrl && "pointer-events-none opacity-40")}><Plus className="h-4 w-4" strokeWidth={3} />Add bot to channel</a>
-          <button disabled={userLoading || !me} onClick={() => refresh()} className="flex items-center gap-2 rounded-2xl bg-white/[.08] px-4 py-3 text-sm font-bold ring-1 ring-white/10 transition active:scale-95 disabled:opacity-40"><RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />Refresh channels</button>
-        </div>
-      </div>
+  const filtered = dashboard.giveaways.filter((item) => {
+    if (tab === "free") return item.status === "active" && item.ticketPrice === 0 && !item.isOwner
+    if (tab === "paid") return item.status === "active" && item.ticketPrice > 0 && !item.isOwner
+    if (tab === "joined") return item.myTickets > 0
+    return item.isOwner
+  })
+  const counts = {
+    free: dashboard.giveaways.filter((item) => item.status === "active" && item.ticketPrice === 0 && !item.isOwner).length,
+    paid: dashboard.giveaways.filter((item) => item.status === "active" && item.ticketPrice > 0 && !item.isOwner).length,
+    joined: dashboard.giveaways.filter((item) => item.myTickets > 0).length,
+    mine: dashboard.giveaways.filter((item) => item.isOwner).length,
+  }
+
+  return <div className="mx-auto w-full max-w-[860px] space-y-4">
+    <section className="giveaway-hero relative overflow-hidden rounded-[28px] px-4 py-5 sm:px-6 sm:py-7">
+      <div className="absolute -right-8 -top-8 h-36 w-36 rounded-full bg-violet-500/25 blur-3xl" />
+      <img src="/images/puggift-mascot-share-v1.png" alt="" className="absolute -bottom-4 -right-5 h-36 w-36 object-contain opacity-90 sm:h-44 sm:w-44" />
+      <div className="relative z-10 max-w-[70%] sm:max-w-[560px]"><span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-[9px] font-black uppercase tracking-[.13em] text-violet-200"><Sparkles className="h-3 w-3" />Live drops</span><h1 className="mt-3 font-display text-2xl font-black leading-tight sm:text-4xl">Win gifts in channel giveaways</h1><p className="mt-2 text-xs leading-relaxed text-white/55 sm:text-sm">Choose a free draw or buy weighted tickets with Stars. Everything you joined stays in one place.</p></div>
+      <button onClick={() => { setScreen("create"); setError(""); setSuccess("") }} className="relative z-10 mt-4 flex min-h-11 items-center gap-2 rounded-2xl bg-[#3674ff] px-4 text-xs font-black shadow-[0_10px_26px_rgba(54,116,255,.32)] active:scale-95"><Plus className="h-4 w-4" strokeWidth={3} />Create giveaway</button>
     </section>
 
-    {error && <div className="rounded-2xl border border-red-400/25 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-200">{error}</div>}
-    {success && <div className="flex items-center gap-2 rounded-2xl border border-emerald-400/25 bg-emerald-500/10 px-4 py-3 text-sm font-bold text-emerald-200"><Check className="h-4 w-4" />{success}</div>}
+    {error && <Notice tone="error">{error}</Notice>}
+    {success && <Notice tone="success"><Check className="h-4 w-4" />{success}</Notice>}
 
-    <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.08fr)_minmax(360px,.92fr)]">
-      <section className="surface-panel rounded-[30px] p-4 md:p-6">
-        <div className="mb-5 flex items-center justify-between">
-          <div><div className="text-[10px] font-black uppercase tracking-[.16em] text-[#7897ff]">New campaign</div><h2 className="mt-1 font-display text-2xl font-black">Create giveaway</h2></div>
-          <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-violet-500/15 text-violet-300 ring-1 ring-violet-300/15"><Gift className="h-5 w-5" /></span>
-        </div>
-
-        <Field label="Channel">
-          <select value={channelId} onChange={(event) => setChannelId(event.target.value)} className="giveaway-input">
-            <option value="">Choose a connected channel</option>
-            {dashboard.channels.filter((channel) => channel.active).map((channel) => <option key={channel.id} value={channel.id}>{channel.title}{channel.username ? ` · @${channel.username}` : ""}</option>)}
-          </select>
-        </Field>
-        {!loading && dashboard.channels.length === 0 && <a href={dashboard.addChannelUrl} target="_blank" rel="noreferrer" className="mb-4 flex items-center justify-between rounded-2xl border border-dashed border-[#4e7cff]/40 bg-[#315eff]/10 px-4 py-3 text-xs font-bold text-[#9ab1ff]"><span><b className="block text-sm text-white">No channels connected yet</b>Add @{dashboard.botUsername} as an administrator with posting access.</span><ChevronRight className="h-5 w-5" /></a>}
-
-        <div className="mb-4 grid grid-cols-2 rounded-2xl bg-black/20 p-1 ring-1 ring-white/[.06]">
-          <ModeButton active={mode === "free"} onClick={() => setMode("free")} icon={Gift} title="Free" subtitle="One entry each" />
-          <ModeButton active={mode === "paid"} onClick={() => setMode("paid")} icon={CircleDollarSign} title="Paid tickets" subtitle="Charge per entry" />
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Giveaway title"><input className="giveaway-input" value={title} maxLength={80} onChange={(event) => setTitle(event.target.value)} placeholder="Summer Pug Drop" /></Field>
-          <Field label="Prize"><input className="giveaway-input" value={prize} maxLength={160} onChange={(event) => setPrize(event.target.value)} placeholder="Telegram Plush Pepe" /></Field>
-        </div>
-        <Field label="Your text"><textarea className="giveaway-input min-h-[130px] resize-y py-3" value={body} maxLength={1200} onChange={(event) => setBody(event.target.value)} placeholder="Write the rules, requirements and anything your audience needs to know…" /></Field>
-        <div className="grid gap-4 sm:grid-cols-3">
-          {mode === "paid" && <Field label="Price per ticket"><div className="relative"><Coin className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2" /><input inputMode="decimal" className="giveaway-input pl-10" value={price} onChange={(event) => setPrice(event.target.value.replace(/[^0-9.]/g, ""))} /></div></Field>}
-          <Field label="Duration"><select className="giveaway-input" value={duration} onChange={(event) => setDuration(event.target.value)}><option value="5">5 minutes</option><option value="60">1 hour</option><option value="360">6 hours</option><option value="1440">24 hours</option><option value="4320">3 days</option><option value="10080">7 days</option><option value="43200">30 days</option></select></Field>
-          <Field label="Winners"><select className="giveaway-input" value={winners} onChange={(event) => setWinners(event.target.value)}>{[1,2,3,5,10].map((value) => <option key={value} value={value}>{value}</option>)}</select></Field>
-        </div>
-
-        <button disabled={pending || !activeChannel || !title.trim() || !body.trim() || !prize.trim()} onClick={publish} className="mt-2 flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#3674ff] px-5 text-sm font-black shadow-[0_8px_0_#193e9d,0_18px_34px_-14px_rgba(54,116,255,.7)] transition active:translate-y-1 active:shadow-none disabled:cursor-not-allowed disabled:opacity-40">
-          {pending ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}Publish in channel
-        </button>
-      </section>
-
-      <aside className="lg:sticky lg:top-[78px]">
-        <div className="mb-3 flex items-center justify-between px-1"><div><div className="text-[10px] font-black uppercase tracking-[.16em] text-white/35">Live preview</div><h2 className="font-display text-xl font-black">Channel post</h2></div><span className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1.5 text-[9px] font-black uppercase tracking-widest text-emerald-300"><Radio className="h-3 w-3" />Inline</span></div>
-        <article className="overflow-hidden rounded-[28px] bg-[#22252b] shadow-[0_24px_60px_-30px_rgba(0,0,0,.9)] ring-1 ring-white/10">
-          <div className="flex items-center gap-3 border-b border-white/[.07] p-4"><span className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-blue-600"><Megaphone className="h-5 w-5" /></span><div><div className="text-sm font-black">{activeChannel?.title || "Your channel"}</div><div className="text-[10px] text-white/35">sponsored giveaway</div></div></div>
-          <div className="p-5"><div className="text-xl">🎉</div><h3 className="mt-2 text-xl font-black">{title || "Your giveaway title"}</h3><p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-white/65">{body || "Your custom message will appear here exactly as your audience sees it."}</p>
-            <div className="mt-4 space-y-2 rounded-2xl bg-black/20 p-3 text-xs text-white/70"><PreviewLine icon={Gift} label="Prize" value={prize || "Your prize"} /><PreviewLine icon={Trophy} label="Winners" value={winners} /><PreviewLine icon={CalendarClock} label="Ends" value={previewEnds.toLocaleString([], { dateStyle: "medium", timeStyle: "short" })} /><PreviewLine icon={Users} label="Participants" value="0 · 0 tickets" /></div>
-          </div>
-          <div className="px-3 pb-3"><div className="flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#3674ff] text-sm font-black"><Ticket className="h-4 w-4" />{mode === "paid" ? `Buy ticket · ⭐ ${price || 0}` : "Participate for free"}</div></div>
-        </article>
-        <p className="mt-3 px-2 text-center text-[10px] leading-relaxed text-white/35">The button is posted by @{dashboard.botUsername}. Paid ticket proceeds are credited to the organizer after the draw.</p>
-      </aside>
+    <div className="-mx-3 overflow-x-auto px-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="flex min-w-max gap-2">{([
+        ["free", "Free", Gift], ["paid", "Paid", Ticket], ["joined", "Joined", Check], ["mine", "My giveaways", Megaphone],
+      ] as const).map(([key, label, Icon]) => <button key={key} onClick={() => setTab(key)} className={cn("flex min-h-11 items-center gap-2 rounded-2xl px-3.5 text-xs font-black ring-1 transition", tab === key ? "bg-[#3674ff] text-white ring-[#6c99ff]/60" : "bg-[#292c32] text-white/48 ring-white/[.07]")}><Icon className="h-4 w-4" /><span>{label}</span><span className={cn("rounded-full px-1.5 py-0.5 text-[9px]", tab === key ? "bg-white/15" : "bg-black/20")}>{counts[key]}</span></button>)}</div>
     </div>
 
-    <section>
-      <div className="mb-3 flex items-end justify-between px-1"><div><div className="text-[10px] font-black uppercase tracking-[.16em] text-[#7897ff]">Campaigns</div><h2 className="mt-1 font-display text-2xl font-black">Your giveaways</h2></div><span className="text-xs font-bold text-white/35">{active.length} active</span></div>
-      {active.length === 0 && history.length === 0 ? <div className="flex min-h-[170px] flex-col items-center justify-center rounded-[28px] border border-dashed border-white/10 bg-white/[.025] p-6 text-center"><Gift className="mb-3 h-8 w-8 text-white/25" /><b>No giveaways yet</b><span className="mt-1 text-xs text-white/35">Connect a channel and publish the first one.</span></div> : <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{[...active, ...history].map((item) => <CampaignCard key={item.id} item={item} pending={pending} onDraw={() => drawNow(item.id)} />)}</div>}
+    <div className="flex items-center justify-between px-1"><div><div className="text-[9px] font-black uppercase tracking-[.15em] text-[#7897ff]">Giveaway feed</div><h2 className="font-display text-xl font-black">{tab === "free" ? "Free giveaways" : tab === "paid" ? "Paid tickets" : tab === "joined" ? "Your entries" : "Created by you"}</h2></div><button onClick={() => refresh()} className="flex h-10 w-10 items-center justify-center rounded-full bg-white/[.06] text-white/45"><RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} /></button></div>
+
+    {loading ? <div className="flex min-h-52 items-center justify-center"><LoaderCircle className="h-7 w-7 animate-spin text-[#7897ff]" /></div> : filtered.length ? <div className="grid gap-3 sm:grid-cols-2">{filtered.map((item) => <GiveawayCard key={item.id} item={item} pending={pending} onJoin={() => join(item.id)} onDraw={() => draw(item.id)} />)}</div> : <Empty tab={tab} onCreate={() => setScreen("create")} />}
+  </div>
+}
+
+function GiveawayCard({ item, pending, onJoin, onDraw }: { item: GiveawayDashboard["giveaways"][number]; pending: boolean; onJoin: () => void; onDraw: () => void }) {
+  const active = item.status === "active"
+  const paid = item.ticketPrice > 0
+  const ends = new Date(item.endsAt)
+  return <article className="overflow-hidden rounded-[25px] bg-[#292c32] ring-1 ring-white/[.08]">
+    <div className="relative bg-[radial-gradient(circle_at_85%_0%,rgba(120,92,255,.26),transparent_45%)] p-4 pb-3">
+      <div className="flex items-start justify-between gap-3"><div className="min-w-0"><div className="flex flex-wrap items-center gap-1.5"><span className={cn("rounded-full px-2 py-1 text-[8px] font-black uppercase tracking-wider", active ? "bg-emerald-500/12 text-emerald-300" : "bg-white/[.07] text-white/40")}>{item.status}</span><span className={cn("flex items-center gap-1 rounded-full px-2 py-1 text-[8px] font-black uppercase", paid ? "bg-amber-400/12 text-amber-300" : "bg-blue-400/12 text-blue-300")}>{paid ? <><Coin className="h-3 w-3" />{fmt(item.ticketPrice)} / ticket</> : "Free entry"}</span>{item.myTickets > 0 && <span className="rounded-full bg-violet-400/12 px-2 py-1 text-[8px] font-black text-violet-200">YOU · {item.myTickets} 🎟</span>}</div><h3 className="mt-3 line-clamp-2 font-display text-lg font-black leading-tight">{item.title}</h3><p className="mt-1 truncate text-[10px] text-white/38">{item.channelTitle}</p></div><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500/30 to-blue-500/20 text-xl ring-1 ring-white/10">🎉</span></div>
+      <div className="mt-3 rounded-2xl bg-black/20 p-3"><div className="text-[9px] font-black uppercase tracking-[.12em] text-white/30">Prize</div><div className="mt-1 line-clamp-2 text-sm font-black text-white/90">🎁 {item.prizeText}</div><p className="mt-2 line-clamp-2 text-[11px] leading-relaxed text-white/43">{item.body}</p></div>
+    </div>
+    <div className="grid grid-cols-3 gap-px bg-white/[.055]"><CardStat value={String(item.participantCount)} label="players" /><CardStat value={String(item.ticketCount)} label="tickets" /><CardStat value={paid ? fmt(item.pot) : String(item.winnerCount)} label={paid ? "bank" : "winners"} coin={paid} /></div>
+    <div className="p-3"><div className="mb-3 flex items-center justify-between gap-2 text-[10px] text-white/38"><span className="flex items-center gap-1.5"><CalendarClock className="h-3.5 w-3.5" />{active ? `Ends ${relativeTime(ends)}` : ends.toLocaleDateString()}</span>{item.channelUrl && <a href={item.channelUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1 font-bold text-[#8da9ff]">Channel <ExternalLink className="h-3 w-3" /></a>}</div>
+      {item.isOwner ? active ? <button disabled={pending} onClick={onDraw} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-white/[.08] text-xs font-black text-white/70"><Trophy className="h-4 w-4" />Draw winner now</button> : <div className="flex min-h-12 items-center justify-center rounded-2xl bg-white/[.04] text-xs font-bold text-white/35">Giveaway finished</div> : active ? <button disabled={pending || (!paid && item.myTickets > 0)} onClick={onJoin} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#3674ff] text-xs font-black shadow-[0_7px_18px_rgba(54,116,255,.28)] disabled:bg-white/[.06] disabled:text-white/30 disabled:shadow-none"><Ticket className="h-4 w-4" />{!paid && item.myTickets > 0 ? "Already participating" : paid ? `Buy ticket · ${fmt(item.ticketPrice)} Stars` : "Participate for free"}</button> : <div className="flex min-h-12 items-center justify-center rounded-2xl bg-white/[.04] text-xs font-bold text-white/35">Entry closed · {item.myTickets} tickets</div>}
+    </div>
+  </article>
+}
+
+function Creator({ dashboard, pending, error, success, onBack, onRefresh, setError, setSuccess, startTransition }: { dashboard: GiveawayDashboard; pending: boolean; error: string; success: string; onBack: () => void; onRefresh: () => void; setError: (value: string) => void; setSuccess: (value: string) => void; startTransition: (callback: () => Promise<void>) => void }) {
+  const [mode, setMode] = useState<"free" | "paid">("free")
+  const [channelId, setChannelId] = useState(String(dashboard.channels.find((channel) => channel.active)?.id ?? ""))
+  const [title, setTitle] = useState(""); const [prize, setPrize] = useState(""); const [body, setBody] = useState("")
+  const [price, setPrice] = useState("50"); const [duration, setDuration] = useState("1440"); const [winners, setWinners] = useState("1")
+  const activeChannel = dashboard.channels.find((channel) => String(channel.id) === channelId)
+  useEffect(() => {
+    if (!channelId) setChannelId(String(dashboard.channels.find((channel) => channel.active)?.id ?? ""))
+  }, [channelId, dashboard.channels])
+
+  function publish() {
+    setError(""); setSuccess(""); haptic("medium")
+    startTransition(async () => {
+      const result = await createGiveawaySafe({ channelId: Number(channelId), title, body, prizeText: prize,
+        ticketPrice: mode === "paid" ? Number(price) : 0, winnerCount: Number(winners), durationMinutes: Number(duration), maxTicketsPerUser: mode === "paid" ? 100 : 1 })
+      if (!result.ok) { setError(result.error); return }
+      setSuccess("Giveaway published in the channel")
+      if (result.data.channelUrl) window.open(result.data.channelUrl, "_blank", "noopener,noreferrer")
+      onBack()
+    })
+  }
+
+  return <div className="mx-auto w-full max-w-[760px] space-y-4">
+    <header className="flex items-center justify-between"><button onClick={onBack} className="flex h-11 w-11 items-center justify-center rounded-full bg-[#15171c] text-white/65"><ArrowLeft className="h-5 w-5" /></button><div className="text-center"><div className="text-[9px] font-black uppercase tracking-[.16em] text-[#7897ff]">Creator</div><h1 className="font-display text-xl font-black">New giveaway</h1></div><button onClick={onRefresh} className="flex h-11 w-11 items-center justify-center rounded-full bg-[#15171c] text-white/45"><RefreshCw className="h-4 w-4" /></button></header>
+    {error && <Notice tone="error">{error}</Notice>}{success && <Notice tone="success">{success}</Notice>}
+    <section className="rounded-[27px] bg-[#292c32] p-4 ring-1 ring-white/[.08] sm:p-5">
+      <div className="mb-4 flex items-center justify-between"><div><div className="text-[9px] font-black uppercase tracking-[.14em] text-white/35">Publishing channel</div><h2 className="mt-1 font-display text-lg font-black">Choose where to post</h2></div><a href={dashboard.addChannelUrl || "#"} target="_blank" rel="noreferrer" className="flex min-h-10 items-center gap-1.5 rounded-xl bg-[#3674ff] px-3 text-[10px] font-black"><Plus className="h-3.5 w-3.5" />Add channel</a></div>
+      <select value={channelId} onChange={(event) => setChannelId(event.target.value)} className="giveaway-input"><option value="">Choose a connected channel</option>{dashboard.channels.filter((channel) => channel.active).map((channel) => <option key={channel.id} value={channel.id}>{channel.title}{channel.username ? ` · @${channel.username}` : ""}</option>)}</select>
+      {!dashboard.channels.some((channel) => channel.active) && <a href={dashboard.addChannelUrl} target="_blank" rel="noreferrer" className="mt-3 flex items-center justify-between rounded-2xl border border-dashed border-[#4e7cff]/40 bg-[#315eff]/10 px-4 py-3 text-xs font-bold text-[#9ab1ff]"><span><b className="block text-sm text-white">Connect your first channel</b>Add @{dashboard.botUsername} as admin with post access.</span><ChevronRight className="h-5 w-5" /></a>}
+    </section>
+    <section className="rounded-[27px] bg-[#292c32] p-4 ring-1 ring-white/[.08] sm:p-5">
+      <div className="mb-4 grid grid-cols-2 rounded-2xl bg-black/20 p-1"><Mode active={mode === "free"} icon={Gift} label="Free" onClick={() => setMode("free")} /><Mode active={mode === "paid"} icon={CircleDollarSign} label="Paid tickets" onClick={() => setMode("paid")} /></div>
+      <Field label="Giveaway title"><input className="giveaway-input" value={title} maxLength={80} onChange={(event) => setTitle(event.target.value)} placeholder="Summer Pug Drop" /></Field>
+      <Field label="Prize"><input className="giveaway-input" value={prize} maxLength={160} onChange={(event) => setPrize(event.target.value)} placeholder="Telegram Plush Pepe" /></Field>
+      <Field label="Your post text"><textarea className="giveaway-input min-h-28 resize-none py-3" value={body} maxLength={1200} onChange={(event) => setBody(event.target.value)} placeholder="Rules, requirements and details…" /></Field>
+      <div className="grid grid-cols-2 gap-3">{mode === "paid" && <Field label="Ticket price"><div className="relative"><Coin className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2" /><input inputMode="decimal" className="giveaway-input pl-10" value={price} onChange={(event) => setPrice(event.target.value.replace(/[^0-9.]/g, ""))} /></div></Field>}<Field label="Duration"><select className="giveaway-input" value={duration} onChange={(event) => setDuration(event.target.value)}><option value="5">5 min</option><option value="60">1 hour</option><option value="360">6 hours</option><option value="1440">24 hours</option><option value="4320">3 days</option><option value="10080">7 days</option><option value="43200">30 days</option></select></Field><Field label="Winners"><select className="giveaway-input" value={winners} onChange={(event) => setWinners(event.target.value)}>{[1,2,3,5,10].map((value) => <option key={value}>{value}</option>)}</select></Field></div>
+      <button disabled={pending || !activeChannel || !title.trim() || !prize.trim() || !body.trim()} onClick={publish} className="mt-1 flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#3674ff] text-sm font-black shadow-[0_8px_0_#193e9d] active:translate-y-1 active:shadow-none disabled:opacity-35">{pending ? <LoaderCircle className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}Publish in channel</button>
     </section>
   </div>
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) { return <label className="mb-4 block"><span className="mb-2 block text-[10px] font-black uppercase tracking-[.12em] text-white/42">{label}</span>{children}</label> }
-function ModeButton({ active, onClick, icon: Icon, title, subtitle }: { active: boolean; onClick: () => void; icon: typeof Gift; title: string; subtitle: string }) { return <button type="button" onClick={onClick} className={cn("flex items-center gap-3 rounded-[14px] px-3 py-3 text-left transition", active ? "bg-[#3674ff] text-white shadow-lg" : "text-white/45")}><Icon className="h-5 w-5 shrink-0" /><span><b className="block text-xs">{title}</b><span className="text-[9px] opacity-65">{subtitle}</span></span></button> }
-function PreviewLine({ icon: Icon, label, value }: { icon: typeof Gift; label: string; value: string }) { return <div className="flex items-center gap-2"><Icon className="h-3.5 w-3.5 text-[#8fa9ff]" /><span className="text-white/38">{label}</span><b className="ml-auto max-w-[60%] truncate text-white/80">{value}</b></div> }
-function CampaignCard({ item, pending, onDraw }: { item: GiveawayDashboard["giveaways"][number]; pending: boolean; onDraw: () => void }) { const active = item.status === "active"; return <article className="surface-panel rounded-[24px] p-4"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><span className={cn("inline-flex rounded-full px-2 py-1 text-[8px] font-black uppercase tracking-wider", active ? "bg-emerald-500/12 text-emerald-300" : item.status === "completed" ? "bg-violet-500/12 text-violet-300" : "bg-red-500/12 text-red-300")}>{item.status}</span><h3 className="mt-2 truncate font-black">{item.title}</h3><p className="mt-0.5 truncate text-[10px] text-white/38">{item.channelTitle}</p></div><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/[.06]">🎉</span></div><div className="mt-4 grid grid-cols-3 gap-2"><Stat value={String(item.participantCount)} label="people" /><Stat value={String(item.ticketCount)} label="tickets" /><Stat value={`⭐ ${item.pot}`} label="bank" /></div><div className="mt-3 flex items-center justify-between text-[10px] text-white/35"><span>{new Date(item.endsAt).toLocaleString([], { dateStyle: "short", timeStyle: "short" })}</span>{active && <button disabled={pending} onClick={onDraw} className="flex items-center gap-1 rounded-lg bg-white/[.07] px-2.5 py-1.5 font-bold text-white/65"><Trophy className="h-3 w-3" />Draw now</button>}</div></article> }
-function Stat({ value, label }: { value: string; label: string }) { return <div className="rounded-xl bg-black/20 px-2 py-2 text-center"><b className="block truncate text-xs">{value}</b><span className="text-[8px] uppercase tracking-wider text-white/30">{label}</span></div> }
+function Mode({ active, icon: Icon, label, onClick }: { active: boolean; icon: typeof Gift; label: string; onClick: () => void }) { return <button onClick={onClick} className={cn("flex min-h-12 items-center justify-center gap-2 rounded-[14px] text-xs font-black", active ? "bg-[#3674ff]" : "text-white/40")}><Icon className="h-4 w-4" />{label}</button> }
+function Field({ label, children }: { label: string; children: ReactNode }) { return <label className="mb-4 block"><span className="mb-2 block text-[9px] font-black uppercase tracking-[.12em] text-white/38">{label}</span>{children}</label> }
+function Notice({ tone, children }: { tone: "error" | "success"; children: ReactNode }) { return <div className={cn("flex items-center gap-2 rounded-2xl border px-4 py-3 text-xs font-bold", tone === "error" ? "border-red-400/25 bg-red-500/10 text-red-200" : "border-emerald-400/25 bg-emerald-500/10 text-emerald-200")}>{children}</div> }
+function CardStat({ value, label, coin }: { value: string; label: string; coin?: boolean }) { return <div className="bg-[#202228] px-2 py-2.5 text-center"><b className="flex items-center justify-center gap-1 truncate text-xs">{coin && <Coin className="h-3 w-3" />}{value}</b><span className="text-[8px] uppercase tracking-wider text-white/28">{label}</span></div> }
+function Empty({ tab, onCreate }: { tab: Tab; onCreate: () => void }) { return <div className="flex min-h-52 flex-col items-center justify-center rounded-[26px] border border-dashed border-white/10 bg-white/[.02] p-6 text-center"><Gift className="h-8 w-8 text-white/20" /><b className="mt-3">{tab === "joined" ? "You have not joined yet" : tab === "mine" ? "No giveaways created" : "Nothing live in this category"}</b><span className="mt-1 max-w-xs text-xs leading-relaxed text-white/35">{tab === "mine" ? "Create a giveaway and publish it to your Telegram channel." : "New channel giveaways will appear here automatically."}</span>{tab === "mine" && <button onClick={onCreate} className="mt-4 rounded-2xl bg-[#3674ff] px-4 py-3 text-xs font-black">Create giveaway</button>}</div> }
+function relativeTime(date: Date) { const ms = date.getTime() - Date.now(); if (ms <= 0) return "now"; const minutes = Math.ceil(ms / 60_000); if (minutes < 60) return `in ${minutes}m`; const hours = Math.ceil(minutes / 60); if (hours < 24) return `in ${hours}h`; return `in ${Math.ceil(hours / 24)}d` }
 function messageOf(error: unknown) { return error instanceof Error ? error.message.replace(/^Error:\s*/, "") : "Something went wrong" }

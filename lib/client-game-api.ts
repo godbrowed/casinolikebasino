@@ -113,7 +113,7 @@ export const sellGiftBatchApi = (inventoryIds: number[]) =>
   })
 
 export const withdrawGiftApi = (inventoryId: number) =>
-  api<{ ok: true }>("/api/inventory/action", {
+  api<{ ok: true; balance: number; fee: number }>("/api/inventory/action", {
     method: "POST",
     body: JSON.stringify({ action: "withdraw", inventoryId }),
   })

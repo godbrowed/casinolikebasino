@@ -4,7 +4,7 @@ import crypto from "crypto"
 import { and, desc, eq, sql } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { db } from "@/lib/db"
-import { gifts, inventory, transactions } from "@/lib/db/schema"
+import { gifts, inventory, transactions, users } from "@/lib/db/schema"
 import { requireUserId } from "@/lib/session"
 import { relayerUsername } from "@/lib/telegram-gifts"
 import { giftValueInStars } from "@/lib/pricing"
@@ -161,8 +161,9 @@ export async function cancelGiftDeposit(transactionId: number): Promise<void> {
  * Locks the item and creates a pending withdrawal for the relayer to fulfill via
  * transferGift (or an admin manually). A small Stars network fee can be applied.
  */
-export async function requestGiftWithdraw(inventoryId: number): Promise<{ ok: true }> {
+export async function requestGiftWithdraw(inventoryId: number): Promise<{ ok: true; balance: number; fee: number }> {
   const userId = await requireUserId()
+  const withdrawFee = 25
   const ruleItem = (await db.select({ source: inventory.source, status: inventory.status }).from(inventory).where(and(
     eq(inventory.id, inventoryId),
     eq(inventory.userId, userId),
@@ -192,6 +193,13 @@ export async function requestGiftWithdraw(inventoryId: number): Promise<{ ok: tr
 
     const gift = (await tx.select().from(gifts).where(eq(gifts.id, item.giftId)).limit(1))[0]
 
+    const charged = await tx
+      .update(users)
+      .set({ balance: sql`${users.balance} - ${withdrawFee}` })
+      .where(and(eq(users.id, userId), sql`${users.balance} >= ${withdrawFee}`))
+      .returning({ balance: users.balance })
+    if (!charged[0]) throw new Error("WITHDRAW_FEE_REQUIRED")
+
     await tx.update(inventory).set({ status: "withdraw_pending" }).where(eq(inventory.id, inventoryId))
 
     const created = await tx.insert(transactions).values({
@@ -202,19 +210,19 @@ export async function requestGiftWithdraw(inventoryId: number): Promise<{ ok: tr
       credited: String(giftValueInStars(item.value, item.floorTon)),
       status: "pending",
       externalId: `wd_${inventoryId}`,
-      meta: { inventoryId, giftId: item.giftId, giftSlug: gift?.slug, giftName: gift?.name },
+      meta: { inventoryId, giftId: item.giftId, giftSlug: gift?.slug, giftName: gift?.name, feeStars: withdrawFee },
     }).returning({ id: transactions.id })
-    return { transactionId: created[0].id, giftName: gift?.name ?? "Telegram Gift" }
+    return { transactionId: created[0].id, giftName: gift?.name ?? "Telegram Gift", balance: Number(charged[0].balance) }
   })
 
-  await notifyAdmins(`📤 <b>Новий вивід NFT</b>\n\n👤 User: <code>${userId}</code>\n🎁 ${withdraw.giftName}\n🧾 ID: <code>${withdraw.transactionId}</code>\n\nПісля ручної відправки натисни підтвердження.`, {
+  await notifyAdmins(`📤 <b>Новий вивід NFT</b>\n\n👤 User: <code>${userId}</code>\n🎁 ${withdraw.giftName}\n⭐ Комісія: ${withdrawFee}\n🧾 ID: <code>${withdraw.transactionId}</code>\n\nПісля ручної відправки натисни підтвердження.`, {
     inline_keyboard: [[{ text: "✅ Підтвердити відправку", callback_data: `admin_wd_confirm:${withdraw.transactionId}` }]],
   })
 
   if (ruleItem.source === "giveaway") await resetFreeCaseProgress(userId).catch(() => undefined)
 
   revalidatePath("/profile")
-  return { ok: true }
+  return { ok: true, balance: withdraw.balance, fee: withdrawFee }
 }
 
 export type WithdrawRow = {

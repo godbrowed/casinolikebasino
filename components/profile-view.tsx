@@ -72,13 +72,15 @@ export function ProfileView({ me, inventory, history, freeCaseClaim, referral }:
     setWithdrawing(id)
     haptic("medium")
     try {
-      await withdrawGiftApi(id)
+      const result = await withdrawGiftApi(id)
+      setBalance(result.balance)
       setItems((prev) => prev.filter((i) => i.id !== id))
-      setToast(`Withdrawal requested for ${name}. It will be sent to your Telegram once processed.`)
+      setToast(`Withdrawal requested for ${name}. The 25 Stars transfer fee was charged.`)
       setTimeout(() => setToast(null), 4500)
     } catch (e) {
       const message = e instanceof Error ? e.message : "Withdraw failed"
       if (message === "GIVEAWAY_WITHDRAW_REQUIREMENTS") setShowGiveawayTasks(true)
+      else if (message === "WITHDRAW_FEE_REQUIRED") setToast("You need at least 25 Stars on your PugGift balance to withdraw an NFT.")
       else setToast(message === "FREE_CASE_REFERRALS_REQUIRED" ? "Invite 3 Premium friends with an NFT gift to unlock this prize." : message)
       setTimeout(() => setToast(null), 4000)
     } finally {
@@ -221,7 +223,7 @@ export function ProfileView({ me, inventory, history, freeCaseClaim, referral }:
                       <Loader2 className="h-2.5 w-2.5 animate-spin" />
                     ) : (
                       <>
-                        <Send className="h-2.5 w-2.5" /> Send
+                        <Send className="h-2.5 w-2.5" /> Send · 25
                       </>
                     )}
                   </button>

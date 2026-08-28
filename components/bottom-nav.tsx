@@ -2,13 +2,13 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Bomb, Boxes, Rocket, TrendingUp, UserRound, Swords } from "lucide-react"
+import { Boxes, Gauge, PawPrint, Sparkles, UserRound, Swords } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { haptic } from "@/lib/telegram-webapp"
 import { useLanguage } from "@/components/language-provider"
 
 const ITEMS = [
-  { href: "/", label: "games", icon: Boxes }, { href: "/battles", label: "battles", icon: Swords }, { href: "/crash", label: "crash", icon: Rocket }, { href: "/mines", label: "mines", icon: Bomb }, { href: "/upgrade", label: "upgrade", icon: TrendingUp }, { href: "/profile", label: "profile", icon: UserRound },
+  { href: "/", label: "games", icon: Boxes }, { href: "/battles", label: "battles", icon: Swords }, { href: "/crash", label: "crash", icon: Gauge }, { href: "/mines", label: "mines", icon: PawPrint }, { href: "/upgrade", label: "upgrade", icon: Sparkles }, { href: "/profile", label: "profile", icon: UserRound },
 ]
 
 export function BottomNav() {

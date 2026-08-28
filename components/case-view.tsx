@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import useSWR from "swr"
-import { ArrowLeft, Check, ChevronRight, ExternalLink, Gift, Loader2, Send, SlidersHorizontal, Trophy, X } from "lucide-react"
+import { ArrowLeft, Check, ChevronRight, ExternalLink, Gift, Loader2, Send, ShoppingBag, SlidersHorizontal, Trophy, X, Zap } from "lucide-react"
 import Link from "next/link"
 import type { CaseDTO, GiftDTO } from "@/app/actions/cases"
 import { AppHeader } from "@/components/app-header"
@@ -13,7 +13,9 @@ import { useUser } from "@/components/user-provider"
 import { rarityOf, fmt } from "@/lib/format"
 import { haptic, hapticNotify, sharePreparedMessage } from "@/lib/telegram-webapp"
 import { cn } from "@/lib/utils"
-import { fetchFreeCaseRequirements, fetchLiveDrops, openCasesApi, sellGiftApi, updateFreeCaseRequirement } from "@/lib/client-game-api"
+import { fetchFreeCaseRequirements, fetchLiveDrops, openCasesApi, sellGiftApi, sellGiftBatchApi, updateFreeCaseRequirement } from "@/lib/client-game-api"
+
+type OpenedDrop = { won: GiftDTO; inventoryId: number | null }
 
 export function CaseView({ c }: { c: CaseDTO }) {
   const { me, setBalance, refresh } = useUser()
@@ -24,7 +26,8 @@ export function CaseView({ c }: { c: CaseDTO }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [openCount, setOpenCount] = useState(1)
-  const [batchResults, setBatchResults] = useState<GiftDTO[]>([])
+  const [batchResults, setBatchResults] = useState<OpenedDrop[]>([])
+  const [fastSpin, setFastSpin] = useState(false)
   const [showOptions, setShowOptions] = useState(false)
   const [showPrizes, setShowPrizes] = useState(false)
   const [clientNow, setClientNow] = useState<number | null>(null)
@@ -55,7 +58,7 @@ export function CaseView({ c }: { c: CaseDTO }) {
     try {
       const res = await openCasesApi(c.id, c.isFree ? 1 : openCount)
       setResult(res.results[0].won)
-      setBatchResults(res.results.map((item) => item.won))
+      setBatchResults(res.results)
       setLastInventoryId(res.results[0].inventoryId)
       setBalance(res.balance)
       setSpinning(true)
@@ -140,6 +143,21 @@ export function CaseView({ c }: { c: CaseDTO }) {
     }
   }
 
+  async function handleSellBatch() {
+    const inventoryIds = batchResults.flatMap((drop) => drop.inventoryId == null ? [] : [drop.inventoryId])
+    if (!inventoryIds.length || busy) return
+    setBusy(true); setError(null)
+    try {
+      const res = await sellGiftBatchApi(inventoryIds)
+      setBalance(res.balance)
+      setBatchResults((current) => current.filter((drop) => drop.inventoryId == null))
+      hapticNotify("success")
+      await refresh()
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not sell these drops")
+    } finally { setBusy(false) }
+  }
+
   function closeWin() {
     setShowWin(false)
     setResult(null)
@@ -166,16 +184,17 @@ export function CaseView({ c }: { c: CaseDTO }) {
             <div><div className="text-[9px] font-black uppercase tracking-[.2em] text-blue-100/55">Gift runway</div><div className="font-display text-lg font-black md:text-xl">{spinning ? "Catch your drop" : "Ready to spin"}</div></div>
             <div className="text-right text-[10px] font-bold text-blue-100/55">{c.items.length} possible gifts<br />gift values shown below</div>
           </div>
-          <CaseRoulette pool={c.items} spinning={spinning} results={batchResults} selectedCount={openCount} onSettled={handleSettled} />
+          <CaseRoulette pool={c.items} spinning={spinning} results={batchResults.map((drop) => drop.won)} selectedCount={openCount} fast={fastSpin} onSettled={handleSettled} />
         </div>
 
         <div className="relative z-10 mx-auto flex w-full max-w-[680px] flex-col gap-2.5 px-3 pt-2 md:px-4">
           {error && <p className="rounded-2xl bg-rose-500/18 px-3 py-2.5 text-center text-xs font-bold text-rose-100 ring-1 ring-rose-200/20">{error}</p>}
 
-          {batchResults.length > 1 && !spinning && <section className="rounded-[24px] bg-[#102854]/80 p-3 ring-1 ring-white/10 backdrop-blur-xl"><div className="mb-2 flex items-center justify-between"><h2 className="font-display text-sm font-black">Your drops</h2><span className="text-[10px] font-black text-white/45">{batchResults.length} gifts</span></div><div className="no-scrollbar flex gap-2 overflow-x-auto">{batchResults.map((gift, index) => { const rarity = rarityOf(gift.rarity); return <div key={`${gift.slug}-${index}`} className="w-24 shrink-0 rounded-[18px] bg-white/[.07] p-2 text-center ring-1 ring-white/10"><img src={gift.imageUrl || "/images/nft-gift.png"} alt={gift.name} className="mx-auto h-14 w-14 object-contain" /><div className={cn("mt-1 truncate text-[9px] font-black", rarity.text)}>{gift.name}</div><div className="mt-1 flex items-center justify-center gap-1 text-[9px] text-white/55"><Coin className="h-3 w-3" />{fmt(gift.value)}</div></div> })}</div></section>}
+          {batchResults.length > 1 && !spinning && <section className="rounded-[24px] bg-[#102854]/80 p-3 ring-1 ring-white/10 backdrop-blur-xl"><div className="mb-2 flex items-center justify-between gap-3"><div><h2 className="font-display text-sm font-black">Your drops</h2><span className="text-[10px] font-bold text-white/40">Each reel landed separately</span></div>{batchResults.some((drop) => drop.inventoryId != null) && <button onClick={handleSellBatch} disabled={busy} className="flex shrink-0 items-center gap-1.5 rounded-xl bg-white px-3 py-2 text-[10px] font-black text-[#174699] disabled:opacity-50"><ShoppingBag className="h-3.5 w-3.5" />Sell all · {fmt(batchResults.reduce((sum, drop) => sum + (drop.inventoryId == null ? 0 : drop.won.value), 0))}</button>}</div><div className="no-scrollbar flex gap-2 overflow-x-auto">{batchResults.map(({ won: gift, inventoryId }, index) => { const rarity = rarityOf(gift.rarity); return <div key={`${gift.slug}-${index}`} className="w-24 shrink-0 rounded-[18px] bg-white/[.07] p-2 text-center ring-1 ring-white/10"><img src={gift.imageUrl || "/images/nft-gift.png"} alt={gift.name} className="mx-auto h-14 w-14 object-contain" /><div className={cn("mt-1 truncate text-[9px] font-black", rarity.text)}>{gift.name}</div><div className="mt-1 flex items-center justify-center gap-1 text-[9px] text-white/55"><Coin className="h-3 w-3" />{fmt(gift.value)}</div><div className="mt-1 text-[8px] font-black uppercase tracking-wider text-white/30">{inventoryId == null ? "credited" : `drop ${index + 1}`}</div></div> })}</div></section>}
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             <button onClick={() => !c.isFree && setShowOptions((value) => !value)} disabled={c.isFree || spinning || busy} className="flex items-center justify-center gap-2 rounded-[18px] bg-white/16 py-3 text-xs font-black text-white/80 ring-1 ring-white/10 backdrop-blur-md disabled:opacity-45"><SlidersHorizontal className="h-4 w-4" />{c.isFree ? "One opening" : `Open ×${openCount}`}</button>
+            <button onClick={() => setFastSpin((value) => !value)} disabled={spinning || busy} className={cn("flex items-center justify-center gap-1.5 rounded-[18px] py-3 text-xs font-black ring-1 backdrop-blur-md disabled:opacity-45", fastSpin ? "bg-amber-300 text-amber-950 ring-amber-100/40" : "bg-white/16 text-white/80 ring-white/10")}><Zap className={cn("h-4 w-4", fastSpin && "fill-current")} />Fast</button>
             <button onClick={() => setShowPrizes((value) => !value)} className="flex items-center justify-center gap-2 rounded-[18px] bg-white/16 py-3 text-xs font-black text-white/80 ring-1 ring-white/10 backdrop-blur-md"><Trophy className="h-4 w-4" />Prizes</button>
           </div>
 

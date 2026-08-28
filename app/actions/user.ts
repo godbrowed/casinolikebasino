@@ -1,6 +1,6 @@
 "use server"
 
-import { and, desc, eq, or, sql } from "drizzle-orm"
+import { and, desc, eq, inArray, or, sql } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
 import { db } from "@/lib/db"
 import { users, inventory, gifts, gameHistory } from "@/lib/db/schema"
@@ -86,6 +86,27 @@ export async function sellGift(inventoryId: number) {
 
     revalidatePath("/profile")
     return { balance: Number(updated[0].balance), value: currentValue }
+  })
+}
+
+export async function sellInventoryItems(inventoryIdsInput: number[]) {
+  const userId = await requireUserId()
+  const inventoryIds = [...new Set(inventoryIdsInput.map(Number).filter(Number.isSafeInteger))].slice(0, 10)
+  if (!inventoryIds.length) throw new Error("No gifts to sell")
+  const claim = await getFreeCaseClaimStatus(userId)
+  return db.transaction(async (tx) => {
+    const owned = await tx
+      .select({ id: inventory.id, value: inventory.value, floorTon: gifts.floorTon, source: inventory.source })
+      .from(inventory)
+      .innerJoin(gifts, eq(inventory.giftId, gifts.id))
+      .where(and(eq(inventory.userId, userId), eq(inventory.status, "owned"), inArray(inventory.id, inventoryIds)))
+    if (owned.length !== inventoryIds.length) throw new Error("One or more gifts are unavailable")
+    for (const item of owned) assertFreeCaseGiftUnlocked(item.source, claim.ready)
+    const total = owned.reduce((sum, item) => sum + giftValueInStars(item.value, item.floorTon), 0)
+    await tx.update(inventory).set({ status: "sold" }).where(and(eq(inventory.userId, userId), eq(inventory.status, "owned"), inArray(inventory.id, inventoryIds)))
+    const updated = await tx.update(users).set({ balance: sql`${users.balance} + ${total}` }).where(eq(users.id, userId)).returning({ balance: users.balance })
+    revalidatePath("/profile")
+    return { balance: Number(updated[0].balance), total, sold: owned.length }
   })
 }
 

@@ -2,14 +2,18 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Boxes, Gauge, PawPrint, Sparkles, UserRound, Swords } from "lucide-react"
+import { Boxes, Gauge, Sparkles, UserRound, Swords } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { haptic } from "@/lib/telegram-webapp"
 import { useLanguage } from "@/components/language-provider"
 
 const ITEMS = [
-  { href: "/", label: "games", icon: Boxes }, { href: "/battles", label: "battles", icon: Swords }, { href: "/crash", label: "crash", icon: Gauge }, { href: "/mines", label: "mines", icon: PawPrint }, { href: "/upgrade", label: "upgrade", icon: Sparkles }, { href: "/profile", label: "profile", icon: UserRound },
+  { href: "/", label: "games", icon: Boxes }, { href: "/battles", label: "battles", icon: Swords }, { href: "/crash", label: "crash", icon: Gauge }, { href: "/mines", label: "mines", icon: MineIcon }, { href: "/upgrade", label: "upgrade", icon: Sparkles }, { href: "/profile", label: "profile", icon: UserRound },
 ]
+
+function MineIcon({ className, strokeWidth = 2 }: { className?: string; strokeWidth?: number }) {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true"><path d="m6.2 7.1-2-2m13.6 2 2-2M12 4V1.8M4 12H1.8M22.2 12H20M6.2 16.9l-2 2m13.6-2 2 2" /><circle cx="12" cy="12" r="6.1" /><path d="M9.5 10.2c.7-1.1 2.1-1.7 3.4-1.3" /><circle cx="10" cy="14" r=".7" fill="currentColor" stroke="none" /></svg>
+}
 
 export function BottomNav() {
   const pathname = usePathname()

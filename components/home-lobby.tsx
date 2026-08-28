@@ -38,6 +38,7 @@ export function HomeLobby({ online }: { online: number }) {
       <GameRow href="/upgrade" title="Upgrade" subtitle="Charge the gauge and level up a gift" art="/images/puggift-upgrade-card-v2.webp" tone="from-[#43206d] via-[#7131a6] to-[#291743]" badge="NEW" />
       <GameRow href="/crash" title="Crash" subtitle="One shared flight for every player" art="/images/puggift-crash-card-v2.webp" tone="from-[#061738] via-[#0d3477] to-[#071127]" badge="ONLINE" />
       <GameRow href="/mines" title="Mines" subtitle="Find bones before the grumpy pugs" art="/images/puggift-bot-avatar-web-v2.webp" tone="from-[#123d22] via-[#1d6b38] to-[#0b2515]" badge="NEW" />
+      <GameRow href="/dice" title="Pug Dice" subtitle="Pick your risk and roll under the target" art="/images/puggift-mascot-web-v1.webp" tone="from-[#34205c] via-[#7544b4] to-[#27173f]" badge="INSTANT" />
       <GameRow href="/battles" title="PvP" subtitle="Two real stakes. One winner." art="/images/puggift-pvp-card-v2.webp" tone="from-[#6b3512] via-[#bd6a16] to-[#39200d]" badge="LIVE" />
       <GameRow href="/giveaways" title="Giveaways" subtitle="Create a channel drop with inline entry" art="/images/puggift-mascot-share-v1.png" tone="from-[#4b238a] via-[#7541c7] to-[#28143f]" badge="CREATOR" />
     </div>

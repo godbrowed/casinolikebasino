@@ -4,6 +4,7 @@ import type { CrashBoard, OwnedGift } from "@/app/actions/crash"
 import type { BattleSession, MatchState } from "@/app/actions/battles"
 import type { GiftDTO } from "@/app/actions/cases"
 import type { MinesState } from "@/app/actions/mines"
+import type { DiceResult } from "@/app/actions/dice"
 
 type ApiError = { error?: string }
 export type LiveDrop = { id: number; name: string; rarity: string; imageUrl: string; value: number }
@@ -70,6 +71,7 @@ export const startMinesApi = (bet: number, mineCount: number) => api<MinesState>
 export const fetchActiveMinesApi = () => api<MinesState | null>("/api/mines/action")
 export const revealMineApi = (roundId: number, tile: number) => api<MinesState>("/api/mines/action", { method: "POST", body: JSON.stringify({ action: "reveal", roundId, tile }) })
 export const cashoutMinesApi = (roundId: number) => api<MinesState>("/api/mines/action", { method: "POST", body: JSON.stringify({ action: "cashout", roundId }) })
+export const rollPugDiceApi = (bet: number, multiplier: number) => api<DiceResult>("/api/dice", { method: "POST", body: JSON.stringify({ bet, multiplier }) })
 
 export const fetchBattleSessions = () => api<BattleSession[]>("/api/battles/sessions")
 export const fetchMatchState = (roomId: number) => api<MatchState>(`/api/battles/match/${roomId}`)
@@ -102,6 +104,12 @@ export const sellAllGiftsApi = () =>
   api<{ balance: number | null; total: number }>("/api/inventory/action", {
     method: "POST",
     body: JSON.stringify({ action: "sellAll" }),
+  })
+
+export const sellGiftBatchApi = (inventoryIds: number[]) =>
+  api<{ balance: number; total: number; sold: number }>("/api/inventory/action", {
+    method: "POST",
+    body: JSON.stringify({ action: "sellBatch", inventoryIds }),
   })
 
 export const withdrawGiftApi = (inventoryId: number) =>

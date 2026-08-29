@@ -166,6 +166,7 @@ export async function createGiveaway(input: {
   ticketPrice: number
   durationMinutes: number
   maxTicketsPerUser?: number
+  winnerCount?: number
 }) {
   const userId = await requireUserId()
   const channelUsername = input.channelUsername?.trim().replace(/^@+/, "").toLowerCase()
@@ -176,7 +177,8 @@ export async function createGiveaway(input: {
   const photo = parseGiveawayPhoto(input.photoDataUrl)
   const ticketPrice = Number(input.ticketPrice)
   const durationMinutes = Number(input.durationMinutes)
-  const maxTickets = ticketPrice > 0 ? Number(input.maxTicketsPerUser || 100) : 1
+  const maxTickets = ticketPrice > 0 ? Number(input.maxTicketsPerUser || 100_000) : 1
+  const winnerCount = Number(input.winnerCount || 1)
 
   if (!/^[a-zA-Z0-9_]{5,32}$/.test(channelUsername)) throw new Error("Enter a valid public channel username")
   if (!inventoryIds.length || inventoryIds.some((id) => !Number.isSafeInteger(id) || id <= 0)) throw new Error("Choose one or several NFT gifts")
@@ -186,7 +188,8 @@ export async function createGiveaway(input: {
   if (photo && body.length > 500) throw new Error("With a photo, keep the description under 500 characters")
   if (!Number.isFinite(ticketPrice) || ticketPrice < 0 || ticketPrice > 100_000) throw new Error("Invalid ticket price")
   if (!Number.isSafeInteger(durationMinutes) || durationMinutes < 5 || durationMinutes > 43_200) throw new Error("Duration must be between 5 minutes and 30 days")
-  if (!Number.isSafeInteger(maxTickets) || maxTickets < 1 || maxTickets > 1000) throw new Error("Invalid ticket limit")
+  if (!Number.isSafeInteger(maxTickets) || maxTickets < 1 || maxTickets > 100_000) throw new Error("Ticket limit must be between 1 and 100,000")
+  if (!Number.isSafeInteger(winnerCount) || winnerCount < 1 || winnerCount > inventoryIds.length) throw new Error("Winners must be between 1 and the number of NFT prizes")
 
   const channel = (await db.select().from(giveawayChannels).where(and(
     sql`lower(${giveawayChannels.username}) = ${channelUsername}`,
@@ -235,7 +238,7 @@ export async function createGiveaway(input: {
       // large inventory selection into one giveaway.
       prizeText: prizes.length === 1 ? prizes[0].name : `${prizes.length} NFT gifts`,
       ticketPrice: ticketPrice.toFixed(2),
-      winnerCount: 1,
+      winnerCount,
       maxTicketsPerUser: maxTickets,
       status: "draft",
       endsAt: new Date(Date.now() + durationMinutes * 60_000),

@@ -170,7 +170,7 @@ export async function joinGiveawayFromCallback(input: {
   const { giveawayId, telegramUser } = input
   const requestedTickets = Number(input.ticketCount ?? 1)
   if (!Number.isSafeInteger(giveawayId) || giveawayId <= 0) return { ok: false, message: "Giveaway not found", showAlert: true }
-  if (!Number.isSafeInteger(requestedTickets) || requestedTickets < 1 || requestedTickets > 1000) return { ok: false, message: "Choose from 1 to 1,000 tickets", showAlert: true }
+  if (!Number.isSafeInteger(requestedTickets) || requestedTickets < 1 || requestedTickets > 100_000) return { ok: false, message: "Choose from 1 to 100,000 tickets", showAlert: true }
 
   const missingChannels = await missingRequiredSubscriptions(giveawayId, telegramUser.id)
   if (missingChannels.length) {
@@ -283,18 +283,36 @@ export async function settleGiveaway(giveawayId: number) {
     await tx.update(giveaways).set({ status: "completed", winnerUserIds: winnerIds, settledAt: new Date() }).where(eq(giveaways.id, giveawayId))
 
     const prizeIds = Array.isArray(giveaway.inventoryIds) ? giveaway.inventoryIds.map(Number).filter(Number.isSafeInteger) : giveaway.inventoryId ? [giveaway.inventoryId] : []
+    const prizeAssignments: Array<{ winnerId: string; prizeIds: number[] }> = winnerIds.map((winnerId) => ({ winnerId, prizeIds: [] }))
     if (prizeIds.length) {
-      const winnerId = winnerIds[0]
-      const movedPrize = await tx.update(inventory).set({
-        userId: winnerId || giveaway.ownerUserId,
-        status: "owned",
-        source: winnerId ? "giveaway" : "giveaway-returned",
-      }).where(and(
-        inArray(inventory.id, prizeIds),
-        eq(inventory.userId, giveaway.ownerUserId),
-        eq(inventory.status, "giveaway_locked"),
-      )).returning({ id: inventory.id })
-      if (movedPrize.length !== prizeIds.length) throw new Error("Giveaway NFT prizes are not locked")
+      if (prizeAssignments.length) {
+        prizeIds.forEach((prizeId, index) => prizeAssignments[index % prizeAssignments.length].prizeIds.push(prizeId))
+        let movedCount = 0
+        for (const assignment of prizeAssignments) {
+          const moved = await tx.update(inventory).set({
+            userId: assignment.winnerId,
+            status: "owned",
+            source: "giveaway",
+          }).where(and(
+            inArray(inventory.id, assignment.prizeIds),
+            eq(inventory.userId, giveaway.ownerUserId),
+            eq(inventory.status, "giveaway_locked"),
+          )).returning({ id: inventory.id })
+          movedCount += moved.length
+        }
+        if (movedCount !== prizeIds.length) throw new Error("Giveaway NFT prizes are not locked")
+      } else {
+        const returned = await tx.update(inventory).set({
+          userId: giveaway.ownerUserId,
+          status: "owned",
+          source: "giveaway-returned",
+        }).where(and(
+          inArray(inventory.id, prizeIds),
+          eq(inventory.userId, giveaway.ownerUserId),
+          eq(inventory.status, "giveaway_locked"),
+        )).returning({ id: inventory.id })
+        if (returned.length !== prizeIds.length) throw new Error("Giveaway NFT prizes are not locked")
+      }
     }
 
     const pot = Number(giveaway.pot)
@@ -311,7 +329,7 @@ export async function settleGiveaway(giveawayId: number) {
         meta: { giveawayId: giveaway.id, tickets: giveaway.ticketCount },
       })
     }
-    return { giveaway: { ...giveaway, status: "completed" }, winnerIds }
+    return { giveaway: { ...giveaway, status: "completed" }, winnerIds, prizeAssignments }
   })
   if (!settled) return null
 
@@ -334,8 +352,9 @@ export async function settleGiveaway(giveawayId: number) {
       reply_markup: giveawayKeyboard(settled.giveaway),
     })
   }
-  if (settled.winnerIds[0]) {
-    await notifyUser(settled.winnerIds[0], `🎉 <b>You won ${escapeHtml(settled.giveaway.prizeText)}!</b>\n\nThe NFT gift is already in your PugGift profile.`)
+  for (const assignment of settled.prizeAssignments) {
+    const prizeLabel = assignment.prizeIds.length === 1 ? "1 NFT gift" : `${assignment.prizeIds.length} NFT gifts`
+    await notifyUser(assignment.winnerId, `🎉 <b>You won ${prizeLabel}!</b>\n\n${escapeHtml(prizeLabel)} ${assignment.prizeIds.length === 1 ? "is" : "are"} already in your PugGift profile.`)
   }
   return { winnerIds: settled.winnerIds }
 }

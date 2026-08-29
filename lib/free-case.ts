@@ -7,7 +7,7 @@ import { botUsername, telegramCall } from "@/lib/giveaways"
 
 export const FREE_CASE_CHANNEL = "PugGift"
 export const FREE_CASE_CHANNEL_URL = `https://t.me/${FREE_CASE_CHANNEL}`
-export const FREE_CASE_TRADE_URL = "https://t.me/trade/app?startapp=ref_QNJfReFs7ZY1tr3i"
+export const FREE_CASE_TRADE_URL = "https://t.me/trade/app?startapp=ref_QNJfReFs7ZY1tr3i--wheel"
 // Telegram confirms one prepared-message share operation, not the number of
 // recipients selected in its native share sheet. Requiring one confirmed send
 // makes this task reliable on both iOS and Android.

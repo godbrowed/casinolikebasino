@@ -9,7 +9,6 @@ import { notifyAdmins } from "@/lib/admin-notify"
 
 const ALLOWED_MINES = new Set([3, 5, 10, 15])
 const RTP = 0.9
-const MAX_MULTIPLIER = 1000
 
 type MinesMeta = { status: "active" | "cashed" | "bust"; mineCount: number; revealed: number[]; multiplier: number }
 export type MinesState = { roundId: number; mineCount: number; revealed: number[]; multiplier: number; nextMultiplier: number; payout: number; status: "active" | "cashed" | "bust"; mines?: number[]; balance?: number }
@@ -24,7 +23,7 @@ function combination(n: number, k: number) {
 function minesMultiplier(mineCount: number, safePicks: number) {
   if (safePicks <= 0) return 1
   const fair = combination(25, safePicks) / combination(25 - mineCount, safePicks)
-  return Math.min(MAX_MULTIPLIER, Math.floor(fair * RTP * 100) / 100)
+  return Math.floor(fair * RTP * 100) / 100
 }
 
 export async function getActiveMines(): Promise<MinesState | null> {

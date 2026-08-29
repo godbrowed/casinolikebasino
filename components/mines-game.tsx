@@ -95,7 +95,7 @@ export function MinesGame() {
 
     <section className="relative grid gap-3 md:grid-cols-[minmax(0,1fr)_300px]">
       <div className="order-2 overflow-hidden rounded-[30px] border border-white/[.08] bg-[#081a10]/90 p-2.5 shadow-[0_20px_70px_rgba(0,0,0,.3),inset_0_1px_0_rgba(255,255,255,.05)] md:order-1 md:p-4">
-        <div className="mb-2.5 grid grid-cols-3 gap-1.5 md:mb-4 md:gap-2"><Metric label="Safe spots" value={`${safeOpened}/${safeTotal}`} icon={ShieldCheck} tone="emerald" /><Metric label="Current" value={`${(round?.multiplier ?? 1).toFixed(2)}×`} icon={Sparkles} tone="amber" /><Metric label="Next bone" value={`${(round?.nextMultiplier ?? 1).toFixed(2)}×`} icon={ChevronUp} tone="blue" /></div>
+        <div className="mb-2.5 grid grid-cols-3 gap-1.5 md:mb-4 md:gap-2"><Metric label="Safe spots" value={`${safeOpened}/${safeTotal}`} icon={ShieldCheck} tone="emerald" /><Metric label="Current" value={`${fmt(round?.multiplier ?? 1)}×`} icon={Sparkles} tone="amber" /><Metric label="Next bone" value={`${fmt(round?.nextMultiplier ?? 1)}×`} icon={ChevronUp} tone="blue" /></div>
         <div className="mb-2.5 h-1.5 overflow-hidden rounded-full bg-white/[.055]"><div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-lime-300 shadow-[0_0_14px_rgba(74,222,128,.65)] transition-[width] duration-500" style={{ width: `${progress}%` }} /></div>
         <div className="rounded-[25px] bg-black/20 p-2 ring-1 ring-white/[.045] md:p-3">
           <div className="grid grid-cols-5 gap-1.5 sm:gap-2.5">{Array.from({ length: 25 }, (_, tile) => {

@@ -46,11 +46,13 @@ const migrationFiles = (await fs.readdir(migrationsDirectory))
   .sort((left, right) => left.localeCompare(right))
 
 const client = new Client({ connectionString: process.env.DATABASE_URL })
+let migrationLockAcquired = false
 
 try {
   await client.connect()
   // Only one deployment may inspect/apply the migration set at a time.
   await client.query("SELECT pg_advisory_lock(784321997)")
+  migrationLockAcquired = true
   await client.query(`
     CREATE TABLE IF NOT EXISTS "_puggift_migrations" (
       "name" text PRIMARY KEY,
@@ -90,5 +92,11 @@ try {
     console.log("Database migrations are already up to date")
   }
 } finally {
+  // Pooled Postgres connections may keep the backend session alive after
+  // client.end(). Explicitly release the session lock or later deployments can
+  // wait forever on a lock held by an idle pooled backend.
+  if (migrationLockAcquired) {
+    await client.query("SELECT pg_advisory_unlock(784321997)").catch(() => undefined)
+  }
   await client.end().catch(() => undefined)
 }

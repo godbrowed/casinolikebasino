@@ -179,7 +179,7 @@ export async function createGiveaway(input: {
   const maxTickets = ticketPrice > 0 ? Number(input.maxTicketsPerUser || 100) : 1
 
   if (!/^[a-zA-Z0-9_]{5,32}$/.test(channelUsername)) throw new Error("Enter a valid public channel username")
-  if (!inventoryIds.length || inventoryIds.length > 20 || inventoryIds.some((id) => !Number.isSafeInteger(id) || id <= 0)) throw new Error("Choose one or several NFT gifts")
+  if (!inventoryIds.length || inventoryIds.some((id) => !Number.isSafeInteger(id) || id <= 0)) throw new Error("Choose one or several NFT gifts")
   if (requiredChannelIds.length > 10 || requiredChannelIds.some((id) => !Number.isSafeInteger(id) || id <= 0)) throw new Error("Choose valid required channels")
   if (!title || title.length > 80) throw new Error("Title must contain 1–80 characters")
   if (body.length > 1200) throw new Error("Text must contain up to 1,200 characters")
@@ -231,7 +231,9 @@ export async function createGiveaway(input: {
       inventoryIds,
       title,
       body,
-      prizeText: prizes.length === 1 ? prizes[0].name : `${prizes.length} NFT gifts: ${prizes.map((prize) => prize.name).join(", ")}`,
+      // Keep Telegram posts within their text limit even when the owner locks a
+      // large inventory selection into one giveaway.
+      prizeText: prizes.length === 1 ? prizes[0].name : `${prizes.length} NFT gifts`,
       ticketPrice: ticketPrice.toFixed(2),
       winnerCount: 1,
       maxTicketsPerUser: maxTickets,

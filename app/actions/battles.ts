@@ -47,8 +47,13 @@ type StoredResult = {
   winnerSlot: number; players: StoredPlayer[]
 }
 
-function countdownStarted(room: { createdAt: Date; startsAt: Date }) {
-  return room.startsAt.getTime() - room.createdAt.getTime() < 5 * 60 * 1000
+function countdownStarted(room: { startsAt: Date }) {
+  // An unarmed global room parks startsAt 24 hours in the future. Once the
+  // second player joins, startsAt is moved to the shared 30-second deadline.
+  // Comparing it with createdAt broke rooms whose first player had waited for
+  // more than five minutes: the new deadline was still far from createdAt and
+  // the room remained in WAIT forever.
+  return room.startsAt.getTime() <= Date.now() + MATCH_WINDOW_MS * 2
 }
 function payoutFor(bank: number) { return Math.max(0, Math.floor(bank * HOUSE_PAYOUT)) }
 function chanceFor(stake: number, bank: number) { return bank > 0 ? (stake / bank) * 100 : 0 }

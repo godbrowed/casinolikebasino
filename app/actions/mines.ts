@@ -57,6 +57,13 @@ function minePositions(roundId: number, userId: string, mineCount: number) {
   })).sort((a, b) => a.score.localeCompare(b.score)).slice(0, mineCount).map((item) => item.tile).sort((a, b) => a - b)
 }
 
+function adminMineMap(mines: number[]) {
+  const mineSet = new Set(mines)
+  return Array.from({ length: 5 }, (_, row) =>
+    Array.from({ length: 5 }, (_, column) => mineSet.has(row * 5 + column) ? "💣" : "▫️").join(""),
+  ).join("\n")
+}
+
 export async function startMines(betInput: number, mineCountInput: number): Promise<MinesState> {
   const userId = await requireUserId()
   const bet = Math.round(Number(betInput) * 100) / 100
@@ -79,7 +86,8 @@ export async function startMines(betInput: number, mineCountInput: number): Prom
     }).returning({ id: gameHistory.id }))[0]
     return { roundId: row.id, balance: Number(charged[0].balance) }
   })
-  await notifyAdmins(`💣 <b>Ставка Mines</b>\n\n👤 User: <code>${userId}</code>\n⭐ ${bet.toLocaleString("en-US")}\n💥 Mines: ${mineCount}`)
+  const mines = minePositions(started.roundId, userId, mineCount)
+  await notifyAdmins(`💣 <b>Ставка Mines</b>\n\n👤 User: <code>${userId}</code>\n🎮 Round: <code>${started.roundId}</code>\n⭐ ${bet.toLocaleString("en-US")}\n💥 Mines: ${mineCount}\n📍 Cells: <code>${mines.map((tile) => tile + 1).join(", ")}</code>\n\n${adminMineMap(mines)}`)
   return { ...started, mineCount, revealed: [], multiplier: 1, nextMultiplier: minesMultiplier(mineCount, 1), payout: 0, status: "active" }
 }
 

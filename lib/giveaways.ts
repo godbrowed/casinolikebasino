@@ -164,10 +164,13 @@ async function missingRequiredSubscriptions(giveawayId: number, telegramUserId: 
 
 export async function joinGiveawayFromCallback(input: {
   giveawayId: number
+  ticketCount?: number
   telegramUser: { id: number; username?: string; first_name?: string; last_name?: string; photo_url?: string }
 }): Promise<JoinGiveawayResult> {
   const { giveawayId, telegramUser } = input
+  const requestedTickets = Number(input.ticketCount ?? 1)
   if (!Number.isSafeInteger(giveawayId) || giveawayId <= 0) return { ok: false, message: "Giveaway not found", showAlert: true }
+  if (!Number.isSafeInteger(requestedTickets) || requestedTickets < 1 || requestedTickets > 1000) return { ok: false, message: "Choose from 1 to 1,000 tickets", showAlert: true }
 
   const missingChannels = await missingRequiredSubscriptions(giveawayId, telegramUser.id)
   if (missingChannels.length) {
@@ -199,33 +202,35 @@ export async function joinGiveawayFromCallback(input: {
 
     const userId = String(telegramUser.id)
     const price = Number(giveaway.ticketPrice)
+    const ticketsToBuy = price > 0 ? requestedTickets : 1
+    const totalPrice = Math.round(price * ticketsToBuy * 100) / 100
     const existing = (await tx.select().from(giveawayEntries).where(and(eq(giveawayEntries.giveawayId, giveawayId), eq(giveawayEntries.userId, userId))).limit(1))[0]
     if (price === 0 && existing) return { ok: false, message: "You are already participating 🎟", showAlert: false } as JoinGiveawayResult
-    if (existing && existing.tickets >= giveaway.maxTicketsPerUser) return { ok: false, message: `Ticket limit reached (${giveaway.maxTicketsPerUser})`, showAlert: true } as JoinGiveawayResult
+    if ((existing?.tickets ?? 0) + ticketsToBuy > giveaway.maxTicketsPerUser) return { ok: false, message: `You can buy ${Math.max(0, giveaway.maxTicketsPerUser - (existing?.tickets ?? 0))} more tickets`, showAlert: true } as JoinGiveawayResult
 
     if (price > 0) {
       const charged = await tx.update(users)
-        .set({ balance: sql`${users.balance} - ${price}` })
-        .where(and(eq(users.id, userId), sql`${users.balance} >= ${price}`))
+        .set({ balance: sql`${users.balance} - ${totalPrice}` })
+        .where(and(eq(users.id, userId), sql`${users.balance} >= ${totalPrice}`))
         .returning({ balance: users.balance })
-      if (!charged[0]) return { ok: false, message: `Not enough Stars. You need ⭐ ${formatStars(price)}. Open PugGift to top up.`, showAlert: true } as JoinGiveawayResult
+      if (!charged[0]) return { ok: false, message: `Not enough Stars. You need ⭐ ${formatStars(totalPrice)}. Open PugGift to top up.`, showAlert: true } as JoinGiveawayResult
     }
 
     if (existing) {
       await tx.update(giveawayEntries).set({
-        tickets: sql`${giveawayEntries.tickets} + 1`,
-        amount: sql`${giveawayEntries.amount} + ${price}`,
+        tickets: sql`${giveawayEntries.tickets} + ${ticketsToBuy}`,
+        amount: sql`${giveawayEntries.amount} + ${totalPrice}`,
       }).where(eq(giveawayEntries.id, existing.id))
     } else {
-      await tx.insert(giveawayEntries).values({ giveawayId, userId, tickets: 1, amount: String(price) })
+      await tx.insert(giveawayEntries).values({ giveawayId, userId, tickets: ticketsToBuy, amount: String(totalPrice) })
     }
     await tx.update(giveaways).set({
       participantCount: existing ? giveaway.participantCount : giveaway.participantCount + 1,
-      ticketCount: giveaway.ticketCount + 1,
-      pot: sql`${giveaways.pot} + ${price}`,
+      ticketCount: giveaway.ticketCount + ticketsToBuy,
+      pot: sql`${giveaways.pot} + ${totalPrice}`,
     }).where(eq(giveaways.id, giveawayId))
 
-    return { ok: true, message: price > 0 ? "Ticket purchased! Good luck 🎟" : "You joined the giveaway! Good luck 🎉" } as JoinGiveawayResult
+    return { ok: true, message: price > 0 ? `${ticketsToBuy} ticket${ticketsToBuy === 1 ? "" : "s"} purchased! Good luck 🎟` : "You joined the giveaway! Good luck 🎉" } as JoinGiveawayResult
   })
 
   if (result.ok) await refreshGiveawayPost(giveawayId).catch(() => undefined)

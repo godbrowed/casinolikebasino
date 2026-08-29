@@ -44,6 +44,7 @@ export type GiveawayDashboard = {
     channelUsername: string | null
     channelUrl: string | null
     myTickets: number
+    maxTicketsPerUser: number
     isOwner: boolean
     requiredChannels: Array<{ title: string; username: string | null; url: string | null }>
   }>
@@ -123,6 +124,7 @@ export async function getGiveawayDashboard(): Promise<GiveawayDashboard> {
       channelUsername,
       channelUrl: channelUsername && giveaway.postMessageId ? `https://t.me/${channelUsername}/${giveaway.postMessageId}` : null,
       myTickets: Number(myTickets ?? 0),
+      maxTicketsPerUser: giveaway.maxTicketsPerUser,
       isOwner: giveaway.ownerUserId === userId,
       requiredChannels: requiredRows.filter((required) => required.giveawayId === giveaway.id).map((required) => ({
         title: required.title,
@@ -133,7 +135,7 @@ export async function getGiveawayDashboard(): Promise<GiveawayDashboard> {
   }
 }
 
-export async function joinGiveaway(giveawayId: number) {
+export async function joinGiveaway(giveawayId: number, ticketCount = 1) {
   const userId = await requireUserId()
   const telegramId = Number(userId)
   if (!Number.isSafeInteger(telegramId) || telegramId <= 0) throw new Error("Telegram account is required")
@@ -141,6 +143,7 @@ export async function joinGiveaway(giveawayId: number) {
   if (!user) throw new Error("User not found")
   const result = await joinGiveawayFromCallback({
     giveawayId: Number(giveawayId),
+    ticketCount: Number(ticketCount),
     telegramUser: {
       id: telegramId,
       username: user.username ?? undefined,
@@ -316,7 +319,7 @@ export async function finishGiveawaySafe(giveawayId: number) {
   catch (error) { return { ok: false as const, error: publicError(error) } }
 }
 
-export async function joinGiveawaySafe(giveawayId: number) {
-  try { return { ok: true as const, data: await joinGiveaway(giveawayId) } }
+export async function joinGiveawaySafe(giveawayId: number, ticketCount = 1) {
+  try { return { ok: true as const, data: await joinGiveaway(giveawayId, ticketCount) } }
   catch (error) { return { ok: false as const, error: publicError(error) } }
 }

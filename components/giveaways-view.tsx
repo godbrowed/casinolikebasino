@@ -51,10 +51,10 @@ export function GiveawaysView() {
     window.setTimeout(() => document.getElementById(`giveaway-${focusedGiveawayId}`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 80)
   }, [dashboard.giveaways, focusedGiveawayId, loading])
 
-  function join(id: number) {
+  function join(id: number, ticketCount: number) {
     setError(""); setSuccess(""); haptic("medium")
     startTransition(async () => {
-      const result = await joinGiveawaySafe(id)
+      const result = await joinGiveawaySafe(id, ticketCount)
       if (!result.ok) { setError(result.error); return }
       setSuccess(result.data.message)
       await Promise.all([refresh(true), refreshUser()])
@@ -105,13 +105,16 @@ export function GiveawaysView() {
 
     <div className="flex items-center justify-between px-1"><div><div className="text-[9px] font-black uppercase tracking-[.15em] text-[#7897ff]">Giveaway feed</div><h2 className="font-display text-xl font-black">{tab === "free" ? "Free giveaways" : tab === "paid" ? "Paid tickets" : tab === "joined" ? "Your entries" : "Created by you"}</h2></div><button onClick={() => refresh()} className="flex h-10 w-10 items-center justify-center rounded-full bg-white/[.06] text-white/45"><RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} /></button></div>
 
-    {loading ? <div className="flex min-h-52 items-center justify-center"><LoaderCircle className="h-7 w-7 animate-spin text-[#7897ff]" /></div> : filtered.length ? <div className="grid gap-3 sm:grid-cols-2">{filtered.map((item) => <GiveawayCard key={item.id} item={item} pending={pending} onJoin={() => join(item.id)} onDraw={() => draw(item.id)} />)}</div> : <Empty tab={tab} onCreate={() => setScreen("create")} />}
+    {loading ? <div className="flex min-h-52 items-center justify-center"><LoaderCircle className="h-7 w-7 animate-spin text-[#7897ff]" /></div> : filtered.length ? <div className="grid gap-3 sm:grid-cols-2">{filtered.map((item) => <GiveawayCard key={item.id} item={item} pending={pending} onJoin={(ticketCount) => join(item.id, ticketCount)} onDraw={() => draw(item.id)} />)}</div> : <Empty tab={tab} onCreate={() => setScreen("create")} />}
   </div>
 }
 
-function GiveawayCard({ item, pending, onJoin, onDraw }: { item: GiveawayDashboard["giveaways"][number]; pending: boolean; onJoin: () => void; onDraw: () => void }) {
+function GiveawayCard({ item, pending, onJoin, onDraw }: { item: GiveawayDashboard["giveaways"][number]; pending: boolean; onJoin: (ticketCount: number) => void; onDraw: () => void }) {
   const active = item.status === "active"
   const paid = item.ticketPrice > 0
+  const remainingTickets = Math.max(0, item.maxTicketsPerUser - item.myTickets)
+  const [ticketAmount, setTicketAmount] = useState(1)
+  const selectedTickets = Math.max(1, Math.min(remainingTickets || 1, ticketAmount))
   const ends = new Date(item.endsAt)
   return <article id={`giveaway-${item.id}`} className="overflow-hidden rounded-[25px] bg-[#292c32] ring-1 ring-white/[.08]">
     <div className="relative bg-[radial-gradient(circle_at_85%_0%,rgba(120,92,255,.26),transparent_45%)] p-4 pb-3">
@@ -121,7 +124,7 @@ function GiveawayCard({ item, pending, onJoin, onDraw }: { item: GiveawayDashboa
     </div>
     <div className="grid grid-cols-3 gap-px bg-white/[.055]"><CardStat value={String(item.participantCount)} label="players" /><CardStat value={String(item.ticketCount)} label="tickets" /><CardStat value={paid ? fmt(item.pot) : String(item.winnerCount)} label={paid ? "bank" : "winners"} coin={paid} /></div>
     <div className="p-3"><div className="mb-3 flex items-center justify-between gap-2 text-[10px] text-white/38"><span className="flex items-center gap-1.5"><CalendarClock className="h-3.5 w-3.5" />{active ? `Ends ${relativeTime(ends)}` : ends.toLocaleDateString()}</span>{item.channelUrl && <a href={item.channelUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1 font-bold text-[#8da9ff]">Channel <ExternalLink className="h-3 w-3" /></a>}</div>
-      {item.isOwner ? active ? <button disabled={pending} onClick={onDraw} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-white/[.08] text-xs font-black text-white/70"><Trophy className="h-4 w-4" />Draw winner now</button> : <div className="flex min-h-12 items-center justify-center rounded-2xl bg-white/[.04] text-xs font-bold text-white/35">Giveaway finished</div> : active ? <button disabled={pending || (!paid && item.myTickets > 0)} onClick={onJoin} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#3674ff] text-xs font-black shadow-[0_7px_18px_rgba(54,116,255,.28)] disabled:bg-white/[.06] disabled:text-white/30 disabled:shadow-none"><Ticket className="h-4 w-4" />{!paid && item.myTickets > 0 ? "Already participating" : paid ? `Buy ticket · ${fmt(item.ticketPrice)} Stars` : "Participate for free"}</button> : <div className="flex min-h-12 items-center justify-center rounded-2xl bg-white/[.04] text-xs font-bold text-white/35">Entry closed · {item.myTickets} tickets</div>}
+      {item.isOwner ? active ? <button disabled={pending} onClick={onDraw} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-white/[.08] text-xs font-black text-white/70"><Trophy className="h-4 w-4" />Draw winner now</button> : <div className="flex min-h-12 items-center justify-center rounded-2xl bg-white/[.04] text-xs font-bold text-white/35">Giveaway finished</div> : active ? paid ? <div className="space-y-2"><div className="grid grid-cols-[44px_1fr_44px] gap-2"><button type="button" onClick={() => setTicketAmount((value) => Math.max(1, value - 1))} className="rounded-2xl bg-white/[.07] text-lg font-black text-white/60">−</button><label className="relative flex min-h-12 items-center rounded-2xl bg-black/20 px-3 ring-1 ring-white/[.07]"><Ticket className="h-4 w-4 text-[#8da9ff]" /><input aria-label="Ticket quantity" inputMode="numeric" value={ticketAmount} onChange={(event) => setTicketAmount(Math.max(1, Math.min(remainingTickets || 1, Number(event.target.value.replace(/\D/g, "")) || 1)))} className="min-w-0 flex-1 bg-transparent text-center font-mono text-base font-black outline-none" /><span className="text-[9px] font-bold text-white/30">max {remainingTickets}</span></label><button type="button" onClick={() => setTicketAmount((value) => Math.min(remainingTickets, value + 1))} disabled={remainingTickets < 1} className="rounded-2xl bg-white/[.07] text-lg font-black text-white/60 disabled:opacity-30">+</button></div><button disabled={pending || remainingTickets < 1} onClick={() => onJoin(selectedTickets)} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#3674ff] text-xs font-black shadow-[0_7px_18px_rgba(54,116,255,.28)] disabled:bg-white/[.06] disabled:text-white/30 disabled:shadow-none"><Ticket className="h-4 w-4" />{remainingTickets < 1 ? "Ticket limit reached" : `Buy ${selectedTickets} · ${fmt(item.ticketPrice * selectedTickets)} Stars`}</button></div> : <button disabled={pending || item.myTickets > 0} onClick={() => onJoin(1)} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#3674ff] text-xs font-black shadow-[0_7px_18px_rgba(54,116,255,.28)] disabled:bg-white/[.06] disabled:text-white/30 disabled:shadow-none"><Ticket className="h-4 w-4" />{item.myTickets > 0 ? "Already participating" : "Participate for free"}</button> : <div className="flex min-h-12 items-center justify-center rounded-2xl bg-white/[.04] text-xs font-bold text-white/35">Entry closed · {item.myTickets} tickets</div>}
     </div>
   </article>
 }
@@ -144,7 +147,7 @@ function Creator({ dashboard, pending, error, success, onBack, onRefresh, setErr
     setError(""); setSuccess(""); haptic("medium")
     startTransition(async () => {
       const result = await createGiveawaySafe({ channelUsername, inventoryIds, requiredChannelIds, title, body, photoDataUrl: photoDataUrl || undefined,
-        ticketPrice: mode === "paid" ? Number(price) : 0, durationMinutes: Number(duration), maxTicketsPerUser: mode === "paid" ? 100 : 1 })
+        ticketPrice: mode === "paid" ? Number(price) : 0, durationMinutes: Number(duration), maxTicketsPerUser: mode === "paid" ? 1000 : 1 })
       if (!result.ok) { setError(result.error); return }
       setSuccess("Giveaway published in the channel")
       if (result.data.channelUrl) window.open(result.data.channelUrl, "_blank", "noopener,noreferrer")

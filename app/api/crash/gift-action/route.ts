@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "INVALID_ACTION" }, { status: 400 })
   } catch (cause) {
     const error = cause instanceof Error ? cause.message : "REQUEST_FAILED"
-    const status = error === "Unauthorized" ? 401 : error === "BETTING_CLOSED" ? 409 : 400
+    const status = error === "Unauthorized" ? 401 : error === "CRASH_MAINTENANCE" ? 503 : error === "BETTING_CLOSED" ? 409 : 400
     return NextResponse.json({ error }, { status })
   }
 }

@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache"
 import { db } from "@/lib/db"
 import { users, gameHistory, inventory, gifts } from "@/lib/db/schema"
 import { requireUserId } from "@/lib/session"
-import { crashRoundPhase, CRASH_ROUND_MS, multiplierAtElapsed, sharedFlightStart, sharedRoundId, sharedRoundStart } from "@/lib/crash-shared"
+import { crashRoundPhase, CRASH_MAINTENANCE, CRASH_ROUND_MS, multiplierAtElapsed, sharedFlightStart, sharedRoundId, sharedRoundStart } from "@/lib/crash-shared"
 import { crashPointForRound as rollCrashPoint, crashSecret } from "@/lib/crash-server"
 import { giftValueInStars } from "@/lib/pricing"
 import { assertFreeCaseGiftUnlocked, getFreeCaseClaimStatus } from "@/lib/free-case-referrals"
@@ -112,6 +112,7 @@ export async function startCrash(bet: number): Promise<{
   startTime: number
   balance: number
 }> {
+  if (CRASH_MAINTENANCE) throw new Error("CRASH_MAINTENANCE")
   const userId = await requireUserId()
   if (!(bet > 0)) throw new Error("Invalid bet")
   if (crashRoundPhase() !== "betting") throw new Error("BETTING_CLOSED")
@@ -262,6 +263,7 @@ export async function startGiftCrash(inventoryIds: number[]): Promise<{
   startTime: number
   stakeValue: number
 }> {
+  if (CRASH_MAINTENANCE) throw new Error("CRASH_MAINTENANCE")
   const userId = await requireUserId()
   const claim = await getFreeCaseClaimStatus(userId)
   if (crashRoundPhase() !== "betting") throw new Error("BETTING_CLOSED")

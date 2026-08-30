@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import useSWR from "swr"
-import { ArrowRight, Play, Users } from "lucide-react"
+import { ArrowRight, Clock3, Users } from "lucide-react"
 import { Coin } from "@/components/coin"
 import { fetchLiveDrops } from "@/lib/client-game-api"
 
@@ -25,7 +25,7 @@ export function HomeLobby({ online }: { online: number }) {
       <img src="/images/puggift-start-banner-v2.webp" alt="PugGift" className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-[1.025]" />
       <span className="absolute inset-0 bg-[linear-gradient(90deg,rgba(3,8,19,.88),rgba(3,8,19,.22)_48%,rgba(3,8,19,.08))]" />
       <span className="absolute left-4 top-4 flex items-center gap-1.5 rounded-full bg-emerald-400/15 px-2.5 py-1 text-[9px] font-black uppercase tracking-[.12em] text-emerald-300 backdrop-blur-md"><i className="h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_8px_#6ee7b7]" />{online} online</span>
-      <span className="absolute bottom-4 left-4 flex items-center gap-2 rounded-2xl bg-[#2f70ff] px-4 py-2.5 text-xs font-black shadow-[0_8px_24px_rgba(47,112,255,.4)]"><Play className="h-4 w-4 fill-current" />Play live</span>
+      <span className="absolute bottom-4 left-4 flex items-center gap-2 rounded-2xl bg-amber-300 px-4 py-2.5 text-xs font-black text-[#241800] shadow-[0_8px_24px_rgba(252,211,77,.22)]"><Clock3 className="h-4 w-4" />Maintenance</span>
     </Link>
 
     <div className="flex items-end justify-between px-1 pb-1 pt-2">
@@ -36,7 +36,7 @@ export function HomeLobby({ online }: { online: number }) {
     <div className="flex flex-col gap-3">
       <GameRow href="/cases" title="Cases" subtitle="Open animated Telegram gift drops" art="/images/puggift-cases-card-v2.webp" tone="from-[#184fc2] via-[#246be3] to-[#193b8e]" badge="OPEN" />
       <GameRow href="/upgrade" title="Upgrade" subtitle="Charge the gauge and level up a gift" art="/images/puggift-upgrade-card-v2.webp" tone="from-[#43206d] via-[#7131a6] to-[#291743]" badge="NEW" />
-      <GameRow href="/crash" title="Crash" subtitle="One shared flight for every player" art="/images/puggift-crash-card-v2.webp" tone="from-[#061738] via-[#0d3477] to-[#071127]" badge="ONLINE" />
+      <GameRow href="/crash" title="Crash" subtitle="Temporarily closed for maintenance" art="/images/puggift-crash-card-v2.webp" tone="from-[#061738] via-[#0d3477] to-[#071127]" badge="MAINTENANCE" />
       <GameRow href="/mines" title="Mines" subtitle="Find bones before the grumpy pugs" art="/images/puggift-bot-avatar-web-v2.webp" tone="from-[#123d22] via-[#1d6b38] to-[#0b2515]" badge="NEW" />
       <GameRow href="/dice" title="Pug Dice" subtitle="Pick your risk and roll under the target" art="/images/puggift-mascot-web-v1.webp" tone="from-[#34205c] via-[#7544b4] to-[#27173f]" badge="INSTANT" />
       <GameRow href="/battles" title="PvP" subtitle="Two real stakes. One winner." art="/images/puggift-pvp-card-v2.webp" tone="from-[#6b3512] via-[#bd6a16] to-[#39200d]" badge="LIVE" />

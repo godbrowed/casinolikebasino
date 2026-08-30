@@ -156,10 +156,56 @@ export async function joinGiveaway(giveawayId: number, ticketCount = 1) {
   return { message: result.message }
 }
 
+type TelegramChannelInfo = { id: number; type?: string; title?: string; username?: string }
+type TelegramMemberInfo = { status?: string }
+
+async function resolveRequiredChannels(usernames: string[]) {
+  if (!usernames.length) return []
+  const bot = await telegramCall<{ id: number }>("getMe", {})
+  if (!bot.ok || !bot.result?.id) throw new Error("Could not verify the giveaway bot")
+
+  const channels = [] as Array<typeof giveawayChannels.$inferSelect>
+  for (const username of usernames) {
+    const chat = await telegramCall<TelegramChannelInfo>("getChat", { chat_id: `@${username}` })
+    if (!chat.ok || !chat.result?.id || !["channel", "supergroup"].includes(chat.result.type || "")) {
+      throw new Error(`@${username} is not an accessible public channel`)
+    }
+    const membership = await telegramCall<TelegramMemberInfo>("getChatMember", {
+      chat_id: chat.result.id,
+      user_id: bot.result.id,
+    })
+    const botStatus = membership.result?.status || "left"
+    if (!membership.ok || (botStatus !== "administrator" && botStatus !== "creator")) {
+      throw new Error(`Add @${await resolveBotUsername()} as an administrator in @${username} so subscriptions can be verified`)
+    }
+
+    const saved = await db.insert(giveawayChannels).values({
+      ownerUserId: "required-channel",
+      chatId: String(chat.result.id),
+      username: (chat.result.username || username).toLowerCase(),
+      title: chat.result.title || `@${username}`,
+      botStatus,
+      canPostMessages: false,
+      active: true,
+    }).onConflictDoUpdate({
+      target: giveawayChannels.chatId,
+      set: {
+        username: (chat.result.username || username).toLowerCase(),
+        title: chat.result.title || `@${username}`,
+        botStatus,
+        active: true,
+        updatedAt: new Date(),
+      },
+    }).returning()
+    channels.push(saved[0])
+  }
+  return channels
+}
+
 export async function createGiveaway(input: {
   channelUsername: string
   inventoryIds: number[]
-  requiredChannelIds: number[]
+  requiredChannelUsernames: string[]
   title: string
   body: string
   photoDataUrl?: string
@@ -171,7 +217,7 @@ export async function createGiveaway(input: {
   const userId = await requireUserId()
   const channelUsername = input.channelUsername?.trim().replace(/^@+/, "").toLowerCase()
   const inventoryIds = [...new Set((input.inventoryIds || []).map(Number))]
-  const requiredChannelIds = [...new Set((input.requiredChannelIds || []).map(Number))]
+  const requiredChannelUsernames = [...new Set((input.requiredChannelUsernames || []).map((username) => username.trim().replace(/^@+/, "").toLowerCase()).filter(Boolean))]
   const title = input.title?.trim()
   const body = input.body?.trim() ?? ""
   const photo = parseGiveawayPhoto(input.photoDataUrl)
@@ -182,7 +228,7 @@ export async function createGiveaway(input: {
 
   if (!/^[a-zA-Z0-9_]{5,32}$/.test(channelUsername)) throw new Error("Enter a valid public channel username")
   if (!inventoryIds.length || inventoryIds.some((id) => !Number.isSafeInteger(id) || id <= 0)) throw new Error("Choose one or several NFT gifts")
-  if (requiredChannelIds.length > 10 || requiredChannelIds.some((id) => !Number.isSafeInteger(id) || id <= 0)) throw new Error("Choose valid required channels")
+  if (requiredChannelUsernames.length > 10 || requiredChannelUsernames.some((username) => !/^[a-zA-Z0-9_]{5,32}$/.test(username))) throw new Error("Enter up to 10 valid public channel usernames")
   if (!title || title.length > 80) throw new Error("Title must contain 1–80 characters")
   if (body.length > 1200) throw new Error("Text must contain up to 1,200 characters")
   if (photo && body.length > 500) throw new Error("With a photo, keep the description under 500 characters")
@@ -199,14 +245,8 @@ export async function createGiveaway(input: {
   )).limit(1))[0]
   if (!channel) throw new Error("The channel is not connected or the bot cannot post")
 
-  const requiredChannels = requiredChannelIds.length ? await db.select().from(giveawayChannels).where(and(
-    eq(giveawayChannels.ownerUserId, userId),
-    eq(giveawayChannels.active, true),
-    eq(giveawayChannels.canPostMessages, true),
-    inArray(giveawayChannels.id, requiredChannelIds),
-  )) : []
-  if (requiredChannels.length !== requiredChannelIds.length) throw new Error("One of the required channels is not connected")
-  if (requiredChannels.some((requiredChannel) => !requiredChannel.username)) throw new Error("Required subscription channels must be public")
+  const requiredChannels = await resolveRequiredChannels(requiredChannelUsernames)
+  const requiredChannelIds = requiredChannels.map((requiredChannel) => requiredChannel.id)
 
   const claim = await getFreeCaseClaimStatus(userId)
   const giveaway = await db.transaction(async (tx) => {

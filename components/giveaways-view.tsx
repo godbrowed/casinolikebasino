@@ -132,8 +132,8 @@ function GiveawayCard({ item, pending, onJoin, onDraw }: { item: GiveawayDashboa
 function Creator({ dashboard, pending, error, success, onBack, onRefresh, setError, setSuccess, startTransition }: { dashboard: GiveawayDashboard; pending: boolean; error: string; success: string; onBack: () => void; onRefresh: () => void; setError: (value: string) => void; setSuccess: (value: string) => void; startTransition: (callback: () => Promise<void>) => void }) {
   const [mode, setMode] = useState<"free" | "paid">("free")
   const [channelUsername, setChannelUsername] = useState(dashboard.channels.find((channel) => channel.active && channel.username)?.username ?? "")
-  const defaultRequiredChannel = dashboard.channels.find((channel) => channel.active && channel.username)
-  const [requiredChannelIds, setRequiredChannelIds] = useState<number[]>(defaultRequiredChannel ? [defaultRequiredChannel.id] : [])
+  const [requiredChannelInput, setRequiredChannelInput] = useState("")
+  const [requiredChannelUsernames, setRequiredChannelUsernames] = useState<string[]>([])
   const [inventoryIds, setInventoryIds] = useState<number[]>(dashboard.availableGifts[0] ? [dashboard.availableGifts[0].inventoryId] : [])
   const [title, setTitle] = useState(""); const [body, setBody] = useState("")
   const [photoDataUrl, setPhotoDataUrl] = useState("")
@@ -145,10 +145,20 @@ function Creator({ dashboard, pending, error, success, onBack, onRefresh, setErr
     if (!channelUsername) setChannelUsername(dashboard.channels.find((channel) => channel.active && channel.username)?.username ?? "")
   }, [channelUsername, dashboard.channels])
 
+  function addRequiredChannel() {
+    const username = requiredChannelInput.trim().replace(/^@+/, "").toLowerCase()
+    if (!/^[a-zA-Z0-9_]{5,32}$/.test(username)) { setError("Enter a valid public channel username"); return }
+    if (requiredChannelUsernames.includes(username)) { setRequiredChannelInput(""); return }
+    if (requiredChannelUsernames.length >= 10) { setError("You can require up to 10 channels"); return }
+    setError("")
+    setRequiredChannelUsernames((current) => [...current, username])
+    setRequiredChannelInput("")
+  }
+
   function publish() {
     setError(""); setSuccess(""); haptic("medium")
     startTransition(async () => {
-      const result = await createGiveawaySafe({ channelUsername, inventoryIds, requiredChannelIds, title, body, photoDataUrl: photoDataUrl || undefined,
+      const result = await createGiveawaySafe({ channelUsername, inventoryIds, requiredChannelUsernames, title, body, photoDataUrl: photoDataUrl || undefined,
         ticketPrice: mode === "paid" ? Number(price) : 0, durationMinutes: Number(duration),
         maxTicketsPerUser: mode === "paid" ? Number(ticketLimit) : 1, winnerCount: Number(winnerCount) })
       if (!result.ok) { setError(result.error); return }
@@ -165,7 +175,7 @@ function Creator({ dashboard, pending, error, success, onBack, onRefresh, setErr
       <div className="mb-4 flex items-center justify-between"><div><div className="text-[9px] font-black uppercase tracking-[.14em] text-white/35">Publishing channel</div><h2 className="mt-1 font-display text-lg font-black">Choose where to post</h2></div><a href={dashboard.addChannelUrl || "#"} target="_blank" rel="noreferrer" className="flex min-h-10 items-center gap-1.5 rounded-xl bg-[#3674ff] px-3 text-[10px] font-black"><Plus className="h-3.5 w-3.5" />Add channel</a></div>
       <div className="relative"><span className="absolute left-4 top-1/2 -translate-y-1/2 font-black text-white/35">@</span><input value={channelUsername} onChange={(event) => setChannelUsername(event.target.value.replace(/^@+/, "").replace(/[^a-zA-Z0-9_]/g, ""))} className="giveaway-input pl-9" placeholder="channel_username" autoCapitalize="none" /></div>
       {channelUsername && !activeChannel && <p className="mt-2 text-[10px] font-bold text-amber-200/75">Add @{dashboard.botUsername} as channel admin first, then refresh.</p>}
-      {dashboard.channels.some((channel) => channel.active && channel.username) && <div className="mt-4"><div className="mb-2 text-[9px] font-black uppercase tracking-[.14em] text-white/35">Required subscriptions</div><div className="grid gap-2 sm:grid-cols-2">{dashboard.channels.filter((channel) => channel.active && channel.username).map((channel) => { const selected = requiredChannelIds.includes(channel.id); return <button type="button" key={channel.id} onClick={() => setRequiredChannelIds((current) => selected ? current.filter((id) => id !== channel.id) : [...current, channel.id])} className={cn("flex items-center gap-3 rounded-2xl p-3 text-left ring-1", selected ? "bg-[#3674ff]/15 ring-[#5d8bff]/50" : "bg-black/15 ring-white/[.06]")}><span className={cn("flex h-6 w-6 shrink-0 items-center justify-center rounded-lg", selected ? "bg-[#3674ff]" : "bg-white/[.07]")}>{selected && <Check className="h-3.5 w-3.5" />}</span><span className="min-w-0"><b className="block truncate text-xs">{channel.title}</b><small className="text-[9px] text-white/38">@{channel.username}</small></span></button> })}</div><p className="mt-2 text-[10px] leading-relaxed text-white/35">Participants must subscribe to every selected channel before entry is accepted.</p></div>}
+      <div className="mt-4"><div className="mb-2 text-[9px] font-black uppercase tracking-[.14em] text-white/35">Required subscriptions · optional</div><div className="grid grid-cols-[1fr_auto] gap-2"><div className="relative"><span className="absolute left-4 top-1/2 -translate-y-1/2 font-black text-white/35">@</span><input value={requiredChannelInput} onChange={(event) => setRequiredChannelInput(event.target.value.replace(/^@+/, "").replace(/[^a-zA-Z0-9_]/g, ""))} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addRequiredChannel() } }} className="giveaway-input pl-9" placeholder="partner_channel" autoCapitalize="none" /></div><button type="button" onClick={addRequiredChannel} className="flex min-h-12 items-center gap-1.5 rounded-xl bg-white/[.09] px-4 text-[10px] font-black"><Plus className="h-3.5 w-3.5" />Add</button></div>{requiredChannelUsernames.length > 0 && <div className="mt-2 flex flex-wrap gap-2">{requiredChannelUsernames.map((username) => <span key={username} className="flex items-center gap-1.5 rounded-full bg-[#3674ff]/15 py-1.5 pl-3 pr-1.5 text-[10px] font-black text-[#9eb6ff]">@{username}<button type="button" aria-label={`Remove @${username}`} onClick={() => setRequiredChannelUsernames((current) => current.filter((item) => item !== username))} className="flex h-6 w-6 items-center justify-center rounded-full bg-white/[.08]"><X className="h-3 w-3" /></button></span>)}</div>}<p className="mt-2 text-[10px] leading-relaxed text-white/35">Enter any public channel by username. The PugGift bot must be an administrator there so participant subscriptions can be verified.</p></div>
       {!dashboard.channels.some((channel) => channel.active) && <a href={dashboard.addChannelUrl} target="_blank" rel="noreferrer" className="mt-3 flex items-center justify-between rounded-2xl border border-dashed border-[#4e7cff]/40 bg-[#315eff]/10 px-4 py-3 text-xs font-bold text-[#9ab1ff]"><span><b className="block text-sm text-white">Connect your first channel</b>Add @{dashboard.botUsername} as admin with post access.</span><ChevronRight className="h-5 w-5" /></a>}
     </section>
     <section className="rounded-[27px] bg-[#292c32] p-4 ring-1 ring-white/[.08] sm:p-5">

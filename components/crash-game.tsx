@@ -10,7 +10,7 @@ import { useUser } from "@/components/user-provider"
 import { fmt, rarityOf } from "@/lib/format"
 import { haptic, hapticNotify } from "@/lib/telegram-webapp"
 import { cn } from "@/lib/utils"
-import { CRASH_BETTING_MS, CRASH_ROUND_MS, multiplierAtElapsed } from "@/lib/crash-shared"
+import { CRASH_BETTING_MS, CRASH_ROUND_MS, CRASH_RTP_PERCENT, multiplierAtElapsed } from "@/lib/crash-shared"
 import { playGameSound } from "@/lib/game-sound"
 import {
   cashoutCrashApi,
@@ -231,7 +231,13 @@ export function CrashGame() {
     <div className="mx-auto flex w-full max-w-[600px] flex-col gap-3 px-3 pt-4 md:px-0">
       <section className="rounded-[28px] bg-[#111d33] p-3 shadow-[0_18px_50px_rgba(0,0,0,.24)] ring-1 ring-white/[.07]">
         <div className="flex items-center justify-between px-1 pb-3">
-          <div><p className="font-display text-sm font-black text-white">Your stake</p><p className="text-[10px] font-bold text-white/35">Stars and gifts fly in the same round</p></div>
+          <div>
+            <div className="flex items-center gap-2">
+              <p className="font-display text-sm font-black text-white">Your stake</p>
+              <span className="rounded-full bg-amber-300/10 px-2 py-1 text-[9px] font-black text-amber-200 ring-1 ring-amber-200/15">RTP {CRASH_RTP_PERCENT}%</span>
+            </div>
+            <p className="text-[10px] font-bold text-white/35">Stars and gifts fly in the same round</p>
+          </div>
           <div className="flex rounded-full bg-black/25 p-1">
             <button onClick={() => chooseStakeKind("stars")} disabled={Boolean(wager)} className={cn("flex items-center gap-1.5 rounded-full px-3 py-2 text-[11px] font-black transition", stakeKind === "stars" ? "bg-[#2f70ff] text-white shadow-lg" : "text-white/45")}><Coin className="h-4 w-4" />Stars</button>
             <button onClick={() => chooseStakeKind("gift")} disabled={Boolean(wager)} className={cn("flex items-center gap-1.5 rounded-full px-3 py-2 text-[11px] font-black transition", stakeKind === "gift" ? "bg-[#8b4cff] text-white shadow-lg" : "text-white/45")}><Gift className="h-4 w-4" />Gift</button>

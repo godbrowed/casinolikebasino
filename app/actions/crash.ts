@@ -289,7 +289,7 @@ export async function startGiftCrash(inventoryIds: number[]): Promise<{
     await tx.update(inventory).set({ status: "wagered" }).where(inArray(inventory.id, uniqueIds))
 
     const startTime = sharedFlightStart()
-    // Same 90% RTP for gift crash (payout is a real NFT).
+    // Gifts and Stars use the same shared crash point and disclosed RTP.
     const roundId = sharedRoundId()
     const stakeValue = items.reduce((sum, gift) => sum + giftValueInStars(gift.value, gift.floorTon), 0)
     const history = await tx.insert(gameHistory).values({

@@ -7,12 +7,77 @@ import { transactions, users } from "@/lib/db/schema"
 import { isAdminId } from "@/lib/admin"
 import { requireUserId } from "@/lib/session"
 
-export async function creditBalance(targetUserId: string, amount: number) {
+export type UserRestrictionState = {
+  id: string
+  name: string
+  username: string | null
+  casinoBlocked: boolean
+  nftWithdrawalsBlocked: boolean
+}
+
+function validTelegramId(value: string) {
+  const target = value.trim()
+  if (!/^\d{3,20}$/.test(target)) throw new Error("Enter a valid Telegram ID")
+  return target
+}
+
+async function requireAdminId() {
   const adminId = await requireUserId()
   if (!isAdminId(adminId)) throw new Error("Unauthorized")
+  return adminId
+}
 
-  const target = targetUserId.trim()
-  if (!/^\d{3,20}$/.test(target)) throw new Error("Enter a valid Telegram ID")
+function restrictionState(user: typeof users.$inferSelect): UserRestrictionState {
+  return {
+    id: user.id,
+    name: user.firstName || user.username || user.id,
+    username: user.username,
+    casinoBlocked: user.casinoBlocked,
+    nftWithdrawalsBlocked: user.nftWithdrawalsBlocked,
+  }
+}
+
+export async function getUserRestrictions(targetUserId: string): Promise<UserRestrictionState> {
+  await requireAdminId()
+  const target = validTelegramId(targetUserId)
+  const user = (await db.select().from(users).where(eq(users.id, target)).limit(1))[0]
+  if (!user) throw new Error("User has not opened the bot yet")
+  return restrictionState(user)
+}
+
+export async function setUserRestriction(
+  targetUserId: string,
+  kind: "casino" | "nft-withdrawals",
+  blocked: boolean,
+): Promise<UserRestrictionState> {
+  const adminId = await requireAdminId()
+  const target = validTelegramId(targetUserId)
+  if (isAdminId(target)) throw new Error("Administrator accounts cannot be restricted")
+
+  const updated = await db.update(users).set(kind === "casino"
+    ? { casinoBlocked: Boolean(blocked) }
+    : { nftWithdrawalsBlocked: Boolean(blocked) })
+    .where(eq(users.id, target))
+    .returning()
+  if (!updated[0]) throw new Error("User has not opened the bot yet")
+
+  await db.insert(transactions).values({
+    userId: target,
+    type: "admin_restriction",
+    currency: "system",
+    amount: "0",
+    credited: "0",
+    status: "completed",
+    meta: { adminId, kind, blocked: Boolean(blocked) },
+  })
+  revalidatePath("/admin")
+  return restrictionState(updated[0])
+}
+
+export async function creditBalance(targetUserId: string, amount: number) {
+  const adminId = await requireAdminId()
+
+  const target = validTelegramId(targetUserId)
   if (!Number.isFinite(amount) || amount <= 0 || amount > 1_000_000) {
     throw new Error("Amount must be from 0.01 to 1,000,000")
   }

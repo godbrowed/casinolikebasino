@@ -8,6 +8,9 @@ import { eq } from "drizzle-orm"
 export async function GET() {
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ user: null }, { status: 200 })
+  if (user.casinoBlocked && !isAdminId(user.id)) {
+    return NextResponse.json({ user: null, error: "ACCOUNT_BLOCKED" }, { status: 403 })
+  }
   await db.update(users).set({ lastSeen: new Date() }).where(eq(users.id, user.id))
   return NextResponse.json({
     user: {

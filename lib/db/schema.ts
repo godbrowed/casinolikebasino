@@ -24,6 +24,8 @@ export const users = pgTable("users", {
     .default("0"),
   isDemo: boolean("is_demo").notNull().default(false),
   isPremium: boolean("is_premium").notNull().default(false),
+  casinoBlocked: boolean("casino_blocked").notNull().default(false),
+  nftWithdrawalsBlocked: boolean("nft_withdrawals_blocked").notNull().default(false),
   xp: numeric("xp", { precision: 20, scale: 2 }).notNull().default("0"),
   dailyStreak: integer("daily_streak").notNull().default(0),
   lastDailyClaim: timestamp("last_daily_claim", { withTimezone: true }),

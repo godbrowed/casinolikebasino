@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "INVALID_ACTION" }, { status: 400 })
   } catch (cause) {
     const error = cause instanceof Error ? cause.message : "REQUEST_FAILED"
-    const status = error === "Unauthorized" ? 401 : error === "Item not found" ? 404 : 400
+    const status = error === "Unauthorized" ? 401 : error === "ACCOUNT_BLOCKED" || error === "NFT_WITHDRAWALS_BLOCKED" ? 403 : error === "Item not found" ? 404 : 400
     return NextResponse.json({ error }, { status })
   }
 }

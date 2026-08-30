@@ -27,7 +27,7 @@ const UserContext = createContext<UserContextValue | null>(null)
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
 export function UserProvider({ children }: { children: ReactNode }) {
-  const [authState, setAuthState] = useState<"loading" | "ready" | "telegram-required">("loading")
+  const [authState, setAuthState] = useState<"loading" | "ready" | "telegram-required" | "blocked">("loading")
   const [botUsername, setBotUsername] = useState<string | null>(null)
   const { data, isLoading, mutate } = useSWR<{ user: Me | null }>(authState === "ready" ? "/api/me" : null, fetcher, {
     refreshInterval: 0,
@@ -43,6 +43,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
     })
       .then(async (response) => {
         const payload = await response.json().catch(() => null)
+        if (payload?.error === "ACCOUNT_BLOCKED") {
+          setAuthState("blocked")
+          return
+        }
         if (!response.ok || payload?.error === "TELEGRAM_REQUIRED") {
           setBotUsername(payload?.botUsername ?? null)
           setAuthState("telegram-required")
@@ -78,6 +82,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   if (authState === "telegram-required") {
     return <TelegramRequired botUsername={botUsername} />
+  }
+
+  if (authState === "blocked") {
+    return <div className="flex min-h-[var(--tg-viewport-stable-height,100dvh)] items-center justify-center bg-[#171a20] p-5 text-center text-white"><div className="w-full max-w-sm rounded-[30px] bg-[#292d34] p-6 ring-1 ring-white/10"><div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-rose-500/15 text-3xl">🔒</div><h1 className="mt-4 font-display text-2xl font-black">Account blocked</h1><p className="mt-2 text-sm leading-relaxed text-white/45">Access to PugGift has been restricted by an administrator.</p></div></div>
   }
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>

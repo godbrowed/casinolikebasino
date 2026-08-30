@@ -43,7 +43,10 @@ export async function POST(req: Request) {
     )
   }
 
-  await createSession(tgUser)
+  const session = await createSession(tgUser)
+  if (session.blocked) {
+    return NextResponse.json({ user: null, error: "ACCOUNT_BLOCKED" }, { status: 403 })
+  }
   const user = await getCurrentUser()
 
   return NextResponse.json({ user })

@@ -4,6 +4,7 @@ import { cookies } from "next/headers"
 import { eq } from "drizzle-orm"
 import { db } from "./db"
 import { referrals, users } from "./db/schema"
+import { isAdminId } from "./admin"
 import type { TelegramUser } from "./telegram"
 
 const COOKIE = "casino_session"
@@ -80,6 +81,9 @@ export async function createSession(tg: TelegramUser) {
     }
   })
 
+  const account = (await db.select({ casinoBlocked: users.casinoBlocked }).from(users).where(eq(users.id, tg.id)).limit(1))[0]
+  if (account?.casinoBlocked && !isAdminId(tg.id)) return { blocked: true as const }
+
   const store = await cookies()
   store.set(COOKIE, sign(tg.id), {
     httpOnly: true,
@@ -88,6 +92,7 @@ export async function createSession(tg: TelegramUser) {
     path: "/",
     maxAge: SESSION_TTL_SECONDS,
   })
+  return { blocked: false as const }
 }
 
 export async function getCurrentUserId(): Promise<string | null> {
@@ -105,5 +110,10 @@ export async function getCurrentUser() {
 export async function requireUserId(): Promise<string> {
   const id = await getCurrentUserId()
   if (!id) throw new Error("Unauthorized")
+  if (!isAdminId(id)) {
+    const account = (await db.select({ casinoBlocked: users.casinoBlocked }).from(users).where(eq(users.id, id)).limit(1))[0]
+    if (!account) throw new Error("Unauthorized")
+    if (account.casinoBlocked) throw new Error("ACCOUNT_BLOCKED")
+  }
   return id
 }

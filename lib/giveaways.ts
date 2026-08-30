@@ -201,6 +201,8 @@ export async function joinGiveawayFromCallback(input: {
     })
 
     const userId = String(telegramUser.id)
+    const participant = (await tx.select({ casinoBlocked: users.casinoBlocked }).from(users).where(eq(users.id, userId)).limit(1))[0]
+    if (participant?.casinoBlocked) return { ok: false, message: "Your PugGift account is blocked", showAlert: true } as JoinGiveawayResult
     const price = Number(giveaway.ticketPrice)
     const ticketsToBuy = price > 0 ? requestedTickets : 1
     const totalPrice = Math.round(price * ticketsToBuy * 100) / 100

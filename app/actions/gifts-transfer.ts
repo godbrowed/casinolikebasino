@@ -179,6 +179,10 @@ export async function requestGiftWithdraw(inventoryId: number): Promise<{ ok: tr
   if (!giveawayTasksReady) throw new Error("GIVEAWAY_WITHDRAW_REQUIREMENTS")
 
   const withdraw = await db.transaction(async (tx) => {
+    const account = (await tx.select({ nftWithdrawalsBlocked: users.nftWithdrawalsBlocked }).from(users).where(eq(users.id, userId)).limit(1))[0]
+    if (!account) throw new Error("User not found")
+    if (account.nftWithdrawalsBlocked) throw new Error("NFT_WITHDRAWALS_BLOCKED")
+
     const item = (
       await tx
         .select({ id: inventory.id, giftId: inventory.giftId, value: inventory.value, status: inventory.status, source: inventory.source, floorTon: gifts.floorTon })

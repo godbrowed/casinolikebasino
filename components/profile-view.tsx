@@ -81,6 +81,7 @@ export function ProfileView({ me, inventory, history, freeCaseClaim, referral }:
       const message = e instanceof Error ? e.message : "Withdraw failed"
       if (message === "GIVEAWAY_WITHDRAW_REQUIREMENTS") setShowGiveawayTasks(true)
       else if (message === "WITHDRAW_FEE_REQUIRED") setToast("You need at least 25 Stars on your PugGift balance to withdraw an NFT.")
+      else if (message === "NFT_WITHDRAWALS_BLOCKED") setToast("NFT withdrawals are blocked for this account. Contact support.")
       else setToast(message === "FREE_CASE_REFERRALS_REQUIRED" ? "Invite 3 Premium friends with an NFT gift to unlock this prize." : message)
       setTimeout(() => setToast(null), 4000)
     } finally {

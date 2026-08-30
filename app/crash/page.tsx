@@ -14,10 +14,10 @@ export default function CrashPage() {
           <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-[30px] bg-[#2f70ff]/15 text-[#78a0ff] ring-1 ring-[#6f96ff]/25 shadow-[0_0_50px_rgba(47,112,255,.22)]">
             <Wrench className="h-11 w-11" strokeWidth={2.4} />
           </div>
-          <span className="mt-6 inline-flex items-center gap-2 rounded-full bg-amber-300/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[.14em] text-amber-200 ring-1 ring-amber-200/15"><Clock3 className="h-3.5 w-3.5" />Maintenance</span>
-          <h1 className="mt-4 font-display text-3xl font-black text-white md:text-4xl">Crash на техроботах</h1>
-          <p className="mx-auto mt-3 max-w-[390px] text-sm font-semibold leading-relaxed text-white/50">Ми тимчасово закрили режим і перевіряємо математику та стабільність раундів. Нові ставки зараз не приймаються.</p>
-          <Link href="/" className="mt-7 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#2f70ff] py-4 font-display text-base font-black text-white shadow-[0_12px_30px_rgba(47,112,255,.28)] transition active:scale-[.98]"><ArrowLeft className="h-5 w-5" />Повернутися до ігор</Link>
+          <span className="mt-6 inline-flex items-center gap-2 rounded-full bg-amber-300/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[.14em] text-amber-200 ring-1 ring-amber-200/15"><Clock3 className="h-3.5 w-3.5" />Технические работы</span>
+          <h1 className="mt-4 font-display text-3xl font-black text-white md:text-4xl">Краш на технических работах</h1>
+          <p className="mx-auto mt-3 max-w-[390px] text-sm font-semibold leading-relaxed text-white/50">Мы временно закрыли режим и проверяем математику и стабильность раундов. Новые ставки сейчас не принимаются.</p>
+          <Link href="/" className="mt-7 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#2f70ff] py-4 font-display text-base font-black text-white shadow-[0_12px_30px_rgba(47,112,255,.28)] transition active:scale-[.98]"><ArrowLeft className="h-5 w-5" />Вернуться к играм</Link>
         </section>
       </main>
     </>

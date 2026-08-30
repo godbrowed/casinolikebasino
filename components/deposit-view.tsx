@@ -19,6 +19,7 @@ import {
 import { Coin } from "@/components/coin"
 import { useUser } from "@/components/user-provider"
 import { fmt } from "@/lib/format"
+import { TON_DEPOSIT_BONUS_MULTIPLIER, TON_DEPOSIT_BONUS_PERCENT } from "@/lib/deposit-shared"
 import { getWebApp, haptic, hapticNotify } from "@/lib/telegram-webapp"
 import { cn } from "@/lib/utils"
 
@@ -49,6 +50,7 @@ export function DepositView({
   const wallet = useTonWallet()
   const starAmount = amountText ? Number(amountText) : 0
   const tonAmount = starAmount > 0 ? Number((starAmount / tonRate).toFixed(4)) : 0
+  const tonCreditedStars = Math.max(1, Math.round(starAmount * TON_DEPOSIT_BONUS_MULTIPLIER))
 
   async function handleGiftDeposit(slug: string) {
     setBusy(true)
@@ -196,7 +198,7 @@ export function DepositView({
             const digits = value.replace(/\D/g, "").replace(/^0+(?=\d)/, "").slice(0, 5)
             setAmountText(digits && Number(digits) > 10_000 ? "10000" : digits)
           }}
-          detail={method === "ton" && tonAmount > 0 ? `≈ ${tonAmount} TON` : undefined}
+          detail={method === "ton" && tonAmount > 0 ? `≈ ${tonAmount} TON · +${TON_DEPOSIT_BONUS_PERCENT}% bonus · ${fmt(tonCreditedStars)} Stars total` : undefined}
         />
       )}
 

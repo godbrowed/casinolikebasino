@@ -4,13 +4,15 @@ import { STARS_PER_TON } from "@/lib/pricing"
 // TON deposits use the same USD reference as every gift price.
 export const TON_TO_GRAM = STARS_PER_TON
 export const STARS_TO_GRAM = 1
+export const TON_DEPOSIT_BONUS_PERCENT = 20
+export const TON_DEPOSIT_BONUS_MULTIPLIER = 1 + TON_DEPOSIT_BONUS_PERCENT / 100
 
 export function starsToGram(stars: number): number {
   return Math.round(stars * STARS_TO_GRAM)
 }
 
 export function tonToStars(ton: number): number {
-  return Math.max(1, Math.round(ton * TON_TO_GRAM))
+  return Math.max(1, Math.round(ton * TON_TO_GRAM * TON_DEPOSIT_BONUS_MULTIPLIER))
 }
 
 export const STAR_PACKS = [50, 100, 250, 500, 1000, 2500]

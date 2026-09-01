@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache"
 import { db } from "@/lib/db"
 import { cases, caseItems, gifts, users, inventory, gameHistory, freeCaseProgress } from "@/lib/db/schema"
 import { getCurrentUserId, requireUserId } from "@/lib/session"
-import { BALANCE_REWARD_MAX_CASE_PRICE, giftValueInStars, priceFromContents } from "@/lib/pricing"
+import { BALANCE_REWARD_MAX_CASE_PRICE, caseExpectedValue, giftValueInStars, priceFromContents } from "@/lib/pricing"
 import { freeCaseRequirements } from "@/lib/free-case"
 
 export type GiftDTO = {
@@ -32,6 +32,61 @@ export type CaseDTO = {
   cooldownHours: number | null
   nextFreeAt: string | null
   items: GiftDTO[]
+  rtpPercent: number
+  nftChancePercent: number
+}
+
+const FREE_CASE_NFT_CHANCE = 0.02
+
+type PromoCaseConfig = {
+  price: number
+  rtp: number
+  currency: { value: number; weight: number }[]
+}
+
+const PROMO_CASES: Record<string, PromoCaseConfig> = {
+  "pug-pocket": {
+    price: 199,
+    rtp: 0.85,
+    currency: [{ value: 10, weight: 65 }, { value: 25, weight: 25 }, { value: 50, weight: 8 }, { value: 100, weight: 2 }],
+  },
+  "pug-club": {
+    price: 250,
+    rtp: 0.85,
+    currency: [{ value: 10, weight: 55 }, { value: 25, weight: 30 }, { value: 50, weight: 10 }, { value: 100, weight: 5 }],
+  },
+}
+
+function weightedAverage(items: { weight: number; value: number }[]): number {
+  return caseExpectedValue(items)
+}
+
+function promoGiftChance(config: PromoCaseConfig, giftItems: { weight: number; value: number }[]): number {
+  const giftEv = weightedAverage(giftItems)
+  const currencyEv = weightedAverage(config.currency)
+  if (giftEv <= currencyEv) return 0
+  const required = ((config.price * config.rtp) - currencyEv) / (giftEv - currencyEv)
+  return Math.max(0, Math.min(0.1, required))
+}
+
+function promoActualRtp(config: PromoCaseConfig, giftItems: { weight: number; value: number }[]): number {
+  const chance = promoGiftChance(config, giftItems)
+  const giftEv = weightedAverage(giftItems)
+  const currencyEv = weightedAverage(config.currency)
+  return config.price > 0 ? ((chance * giftEv) + ((1 - chance) * currencyEv)) / config.price : 0
+}
+
+function promoCurrencyRewards(config: PromoCaseConfig): GiftDTO[] {
+  return config.currency.map((reward, index) => ({
+    id: -200 - index,
+    slug: `stars-${reward.value}`,
+    name: `${reward.value} Stars`,
+    rarity: reward.value >= 100 ? "legendary" : reward.value >= 50 ? "epic" : reward.value >= 25 ? "rare" : "common",
+    imageUrl: "/images/puggift-star.svg",
+    value: reward.value,
+    weight: reward.weight,
+    rewardType: "currency",
+  }))
 }
 
 // Currency payouts are deliberately limited to entry-level cases. Higher-tier
@@ -95,6 +150,7 @@ export async function getCases(): Promise<CaseDTO[]> {
 
   return rows.map((c) => {
     const list = items.filter((i) => i.caseId === c.id)
+    const promoConfig = PROMO_CASES[c.slug]
     const freeSource = list.length ? list : promoItems
     const freeGiftItems = freeSource.length ? freeSource.map((i) => ({
       id: i.id,
@@ -109,7 +165,9 @@ export async function getCases(): Promise<CaseDTO[]> {
     })).sort((a, b) => b.value - a.value) : [
       { id: 37, slug: "snakebox", name: "Snake Box NFT", rarity: "mythic", imageUrl: "https://storage.portal-market.com/portals-market/gifts/snakebox/models/png/aquarium.png", value: 280, weight: 1, rewardType: "gift" as const },
     ]
-    const livePrice = c.isFree ? 0 : priceFromContents(list.map((i) => ({ weight: Number(i.weight), value: starValue(i.value, i.floorTon) })))
+    const giftEconomy = list.map((i) => ({ weight: Number(i.weight), value: starValue(i.value, i.floorTon) }))
+    const livePrice = c.isFree ? 0 : promoConfig?.price ?? priceFromContents(giftEconomy)
+    const nftChance = c.isFree ? FREE_CASE_NFT_CHANCE : promoConfig ? promoGiftChance(promoConfig, giftEconomy) : 1
     const nextFreeAt = c.isFree && lastFreeCaseAt
       ? new Date(lastFreeCaseAt.getTime() + (c.cooldownHours ?? 24) * 60 * 60 * 1000).toISOString()
       : null
@@ -123,6 +181,8 @@ export async function getCases(): Promise<CaseDTO[]> {
       isFree: c.isFree,
       cooldownHours: c.cooldownHours,
       nextFreeAt,
+      rtpPercent: Math.round((promoConfig ? promoActualRtp(promoConfig, giftEconomy) : 0.9) * 10000) / 100,
+      nftChancePercent: Math.round(nftChance * 10_000) / 100,
       items: c.isFree
         ? [
             ...freeGiftItems,
@@ -142,7 +202,7 @@ export async function getCases(): Promise<CaseDTO[]> {
           rewardType: "gift" as const,
         }))
         .sort((a, b) => b.value - a.value),
-          ...currencyRewards(livePrice || Number(c.price)),
+          ...(promoConfig ? promoCurrencyRewards(promoConfig) : currencyRewards(livePrice || Number(c.price))),
         ],
     }
   })
@@ -202,7 +262,8 @@ export async function openCase(caseId: number): Promise<{
       .slice(0, 12)
   }
 
-  const price = caseRow.isFree ? 0 : priceFromContents(list.map((item) => ({ weight: Number(item.weight), value: starValue(item.value, item.floorTon) }))) || Number(caseRow.price)
+  const promoConfig = PROMO_CASES[caseRow.slug]
+  const price = caseRow.isFree ? 0 : (promoConfig?.price ?? (priceFromContents(list.map((item) => ({ weight: Number(item.weight), value: starValue(item.value, item.floorTon) }))) || Number(caseRow.price)))
 
   if (!caseRow.isFree && list.length === 0) throw new Error("Empty case")
   if (caseRow.isFree) {
@@ -220,9 +281,9 @@ export async function openCase(caseId: number): Promise<{
       const cooldownMs = (caseRow.cooldownHours ?? 24) * 60 * 60 * 1000
       const eligibleBefore = new Date(now.getTime() - cooldownMs)
       const roll = crypto.randomInt(10_000)
-      // The promo case is intentionally NFT-forward: 65% of eligible spins
-      // settle as a real inventory gift; the remaining outcomes are Stars.
-      const wonGift = roll < 6500
+      // The free case is a Stars-first acquisition reward. NFT odds are kept
+      // deliberately small and constant for every eligible player.
+      const wonGift = roll < FREE_CASE_NFT_CHANCE * 10_000
       const currencyRoll = crypto.randomInt(10_000)
       const currencyValue = currencyRoll < 4500 ? 2 : currencyRoll < 7500 ? 5 : currencyRoll < 9000 ? 10 : currencyRoll < 9700 ? 25 : currencyRoll < 9900 ? 50 : 100
 
@@ -288,6 +349,66 @@ export async function openCase(caseId: number): Promise<{
     }
 
     if (Number(user.balance) < price) throw new Error("INSUFFICIENT_FUNDS")
+
+    if (promoConfig) {
+      const giftEconomy = list.map((item) => ({ weight: Number(item.weight), value: starValue(item.value, item.floorTon) }))
+      const nftChance = promoGiftChance(promoConfig, giftEconomy)
+      const actualRtp = promoActualRtp(promoConfig, giftEconomy)
+      const wonGift = crypto.randomInt(1_000_000) < Math.round(nftChance * 1_000_000)
+
+      if (!wonGift) {
+        const rewardIndex = weightedPick(promoConfig.currency)
+        const currencyValue = promoConfig.currency[rewardIndex].value
+        const updated = await tx
+          .update(users)
+          .set({ balance: sql`${users.balance} - ${price} + ${currencyValue}`, xp: sql`${users.xp} + ${price}` })
+          .where(and(eq(users.id, userId), sql`${users.balance} >= ${price}`))
+          .returning({ balance: users.balance })
+        if (updated.length === 0) throw new Error("INSUFFICIENT_FUNDS")
+        const currencyWon: GiftDTO = {
+          id: -2000 - currencyValue,
+          slug: `stars-${currencyValue}`,
+          name: `${currencyValue} Stars`,
+          rarity: currencyValue >= 100 ? "legendary" : currencyValue >= 50 ? "epic" : currencyValue >= 25 ? "rare" : "common",
+          imageUrl: "/images/puggift-star.svg",
+          value: currencyValue,
+          rewardType: "currency",
+        }
+        await tx.insert(gameHistory).values({
+          userId,
+          game: "case",
+          bet: String(price),
+          result: String(currencyValue),
+          meta: { caseName: caseRow.name, giftName: currencyWon.name, rarity: currencyWon.rarity, imageUrl: currencyWon.imageUrl, rewardType: "currency", rtp: actualRtp, nftChance },
+        })
+        revalidatePath("/")
+        return { won: currencyWon, balance: Number(updated[0].balance), inventoryId: null }
+      }
+
+      const giftIndex = weightedPick(list.map((item) => ({ weight: Number(item.weight) })))
+      const gift = list[giftIndex]
+      const giftWinValue = starValue(gift.value, gift.floorTon)
+      const updated = await tx
+        .update(users)
+        .set({ balance: sql`${users.balance} - ${price}`, xp: sql`${users.xp} + ${price}` })
+        .where(and(eq(users.id, userId), sql`${users.balance} >= ${price}`))
+        .returning({ balance: users.balance })
+      if (updated.length === 0) throw new Error("INSUFFICIENT_FUNDS")
+      const inv = await tx.insert(inventory).values({ userId, giftId: gift.id, value: String(giftWinValue), source: "case" }).returning({ id: inventory.id })
+      await tx.insert(gameHistory).values({
+        userId,
+        game: "case",
+        bet: String(price),
+        result: String(giftWinValue),
+        meta: { caseName: caseRow.name, giftName: gift.name, rarity: gift.rarity, imageUrl: gift.imageUrl, rewardType: "gift", rtp: actualRtp, nftChance },
+      })
+      revalidatePath("/profile")
+      return {
+        won: { id: gift.id, slug: gift.slug, name: gift.name, rarity: gift.rarity, imageUrl: gift.imageUrl, value: giftWinValue, rewardType: "gift" },
+        balance: Number(updated[0].balance),
+        inventoryId: inv[0].id,
+      }
+    }
 
     const rewardRoll = crypto.randomInt(10_000)
     const isCurrencyReward = price <= CURRENCY_CASE_LIMIT && rewardRoll < 4000
@@ -386,7 +507,7 @@ export async function openCases(caseId: number, count: number): Promise<{
       .from(caseItems)
       .innerJoin(gifts, eq(caseItems.giftId, gifts.id))
       .where(eq(caseItems.caseId, caseId))
-    const unitPrice = priceFromContents(list.map((item) => ({ weight: Number(item.weight), value: starValue(item.value, item.floorTon) }))) || Number(caseRow.price)
+    const unitPrice = PROMO_CASES[caseRow.slug]?.price ?? (priceFromContents(list.map((item) => ({ weight: Number(item.weight), value: starValue(item.value, item.floorTon) }))) || Number(caseRow.price))
     const user = (await db.select({ balance: users.balance }).from(users).where(eq(users.id, userId)).limit(1))[0]
     if (!user || Number(user.balance) < unitPrice * safeCount) throw new Error("INSUFFICIENT_FUNDS")
   }

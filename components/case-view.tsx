@@ -182,7 +182,10 @@ export function CaseView({ c }: { c: CaseDTO }) {
         <div className="relative z-10 flex min-h-[260px] flex-1 flex-col justify-center py-2 md:min-h-[380px]">
           <div className="mx-auto flex w-full max-w-[1280px] items-end justify-between px-4 pb-1 md:px-8">
             <div><div className="text-[9px] font-black uppercase tracking-[.2em] text-blue-100/55">Gift runway</div><div className="font-display text-lg font-black md:text-xl">{spinning ? "Catch your drop" : "Ready to spin"}</div></div>
-            <div className="text-right text-[10px] font-bold text-blue-100/55">{c.items.length} possible gifts<br />gift values shown below</div>
+            <div className="text-right text-[10px] font-bold text-blue-100/55">
+              <span className="text-blue-100/85">NFT chance {c.nftChancePercent}%</span>
+              <br />{c.isFree ? `${c.items.length} possible rewards` : `RTP ${c.rtpPercent}% · ${c.items.length} rewards`}
+            </div>
           </div>
           <CaseRoulette pool={c.items} spinning={spinning} results={batchResults.map((drop) => drop.won)} selectedCount={openCount} fast={fastSpin} onSettled={handleSettled} />
         </div>

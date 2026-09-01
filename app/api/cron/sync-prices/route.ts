@@ -95,6 +95,7 @@ async function sync() {
 
   let repriced = 0
   for (const c of caseRows) {
+    if (c.slug === "pug-pocket" || c.slug === "pug-club") continue
     const items = links
       .filter((l) => l.caseId === c.id)
       .map((l) => ({ weight: Number(l.weight), value: Number(l.value) }))

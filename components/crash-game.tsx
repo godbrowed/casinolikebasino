@@ -10,7 +10,7 @@ import { useUser } from "@/components/user-provider"
 import { fmt, rarityOf } from "@/lib/format"
 import { haptic, hapticNotify } from "@/lib/telegram-webapp"
 import { cn } from "@/lib/utils"
-import { CRASH_BETTING_MS, CRASH_ROUND_MS, CRASH_RTP_PERCENT, multiplierAtElapsed } from "@/lib/crash-shared"
+import { CRASH_BETTING_MS, CRASH_ROUND_MS, multiplierAtElapsed } from "@/lib/crash-shared"
 import { playGameSound } from "@/lib/game-sound"
 import {
   cashoutCrashApi,
@@ -49,7 +49,6 @@ export function CrashGame() {
   const [wager, setWager] = useState<ActiveWager | null>(null)
   const [outcome, setOutcome] = useState<Outcome | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [displayMultiplier, setDisplayMultiplier] = useState(1)
   const [crashSignal, setCrashSignal] = useState<CrashSignal | null>(null)
   const [clock, setClock] = useState(Date.now())
   const settling = useRef(false)
@@ -57,16 +56,27 @@ export function CrashGame() {
   const balance = me?.balance ?? 0
   const signalledCrash = Boolean(board && crashSignal?.roundId === board.roundId)
   const phase = board?.phase === "crashed" || signalledCrash ? "crashed" : board && clock >= board.flightStart ? "flying" : "betting"
-  const multiplier = displayMultiplier
+  const multiplier = !board
+    ? 1
+    : phase === "crashed"
+      ? crashSignal?.roundId === board.roundId ? crashSignal.multiplier : board.multiplier
+      : phase === "flying"
+        ? multiplierAtElapsed(clock - board.flightStart)
+        : 1
   const countdown = phase === "betting" ? Math.max(0, Math.ceil(((board?.flightStart ?? clock) - clock) / 1000)) : 0
   const canBet = phase === "betting" && !wager
   const canCashout = phase === "flying" && Boolean(wager)
   const stakeValue = wager?.kind === "gift" ? wager.stakeValue : wager?.kind === "stars" ? wager.amount : stakeKind === "gift" ? selectedGifts.reduce((sum, gift) => sum + gift.value, 0) : bet
 
   useEffect(() => {
-    const id = window.setInterval(() => setClock(Date.now()), 250)
-    return () => window.clearInterval(id)
-  }, [])
+    let timer = 0
+    const tick = () => {
+      setClock(Date.now())
+      timer = window.setTimeout(tick, phase === "flying" ? 100 : 250)
+    }
+    timer = window.setTimeout(tick, phase === "flying" ? 100 : 250)
+    return () => window.clearTimeout(timer)
+  }, [phase])
 
   useEffect(() => {
     if (!board) return
@@ -116,18 +126,6 @@ export function CrashGame() {
       playGameSound("crash")
     }
   }, [board, phase])
-
-  useEffect(() => {
-    if (!board) return
-    if (phase !== "flying") {
-      setDisplayMultiplier(crashSignal?.roundId === board.roundId ? crashSignal.multiplier : board.multiplier)
-      return
-    }
-    const tick = () => setDisplayMultiplier(multiplierAtElapsed(Date.now() - board.flightStart))
-    tick()
-    const id = window.setInterval(tick, 100)
-    return () => window.clearInterval(id)
-  }, [board, crashSignal, phase])
 
   async function placeWager() {
     if (!canBet) return
@@ -200,7 +198,7 @@ export function CrashGame() {
     haptic("light")
   }
 
-  return <div className="crash-board flex min-h-[calc(100dvh-130px)] w-full flex-col bg-[#071126] pb-[calc(7rem+var(--tg-content-safe-area-inset-bottom,0px))]">
+  return <div className="crash-board game-surface game-surface--crash flex min-h-[calc(100dvh-128px)] w-full flex-col pb-[calc(7rem+var(--tg-content-safe-area-inset-bottom,0px))]">
     <CrashRocket
       phase={phase === "flying" ? "running" : phase === "crashed" ? "crashed" : "idle"}
       multiplier={multiplier}
@@ -223,19 +221,16 @@ export function CrashGame() {
       </div>}
     </CrashRocket>
 
-    <div className="no-scrollbar flex w-full items-center gap-2 overflow-x-auto border-y border-white/[.06] bg-[#0a152a] px-3 py-3">
+    <div className="no-scrollbar flex w-full items-center gap-2 overflow-x-auto border-y border-white/[.055] bg-[#101726]/92 px-3 py-3 backdrop-blur-xl">
       <span className={cn("shrink-0 rounded-full px-4 py-2 text-xs font-black", phase === "betting" ? "bg-white text-[#071126]" : phase === "crashed" ? "bg-rose-500 text-white" : "bg-emerald-400 text-emerald-950")}>{phase === "betting" ? "WAITING" : `${multiplier.toFixed(2)}×`}</span>
       {board?.recent.map((round, index) => <span key={index} className={cn("shrink-0 rounded-full px-4 py-2 font-mono text-xs font-black", round.multiplier >= 10 ? "bg-[#bd3f24] text-white" : round.multiplier >= 2 ? "bg-[#2461d3] text-white" : "bg-[#202a3f] text-white/85")}>{round.multiplier.toFixed(2)}×</span>)}
     </div>
 
     <div className="mx-auto flex w-full max-w-[600px] flex-col gap-3 px-3 pt-4 md:px-0">
-      <section className="rounded-[28px] bg-[#111d33] p-3 shadow-[0_18px_50px_rgba(0,0,0,.24)] ring-1 ring-white/[.07]">
+      <section className="app-panel rounded-[28px] p-3">
         <div className="flex items-center justify-between px-1 pb-3">
           <div>
-            <div className="flex items-center gap-2">
-              <p className="font-display text-sm font-black text-white">Your stake</p>
-              <span className="rounded-full bg-amber-300/10 px-2 py-1 text-[9px] font-black text-amber-200 ring-1 ring-amber-200/15">RTP {CRASH_RTP_PERCENT}%</span>
-            </div>
+            <p className="font-display text-sm font-black text-white">Your stake</p>
             <p className="text-[10px] font-bold text-white/35">Stars and gifts fly in the same round</p>
           </div>
           <div className="flex rounded-full bg-black/25 p-1">
@@ -253,12 +248,12 @@ export function CrashGame() {
 
         {canCashout ? <button onClick={cashout} className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-400 py-4 font-display text-lg font-black text-emerald-950 shadow-[0_12px_30px_rgba(52,211,153,.25)] active:scale-[.98]">
           {wager?.kind === "gift" ? <><Gift className="h-5 w-5" />Cash out gift · {multiplier.toFixed(2)}×</> : <><Coin className="h-5 w-5" />Cash out · {fmt(stakeValue * multiplier)}</>}
-        </button> : <button onClick={placeWager} disabled={!canBet || (stakeKind === "gift" && !selectedGifts.length)} className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#2f70ff] py-4 font-display text-lg font-black text-white shadow-[0_12px_30px_rgba(47,112,255,.25)] transition active:scale-[.98] disabled:bg-white/10 disabled:text-white/35 disabled:shadow-none">
+        </button> : <button onClick={placeWager} disabled={!canBet || (stakeKind === "gift" && !selectedGifts.length)} className="app-cta mt-3 flex w-full items-center justify-center gap-2 rounded-2xl py-4 font-display text-lg font-black transition disabled:bg-white/10 disabled:text-white/35 disabled:shadow-none">
           {wager ? <><Sparkles className="h-5 w-5" />BET ACCEPTED</> : phase === "betting" ? stakeKind === "gift" ? <><Gift className="h-5 w-5" />PLACE {selectedGifts.length || ""} GIFT{selectedGifts.length === 1 ? "" : "S"}</> : <><Coin className="h-5 w-5" />PLACE {fmt(bet)}</> : "NEXT ROUND"}
         </button>}
       </section>
 
-      <section className="overflow-hidden rounded-[28px] bg-[#202a3f] shadow-[0_18px_50px_rgba(0,0,0,.24)] ring-1 ring-white/[.07]">
+      <section className="app-panel overflow-hidden rounded-[28px]">
         <div className="grid grid-cols-[1fr_auto_auto] gap-3 px-4 pb-2 pt-4 text-[10px] font-black uppercase tracking-[.12em] text-white/35"><span>Players</span><span>Stake</span><span className="w-20 text-right">Result</span></div>
         <div className="max-h-52 min-h-[112px] overflow-y-auto pb-2">
           {board?.players.length ? board.players.map((player, index) => <div key={`${player.name}-${index}`} className="grid grid-cols-[1fr_auto_auto] items-center gap-3 px-4 py-2.5 text-xs">

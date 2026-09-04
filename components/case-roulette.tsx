@@ -68,11 +68,11 @@ function Reel({ pool, result, spinning, lane, compact, fast }: { pool: GiftDTO[]
     }
   }, [pool, result, spinning])
 
-  return <div ref={viewportRef} className={cn("relative overflow-hidden bg-[linear-gradient(180deg,rgba(37,99,214,.36),rgba(18,61,139,.08))]", compact ? "h-[112px]" : "h-[168px] md:h-[184px]")}>
+  return <div ref={viewportRef} className={cn("relative overflow-hidden border-y border-white/[.055] bg-[linear-gradient(180deg,rgba(34,45,72,.76),rgba(13,18,31,.7))]", compact ? "h-[112px]" : "h-[168px] md:h-[184px]")}>
     <div className="pointer-events-none absolute inset-y-2 left-1/2 z-20 w-[2px] -translate-x-1/2 rounded-full bg-white/65 shadow-[0_0_24px_5px_rgba(174,205,255,.8)]" />
     <i className="pointer-events-none absolute left-1/2 top-0 z-30 h-0 w-0 -translate-x-1/2 border-x-[13px] border-t-[18px] border-x-transparent border-t-white drop-shadow-[0_5px_8px_rgba(0,0,0,.25)]" />
     <i className="pointer-events-none absolute bottom-0 left-1/2 z-30 h-0 w-0 -translate-x-1/2 rotate-180 border-x-[13px] border-t-[18px] border-x-transparent border-t-white drop-shadow-[0_-5px_8px_rgba(0,0,0,.25)]" />
-    <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-20 bg-gradient-to-r from-[#173f8d] via-[#173f8d]/85 to-transparent md:w-40" /><div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-20 bg-gradient-to-l from-[#173f8d] via-[#173f8d]/85 to-transparent md:w-40" />
+    <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-20 bg-gradient-to-r from-[#101728] via-[#101728]/88 to-transparent md:w-40" /><div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-20 bg-gradient-to-l from-[#101728] via-[#101728]/88 to-transparent md:w-40" />
     <div className="absolute left-3 top-3 z-20 rounded-full bg-white/10 px-2 py-1 text-[8px] font-black text-white/55 backdrop-blur-sm">#{lane}</div>
     <div className="flex h-full items-center gap-3 will-change-transform" style={{ transform: `translate3d(${offset}px,0,0)`, transition: moving ? `transform ${fast ? 0.62 : 4.35 + lane * 0.12}s cubic-bezier(.08,.7,.04,1)` : "none" }}>
       {reel.map((gift, index) => {

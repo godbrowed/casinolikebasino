@@ -34,7 +34,7 @@ export function BattleArena({ result, onDone }: { result: BattleResult; onDone: 
   }, [result, segments])
 
   const winner = result.players.find((player) => player.slot === result.winnerSlot)
-  return <div className="flex min-h-[calc(100dvh-170px)] flex-col items-center gap-5 overflow-hidden rounded-[32px] border border-white/10 bg-[radial-gradient(circle_at_50%_25%,#162a59,#0b1019_58%)] p-4 md:p-6">
+  return <div className="app-panel flex min-h-[calc(100dvh-170px)] flex-col items-center gap-5 overflow-hidden rounded-[32px] p-4 md:p-6">
     <div className="flex items-center gap-3 text-left"><img src="/images/puggift-bot-avatar-web-v2.webp" alt="" className="h-11 w-11 rounded-full border-2 border-[#2f70ff] object-cover" /><div><div className="text-[9px] font-black uppercase tracking-[.18em] text-blue-300">PugGift PvP</div><h1 className="font-display text-xl font-black">{done ? `${winner?.name ?? "Winner"} takes the bank` : "The wheel is spinning"}</h1></div></div>
 
     <div className="relative mt-2 aspect-square w-full max-w-[480px]">

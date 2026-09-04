@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react"
 import useSWR from "swr"
-import { ArrowLeft, Check, ChevronRight, ExternalLink, Gift, Loader2, Send, ShoppingBag, SlidersHorizontal, Trophy, X, Zap } from "lucide-react"
-import Link from "next/link"
+import { Check, ChevronRight, ExternalLink, Gift, Loader2, Send, ShoppingBag, SlidersHorizontal, Trophy, X, Zap } from "lucide-react"
 import type { CaseDTO, GiftDTO } from "@/app/actions/cases"
 import { AppHeader } from "@/components/app-header"
 import { CaseRoulette } from "@/components/case-roulette"
@@ -169,10 +168,10 @@ export function CaseView({ c }: { c: CaseDTO }) {
   return (
     <>
       <AppHeader title={c.isFree ? "Free Case" : c.name} />
-      <main className="relative flex min-h-[calc(var(--tg-viewport-stable-height,100dvh)-76px)] w-full flex-col overflow-hidden bg-[radial-gradient(circle_at_50%_28%,#2a68d6_0%,#1d51ad_34%,#153978_72%,#102a59_100%)] pb-[max(1rem,var(--tg-content-safe-area-inset-bottom,0px))] text-white">
-        <div className="pointer-events-none absolute inset-0 opacity-30 [background-image:radial-gradient(rgba(255,255,255,.42)_1px,transparent_1px)] [background-size:62px_62px]" />
+      <main className="game-surface game-surface--case relative flex min-h-[calc(var(--tg-viewport-stable-height,100dvh)-64px)] w-full flex-col overflow-hidden pb-[max(1rem,var(--tg-content-safe-area-inset-bottom,0px))] text-white">
+        <div className="pointer-events-none absolute inset-0 opacity-20 [background-image:radial-gradient(rgba(255,255,255,.28)_.7px,transparent_.7px)] [background-size:38px_38px] [mask-image:linear-gradient(to_bottom,black,transparent_78%)]" />
         <div className="relative z-10 mx-auto flex w-full max-w-[1280px] items-center gap-3 px-3 py-3 md:px-5">
-          <Link href="/cases" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#0b1d42]/55 text-white/80 ring-1 ring-white/10 backdrop-blur-md"><ArrowLeft className="h-5 w-5" /></Link>
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] bg-[#4f75ff]/12 text-[#8da4ff] ring-1 ring-[#8da4ff]/15"><Gift className="h-5 w-5" /></span>
           <div className="min-w-0 flex-1"><div className="text-[9px] font-black uppercase tracking-[.2em] text-blue-200/65">PugGift case</div><h1 className="truncate font-display text-xl font-black md:text-2xl">{c.isFree ? "Free Case" : c.name}</h1></div>
           <span className="rounded-full bg-white/10 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-white/70 ring-1 ring-white/10 backdrop-blur-md">{spinning ? "Spinning" : c.isFree ? "Free" : `${openCount}× ready`}</span>
         </div>
@@ -182,9 +181,9 @@ export function CaseView({ c }: { c: CaseDTO }) {
         <div className="relative z-10 flex min-h-[260px] flex-1 flex-col justify-center py-2 md:min-h-[380px]">
           <div className="mx-auto flex w-full max-w-[1280px] items-end justify-between px-4 pb-1 md:px-8">
             <div><div className="text-[9px] font-black uppercase tracking-[.2em] text-blue-100/55">Gift runway</div><div className="font-display text-lg font-black md:text-xl">{spinning ? "Catch your drop" : "Ready to spin"}</div></div>
-            <div className="text-right text-[10px] font-bold text-blue-100/55">
+            <div className="text-right text-[10px] font-bold text-white/42">
               <span className="text-blue-100/85">NFT chance {c.nftChancePercent}%</span>
-              <br />{c.isFree ? `${c.items.length} possible rewards` : `RTP ${c.rtpPercent}% · ${c.items.length} rewards`}
+              <br />{c.items.length} possible rewards
             </div>
           </div>
           <CaseRoulette pool={c.items} spinning={spinning} results={batchResults.map((drop) => drop.won)} selectedCount={openCount} fast={fastSpin} onSettled={handleSettled} />
@@ -261,5 +260,5 @@ function CaseLiveStrip() {
   const { data: drops } = useSWR("case-live-drops", fetchLiveDrops, { refreshInterval: 12_000 })
   if (!drops?.length) return null
   const loop = [...drops, ...drops]
-  return <div className="relative z-10 w-full overflow-hidden border-y border-white/10 bg-[#214d9d]/75 py-2.5 backdrop-blur-md"><div className="no-scrollbar flex items-center gap-4 overflow-x-auto px-3"><span className="flex shrink-0 items-center gap-2 pr-1 text-[11px] font-black uppercase tracking-[.14em]"><i className="h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_10px_#6ee7b7]" />LIVE</span>{loop.map((drop, index) => <img key={`${drop.id}-${index}`} src={drop.imageUrl} alt={drop.name} className="h-10 w-10 shrink-0 object-contain drop-shadow-[0_7px_8px_rgba(4,14,45,.45)]" />)}</div></div>
+  return <div className="relative z-10 w-full overflow-hidden border-y border-white/[.055] bg-[#121a2a]/82 py-2.5 backdrop-blur-xl"><div className="no-scrollbar flex items-center gap-4 overflow-x-auto px-3"><span className="flex shrink-0 items-center gap-2 pr-1 text-[10px] font-black uppercase tracking-[.14em] text-white/62"><i className="h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_10px_#6ee7b7]" />LIVE</span>{loop.map((drop, index) => <img key={`${drop.id}-${index}`} src={drop.imageUrl} alt={drop.name} className="h-10 w-10 shrink-0 object-contain drop-shadow-[0_7px_8px_rgba(4,14,45,.45)]" />)}</div></div>
 }

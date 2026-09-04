@@ -137,7 +137,7 @@ export function ProfileView({ me, inventory, history, freeCaseClaim, referral }:
       )}
       {showGiveawayTasks && <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 p-4 backdrop-blur-md"><div className="w-full max-w-sm rounded-[28px] bg-[#292d34] p-5 text-center ring-1 ring-white/10"><div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#3674ff]/15 text-3xl">🎁</div><h2 className="mt-4 font-display text-xl font-black">Complete withdrawal tasks</h2><p className="mt-2 text-xs leading-relaxed text-white/50">Before sending a giveaway NFT, share PugGift with one friend and subscribe to @PugGift — the same tasks as the Free Case.</p><Link href="/cases" onClick={() => setShowGiveawayTasks(false)} className="mt-5 flex min-h-12 items-center justify-center rounded-2xl bg-[#3674ff] text-sm font-black">Open Free Case tasks</Link><button onClick={() => setShowGiveawayTasks(false)} className="mt-2 w-full py-2 text-xs font-bold text-white/35">Not now</button></div></div>}
 
-      <section className="relative overflow-hidden rounded-[34px] bg-[linear-gradient(145deg,#333842,#292c33)] p-5 shadow-[0_22px_55px_-38px_rgba(47,112,255,.8)] ring-1 ring-white/[.08] md:p-6">
+      <section className="app-panel relative overflow-hidden rounded-[34px] p-5 md:p-6">
         <div className="absolute -right-16 -top-20 h-64 w-64 rounded-full bg-[#2f70ff]/15 blur-3xl" />
         <img src="/images/puggift-bot-avatar-web-v2.webp" alt="" className="absolute -bottom-16 -right-12 h-52 w-52 rounded-full object-cover opacity-[.07]" />
         <div className="relative flex items-center gap-4">
@@ -156,7 +156,7 @@ export function ProfileView({ me, inventory, history, freeCaseClaim, referral }:
         <div className="relative mt-4 grid grid-cols-2 gap-2"><Link href="/deposit" className="flex items-center justify-center gap-2 rounded-[18px] bg-[#2f70ff] py-3 text-sm font-black shadow-[0_4px_0_#1945b9]"><Plus className="h-4 w-4" />Top up</Link><button onClick={() => setView("wallet")} className="flex items-center justify-center gap-2 rounded-[18px] bg-white/10 py-3 text-sm font-black text-white/75"><WalletCards className="h-4 w-4" />Wallet</button></div>
       </section>
 
-      <div className="grid grid-cols-4 gap-1 rounded-[24px] bg-[#30343b] p-1.5 ring-1 ring-white/[.06]">
+      <div className="app-panel grid grid-cols-4 gap-1 rounded-[24px] p-1.5">
         <ProfileTab active={view === "collection"} onClick={() => setView("collection")} icon={Layers3} label="Gifts" />
         <ProfileTab active={view === "activity"} onClick={() => setView("activity")} icon={History} label="Activity" />
         <ProfileTab active={view === "wallet"} onClick={() => setView("wallet")} icon={WalletCards} label="Wallet" />
@@ -173,7 +173,7 @@ export function ProfileView({ me, inventory, history, freeCaseClaim, referral }:
         </Link>
       )}
 
-      {view === "collection" && <section className="rounded-[30px] bg-[#292d34] p-4 ring-1 ring-white/[.06]">
+      {view === "collection" && <section className="app-panel rounded-[30px] p-4">
         {lockedFreeGifts > 0 && freeCaseClaim && !freeCaseClaim.ready && <div className="mb-4 overflow-hidden rounded-[24px] bg-[linear-gradient(135deg,#342a17,#252a38)] p-4 ring-1 ring-amber-300/20"><div className="flex items-start gap-3"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-300 text-amber-950"><Crown className="h-5 w-5" /></span><div className="min-w-0 flex-1"><div className="text-[9px] font-black uppercase tracking-[.16em] text-amber-200/70">Free case prize</div><h3 className="mt-0.5 font-display text-base font-black">Invite 3 qualified friends</h3><p className="mt-1 text-[11px] leading-relaxed text-white/45">Each new friend needs Telegram Premium and at least one Telegram NFT gift in their profile.</p></div></div><div className="mt-3 flex items-center gap-2"><div className="h-2 flex-1 overflow-hidden rounded-full bg-black/25"><div className="h-full rounded-full bg-amber-300 transition-all" style={{ width: `${Math.min(100, freeCaseClaim.qualified / freeCaseClaim.required * 100)}%` }} /></div><b className="text-xs text-amber-200">{freeCaseClaim.qualified}/{freeCaseClaim.required}</b></div><div className="mt-3 grid grid-cols-[1fr_auto] gap-2"><button onClick={inviteFriends} className="flex items-center justify-center gap-2 rounded-2xl bg-[#2f70ff] py-3 text-xs font-black shadow-[0_4px_0_#1945b9]"><Users className="h-4 w-4" />Invite friends</button><button onClick={() => router.refresh()} aria-label="Check referral progress" className="flex w-12 items-center justify-center rounded-2xl bg-white/10 text-white/65"><RefreshCw className="h-4 w-4" /></button></div></div>}
         <div className="mb-4 flex items-center justify-between">
           <div><div className="text-[9px] font-black uppercase tracking-[.16em] text-[#6e96ff]">Collection</div><h2 className="font-display text-xl font-black">Your gifts · {items.length}</h2></div>
@@ -237,7 +237,7 @@ export function ProfileView({ me, inventory, history, freeCaseClaim, referral }:
         )}
       </section>}
 
-      {view === "activity" && <section className="rounded-[30px] bg-[#292d34] p-4 ring-1 ring-white/[.06]">
+      {view === "activity" && <section className="app-panel rounded-[30px] p-4">
         <div className="mb-4"><div className="text-[9px] font-black uppercase tracking-[.16em] text-[#6e96ff]">Timeline</div><h2 className="font-display text-xl font-black">Recent activity</h2></div>
         {history.length === 0 ? (
           <p className="text-xs text-muted-foreground">No games played yet.</p>
@@ -282,7 +282,7 @@ export function ProfileView({ me, inventory, history, freeCaseClaim, referral }:
 }
 
 function ProfileMetric({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
-  return <div className="min-w-0 rounded-[18px] bg-[#242830] p-3 text-center"><div className="flex items-center justify-center gap-1 text-[9px] font-bold text-white/35">{icon}{label}</div><div className="mt-1 truncate font-display text-base font-black">{value}</div></div>
+  return <div className="min-w-0 rounded-[18px] bg-white/[.045] p-3 text-center ring-1 ring-white/[.045]"><div className="flex items-center justify-center gap-1 text-[9px] font-bold text-white/35">{icon}{label}</div><div className="mt-1 truncate font-display text-base font-black">{value}</div></div>
 }
 
 function ProfileTab({ active, onClick, icon: Icon, label }: { active: boolean; onClick: () => void; icon: typeof Layers3; label: string }) {

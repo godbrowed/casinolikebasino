@@ -1,8 +1,7 @@
 "use client"
 
 import { useEffect, useState, type ReactNode } from "react"
-import Link from "next/link"
-import { Loader2, Gift as GiftIcon, ChevronLeft, ExternalLink, ShieldCheck } from "lucide-react"
+import { Loader2, Gift as GiftIcon, ExternalLink, ShieldCheck } from "lucide-react"
 import { useTonConnectUI, useTonWallet } from "@tonconnect/ui-react"
 import {
   createStarsInvoice,
@@ -171,9 +170,9 @@ export function DepositView({
   return (
     <div className="mx-auto flex min-h-[calc(var(--tg-viewport-stable-height,100dvh)-118px)] w-full max-w-[620px] flex-col px-1 pb-[max(1rem,var(--tg-content-safe-area-inset-bottom,0px))]">
       <header className="relative flex flex-col items-center pt-2">
-        <Link href="/" aria-label="Back" className="absolute left-0 top-0 flex h-11 w-11 items-center justify-center rounded-full bg-[#111419] text-white/70 transition hover:text-white"><ChevronLeft className="h-6 w-6" /></Link>
-        <h1 className="px-12 font-display text-2xl font-black md:px-0 md:text-3xl"><span className="md:hidden">Balance</span><span className="hidden md:inline">Balance replenishment</span></h1>
-        <div className="mt-5 grid w-full max-w-[560px] grid-cols-3 gap-1 rounded-[22px] bg-[#3b3f46] p-1.5">
+        <div className="app-kicker">PugGift wallet</div>
+        <h1 className="app-title mt-1 px-12 text-2xl md:px-0 md:text-3xl"><span className="md:hidden">Top up balance</span><span className="hidden md:inline">Balance replenishment</span></h1>
+        <div className="app-panel mt-5 grid w-full max-w-[560px] grid-cols-3 gap-1 rounded-[22px] p-1.5">
           <Tab active={method === "ton"} onClick={() => setMethod("ton")} icon={<img src="/icons/ton-network-v2.svg" alt="" className="h-6 w-6 shrink-0" />} label="TON" />
           <Tab active={method === "stars"} onClick={() => setMethod("stars")} icon={<Coin className="h-5 w-5" />} label="Stars" />
           <Tab active={method === "gifts"} onClick={() => setMethod("gifts")} icon={<GiftIcon className="h-5 w-5 text-[#ff6fbd]" />} label="Gifts" />
@@ -205,7 +204,7 @@ export function DepositView({
       {method === "gifts" && (
         <div className="flex flex-1 flex-col pt-7">
           {giftIntent ? (
-            <div className="mx-auto flex w-full max-w-[560px] flex-col gap-3 rounded-[30px] bg-[#3b3f46] p-5 ring-1 ring-white/10">
+            <div className="app-panel mx-auto flex w-full max-w-[560px] flex-col gap-3 rounded-[30px] p-5">
               <div className="text-center">
                 <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#2f70ff]/18 text-[#70a0ff] ring-1 ring-[#6f96ff]/30"><ShieldCheck className="h-6 w-6" /></div>
                 <div className="font-display text-xl font-black text-white">Send the gift to @{giftIntent.relayerUsername ?? "pugsrelayer"}</div>
@@ -265,14 +264,14 @@ export function DepositView({
         </div>
       )}
 
-      {method !== "gifts" && <footer className="mt-auto bg-[#171a20]/96 pt-3">
+      {method !== "gifts" && <footer className="mt-auto pt-3">
         <div className="grid grid-cols-3 gap-3 pb-3">
           {[500, 2000, 5000].map((value) => {
             const active = starAmount === value
             return <button key={value} onClick={() => setAmountText(String(value))} className={cn("rounded-[18px] bg-[#50535a] px-3 py-3 text-sm font-black text-white transition", active && "bg-[#656971]")}>+{fmt(value)}</button>
           })}
         </div>
-        <button onClick={() => method === "stars" ? handleStars(starAmount) : handleTon(tonAmount)} disabled={busy || starAmount < 1 || starAmount > 10_000} className="flex w-full items-center justify-center gap-2 rounded-[20px] bg-[#2f70ff] py-4 font-display text-lg font-black transition active:scale-[.99] disabled:opacity-50">{busy ? <Loader2 className="h-5 w-5 animate-spin" /> : method === "ton" ? wallet ? `Top up ${tonAmount} TON` : "Connect wallet" : `Top up ${fmt(starAmount)} Stars`}</button>
+        <button onClick={() => method === "stars" ? handleStars(starAmount) : handleTon(tonAmount)} disabled={busy || starAmount < 1 || starAmount > 10_000} className="app-cta flex w-full items-center justify-center gap-2 rounded-[20px] py-4 font-display text-lg font-black transition disabled:opacity-50">{busy ? <Loader2 className="h-5 w-5 animate-spin" /> : method === "ton" ? wallet ? `Top up ${tonAmount} TON` : "Connect wallet" : `Top up ${fmt(starAmount)} Stars`}</button>
       </footer>}
     </div>
   )

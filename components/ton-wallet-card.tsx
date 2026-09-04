@@ -47,7 +47,7 @@ export function TonWalletCard({ linkedAddress }: { linkedAddress: string | null 
   }
 
   return (
-    <section className="rounded-2xl border border-border bg-card p-4">
+    <section className="app-panel rounded-2xl p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 text-primary">

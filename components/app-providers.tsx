@@ -12,7 +12,7 @@ import { requestAppFullscreen } from "@/lib/telegram-webapp"
 
 export function AppProviders({ children }: { children: ReactNode }) {
   const pathname = usePathname()
-  const immersive = pathname === "/deposit" || pathname === "/crash" || pathname === "/battles" || pathname.startsWith("/case/")
+  const immersive = pathname === "/deposit" || pathname.startsWith("/case/")
   const manifestUrl =
     typeof window !== "undefined" ? `${window.location.origin}/tonconnect-manifest.json` : "/tonconnect-manifest.json"
 
@@ -26,7 +26,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
     <TonConnectUIProvider manifestUrl={manifestUrl}>
       <LanguageProvider><UserProvider>
         <PugIntro />
-        <div className={cn("app-shell flex min-h-[var(--tg-viewport-stable-height,100dvh)] w-full flex-col", immersive ? "pb-0" : "pb-24")}>{children}</div>
+        <div data-route={pathname} className={cn("app-shell flex min-h-[var(--tg-viewport-stable-height,100dvh)] w-full flex-col", immersive ? "pb-0" : "pb-24")}>{children}</div>
         <BottomNav />
       </UserProvider></LanguageProvider>
     </TonConnectUIProvider>

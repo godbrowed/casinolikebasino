@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, type ReactNode } from "react"
+import { memo, useEffect, useState, type ReactNode } from "react"
 import { cn } from "@/lib/utils"
 
 type Phase = "idle" | "running" | "cashed" | "crashed"
@@ -40,7 +40,7 @@ export function CrashRocket({
   const y = 61 - climb * 31
   const thresholds = [1.35, 1.75, 2.4, 3.5, 5]
 
-  return <div className="crash-space-stage relative min-h-[360px] w-full overflow-hidden bg-[#071126] md:min-h-[420px] lg:min-h-[440px]">
+  return <div className="crash-space-stage relative min-h-[350px] w-full overflow-hidden bg-transparent md:min-h-[420px] lg:min-h-[440px]">
     <Starfield moving={running} />
 
     {(running || phase === "cashed") && <>
@@ -83,15 +83,15 @@ export function CrashRocket({
   </div>
 }
 
-function Starfield({ moving }: { moving: boolean }) {
-  const stars = Array.from({ length: 54 }, (_, index) => ({
+const STARS = Array.from({ length: 46 }, (_, index) => ({
     left: (index * 37 + 11) % 100,
     top: (index * 61 + 7) % 100,
     size: index % 8 === 0 ? 3 : index % 3 === 0 ? 2 : 1,
     delay: (index % 9) * .23,
   }))
 
+const Starfield = memo(function Starfield({ moving }: { moving: boolean }) {
   return <div className={cn("absolute -inset-y-[10%] inset-x-0 transition-transform duration-[1800ms] ease-linear", moving && "translate-y-[8%]")} aria-hidden>
-    {stars.map((star, index) => <span key={index} className="absolute bg-white/80" style={{ left: `${star.left}%`, top: `${star.top}%`, width: star.size, height: star.size, animation: `twinkle 2.5s ease-in-out ${star.delay}s infinite` }} />)}
+    {STARS.map((star, index) => <span key={index} className="absolute bg-white/75" style={{ left: `${star.left}%`, top: `${star.top}%`, width: star.size, height: star.size, animation: `twinkle 2.8s ease-in-out ${star.delay}s infinite` }} />)}
   </div>
-}
+})

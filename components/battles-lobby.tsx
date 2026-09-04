@@ -1,9 +1,8 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import Link from "next/link"
 import useSWR from "swr"
-import { ArrowLeft, Clock3, Loader2, Plus, ShieldCheck, Users, X } from "lucide-react"
+import { Clock3, Loader2, Plus, ShieldCheck, Users, X } from "lucide-react"
 import type { BattleResult, BattleSession, MatchState } from "@/app/actions/battles"
 import { BattleArena } from "@/components/battle-arena"
 import { Coin } from "@/components/coin"
@@ -70,15 +69,14 @@ export function BattlesLobby() {
   } : session
 
   return <div className="mx-auto flex min-h-[calc(var(--tg-viewport-stable-height,100dvh)-84px)] w-full max-w-[760px] flex-col gap-3 pb-[calc(7rem+var(--tg-content-safe-area-inset-bottom,0px))]">
-    <header className="flex items-center justify-between px-1">
-      <Link href="/" className="flex h-11 w-11 items-center justify-center rounded-full bg-[#101217] text-white/70 ring-1 ring-white/[.06]"><ArrowLeft className="h-5 w-5" /></Link>
-      <div className="text-center"><div className="text-[9px] font-black uppercase tracking-[.2em] text-[#6f91ff]">One room · real players</div><h1 className="font-display text-xl font-black">Global PvP</h1></div>
-      <div className="h-11 w-11" />
+    <header className="flex items-center justify-between px-1 py-1">
+      <div><div className="app-kicker">One room · real players</div><h1 className="app-title mt-0.5 text-2xl">Global PvP</h1></div>
+      <span className="app-chip flex items-center gap-1.5 rounded-full px-3 py-2 text-[9px] font-black"><i className="h-1.5 w-1.5 rounded-full bg-emerald-300" />Live</span>
     </header>
 
     <JackpotWheel session={display} />
 
-    <section className="rounded-[26px] bg-[#2b2e34] p-3 ring-1 ring-white/10">
+    <section className="app-panel rounded-[26px] p-3">
       <div className="mb-3 flex items-end justify-between px-1">
         <div><div className="text-[9px] font-black uppercase tracking-[.16em] text-white/40">{(display?.myStake ?? 0) > 0 ? "Add to your stake" : "Your stake"}</div><div className="text-xs text-white/55">Your chance changes instantly with the bank</div></div>
         {(display?.myStake ?? 0) > 0 && <div className="text-right"><div className="text-[9px] font-black uppercase text-white/35">in round</div><div className="flex items-center gap-1 font-black text-[#7fa0ff]"><Coin className="h-4 w-4" />{fmt(display!.myStake)}</div></div>}
@@ -115,7 +113,7 @@ function JackpotWheel({ session }: { session: WheelData }) {
   const wheel = segments.length ? `conic-gradient(${segments.map((segment) => `${segment.color} ${segment.start}deg ${segment.end}deg`).join(",")})` : "repeating-conic-gradient(#42454c 0deg 36deg,#555960 36deg 72deg)"
   const mine = session?.isYou.findIndex(Boolean) ?? -1
   const myChance = mine >= 0 ? session!.chances[mine] : 0
-  return <section className="flex flex-col items-center rounded-[30px] bg-[#0b0c0f] px-3 pb-4 pt-3 ring-1 ring-white/[.055]">
+  return <section className="app-panel flex flex-col items-center rounded-[30px] px-3 pb-4 pt-3">
     <div className="relative aspect-square w-full max-w-[430px]">
       <i className="absolute left-1/2 top-[-6px] z-20 h-0 w-0 -translate-x-1/2 border-x-[12px] border-t-[22px] border-x-transparent border-t-white" />
       <div className="absolute inset-[5%] rounded-full border-[9px] border-[#1e2025] shadow-[0_22px_55px_rgba(0,0,0,.58),inset_0_0_24px_rgba(0,0,0,.4)] transition-[background] duration-500" style={{ background: wheel }} />
@@ -139,7 +137,7 @@ function Stat({ label, value, coin }: { label: string; value: number | string; c
 }
 
 function Participants({ session }: { session: WheelData }) {
-  return <section className="overflow-hidden rounded-[26px] bg-[#2b2e34] ring-1 ring-white/10">
+  return <section className="app-panel overflow-hidden rounded-[26px]">
     <div className="flex items-center justify-between border-b border-white/[.07] px-4 py-3"><div className="flex items-center gap-2 font-display text-sm font-black"><Users className="h-4 w-4 text-[#6e8cff]" />Players</div><span className="text-[10px] font-bold text-white/40">{session?.players ?? 0} live</span></div>
     {session?.players ? <div className="max-h-64 divide-y divide-white/[.055] overflow-y-auto">{session.names.map((name, index) => <div key={`${name}-${index}`} className="flex items-center gap-3 px-3 py-2.5">
       <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border-2 text-xs font-black" style={{ borderColor: COLORS[index % COLORS.length], background: `${COLORS[index % COLORS.length]}24` }}>{session.photos[index] ? <img src={session.photos[index] ?? undefined} alt="" className="h-full w-full object-cover" /> : name.slice(0,1).toUpperCase()}</div>

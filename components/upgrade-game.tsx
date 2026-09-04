@@ -98,7 +98,7 @@ export function UpgradeGame({ inventory, targets }: { inventory: Item[]; targets
   if (inventory.length === 0 && !source) return <EmptyUpgrade />
 
   return (
-    <div className="relative min-h-[calc(var(--tg-viewport-stable-height,100dvh)-58px)] overflow-hidden bg-[radial-gradient(circle_at_50%_-10%,#273f91_0%,#111f4c_38%,#071127_78%)] pb-[calc(6.5rem+var(--tg-content-safe-area-inset-bottom,0px))] text-white">
+    <div className="game-surface game-surface--upgrade relative min-h-[calc(var(--tg-viewport-stable-height,100dvh)-64px)] overflow-hidden pb-[calc(6.5rem+var(--tg-content-safe-area-inset-bottom,0px))] text-white">
       <div className="pointer-events-none absolute inset-0 opacity-[.15] [background-image:linear-gradient(rgba(151,178,255,.22)_1px,transparent_1px),linear-gradient(90deg,rgba(151,178,255,.22)_1px,transparent_1px)] [background-size:46px_46px] [mask-image:linear-gradient(to_bottom,black,transparent_82%)]" />
       <div className="pointer-events-none absolute left-1/2 top-24 h-[480px] w-[480px] -translate-x-1/2 rounded-full bg-violet-400/15 blur-[110px]" />
 
@@ -126,7 +126,7 @@ export function UpgradeGame({ inventory, targets }: { inventory: Item[]; targets
         <div className="mx-auto mt-3 flex w-full max-w-[820px] flex-col gap-2.5 md:mt-4">
           {error && <p className="rounded-[18px] bg-rose-500/18 px-3 py-2.5 text-center text-xs font-bold text-rose-100 ring-1 ring-rose-200/20">{error}</p>}
 
-          <section className="overflow-hidden rounded-[28px] border border-white/[.08] bg-[#0a1839]/82 p-2.5 shadow-[0_20px_60px_rgba(1,5,22,.3),inset_0_1px_0_rgba(255,255,255,.05)] backdrop-blur-xl md:p-3">
+          <section className="app-panel overflow-hidden rounded-[28px] p-2.5 md:p-3">
             <div className="mb-2 grid grid-cols-2 gap-1 rounded-[18px] bg-black/20 p-1 ring-1 ring-white/[.06]">
               <button onClick={() => setPickerMode("source")} disabled={spinning} className={cn("rounded-[14px] px-3 py-2 text-[10px] font-black transition", pickerMode === "source" ? "bg-white text-[#174699] shadow-sm" : "text-white/45")}>Your gift · {spinning ? "•••" : displayInventory.length}</button>
               <button onClick={() => source && setPickerMode("target")} disabled={!source || spinning} className={cn("rounded-[14px] px-3 py-2 text-[10px] font-black transition", pickerMode === "target" ? "bg-white text-[#174699] shadow-sm" : "text-white/45", !source && "opacity-35")}>Target · {spinning ? "•••" : eligibleTargets.length}</button>
@@ -145,7 +145,7 @@ export function UpgradeGame({ inventory, targets }: { inventory: Item[]; targets
             }} />}
           </section>
 
-          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-[22px] border border-white/[.07] bg-[#142858]/80 px-4 py-2.5 text-center shadow-[inset_0_1px_0_rgba(255,255,255,.05)] backdrop-blur-md">
+          <div className="app-panel grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-[22px] px-4 py-2.5 text-center">
             <div><div className="text-[8px] font-black uppercase tracking-[.16em] text-white/40">Chance</div><div className="font-display text-lg font-black text-emerald-200">{shownChance ? `${Math.round(shownChance * 100)}%` : "—"}</div></div>
             <ChevronRight className="h-4 w-4 text-white/25" />
             <div><div className="text-[8px] font-black uppercase tracking-[.16em] text-white/40">Multiplier</div><div className="font-display text-lg font-black">{shownMultiplier ? `${shownMultiplier.toFixed(2)}×` : "—"}</div></div>
@@ -226,9 +226,9 @@ function Picker({ title, subtitle, items, activeIds, empty, obscured = false, on
 }
 
 function EmptyUpgrade() {
-  return <div className="relative flex min-h-[calc(var(--tg-viewport-stable-height,100dvh)-76px)] items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_50%_30%,#285fca,#153b7d_55%,#0b2048)] px-4 pb-24 text-white">
+  return <div className="game-surface game-surface--upgrade relative flex min-h-[calc(var(--tg-viewport-stable-height,100dvh)-76px)] items-center justify-center overflow-hidden px-4 pb-24 text-white">
     <div className="pointer-events-none absolute inset-0 opacity-30 [background-image:radial-gradient(rgba(255,255,255,.42)_1px,transparent_1px)] [background-size:62px_62px]" />
-    <div className="relative flex w-full max-w-[440px] flex-col items-center rounded-[32px] bg-[#0d2858]/72 p-8 text-center ring-1 ring-white/10 backdrop-blur-xl">
+    <div className="app-panel relative flex w-full max-w-[440px] flex-col items-center rounded-[32px] p-8 text-center">
       <span className="flex h-20 w-20 items-center justify-center rounded-full bg-[#2f70ff]/20 ring-1 ring-[#80a6ff]/35"><Package className="h-9 w-9 text-blue-200" /></span>
       <h1 className="mt-5 font-display text-2xl font-black">Your upgrade lab is empty</h1>
       <p className="mt-2 max-w-xs text-sm text-blue-100/50">Open a case, keep a gift and return here to turn it into something bigger.</p>

@@ -8,12 +8,8 @@ import { haptic } from "@/lib/telegram-webapp"
 import { useLanguage } from "@/components/language-provider"
 
 const ITEMS = [
-  { href: "/", label: "games", icon: Boxes }, { href: "/battles", label: "battles", icon: Swords }, { href: "/crash", label: "crash", icon: Gauge }, { href: "/mines", label: "mines", icon: MineIcon }, { href: "/upgrade", label: "upgrade", icon: Sparkles }, { href: "/profile", label: "profile", icon: UserRound },
+  { href: "/", label: "games", icon: Boxes }, { href: "/battles", label: "battles", icon: Swords }, { href: "/crash", label: "crash", icon: Gauge }, { href: "/upgrade", label: "upgrade", icon: Sparkles }, { href: "/profile", label: "profile", icon: UserRound },
 ]
-
-function MineIcon({ className, strokeWidth = 2 }: { className?: string; strokeWidth?: number }) {
-  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true"><path d="m6.2 7.1-2-2m13.6 2 2-2M12 4V1.8M4 12H1.8M22.2 12H20M6.2 16.9l-2 2m13.6-2 2 2" /><circle cx="12" cy="12" r="6.1" /><path d="M9.5 10.2c.7-1.1 2.1-1.7 3.4-1.3" /><circle cx="10" cy="14" r=".7" fill="currentColor" stroke="none" /></svg>
-}
 
 export function BottomNav() {
   const pathname = usePathname()
@@ -22,10 +18,10 @@ export function BottomNav() {
 
   return (
     <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-50 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px))]">
-      <div className="pointer-events-auto mx-auto w-full max-w-[680px] rounded-[26px] bg-[#15191d]/96 p-1.5 shadow-[0_18px_55px_rgba(0,0,0,.5),inset_0_1px_0_rgba(255,255,255,.045)] backdrop-blur-xl">
-        <ul className="grid grid-cols-6 gap-0.5">
+      <div className="pointer-events-auto mx-auto w-full max-w-[620px] rounded-[25px] border border-white/[.075] bg-[#111620]/94 p-1.5 shadow-[0_22px_70px_rgba(0,0,0,.58),inset_0_1px_0_rgba(255,255,255,.055)] backdrop-blur-2xl">
+        <ul className="grid grid-cols-5 gap-0.5">
           {ITEMS.map((item) => {
-            const active = pathname === item.href
+            const active = item.href === "/" ? pathname === "/" || pathname === "/cases" || pathname === "/mines" || pathname === "/dice" || pathname === "/giveaways" : pathname === item.href
             const Icon = item.icon
             return (
               <li key={item.href} className="flex-1">
@@ -33,14 +29,14 @@ export function BottomNav() {
                   href={item.href}
                   onClick={() => haptic("light")}
                   className={cn(
-                    "group relative flex min-h-[64px] flex-col items-center justify-center gap-1 rounded-[20px] px-1 py-1 text-[10px] font-bold transition-colors",
-                    active ? "text-[#4b7cff]" : "text-white/38 hover:text-white/60",
+                    "group relative flex min-h-[60px] flex-col items-center justify-center gap-0.5 rounded-[19px] px-1 py-1 text-[9px] font-black transition-colors",
+                    active ? "text-white" : "text-white/34 hover:text-white/60",
                   )}
                 >
                   <span
                     className={cn(
-                      "relative flex h-9 w-10 items-center justify-center rounded-[13px] transition-colors",
-                      active ? "bg-[#2f70ff] text-white" : "text-white/42",
+                      "relative flex h-8 w-11 items-center justify-center rounded-[12px] transition-colors",
+                      active ? "bg-[#4f75ff] text-white shadow-[0_5px_16px_rgba(58,93,232,.25)]" : "text-white/42",
                     )}
                   >
                     <Icon className="h-5 w-5" strokeWidth={active ? 2.6 : 2.1} />

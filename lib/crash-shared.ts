@@ -9,9 +9,9 @@
 // wall-clock start and every client sees the rocket leave together.
 export const CRASH_ROUND_MS = 20_000
 export const CRASH_BETTING_MS = 5_000
-export const CRASH_MAINTENANCE = true
-// Public return-to-player value used by both the server result generator and
-// the crash UI. Keep this client-safe constant as the single source of truth.
+export const CRASH_MAINTENANCE = false
+// Server result generator source of truth. This is intentionally not rendered
+// inside the play surface; completed multipliers remain visible in history.
 export const CRASH_RTP_PERCENT = 85
 // A calmer curve keeps the flight readable on a phone: 2× takes ~3 seconds,
 // rather than jumping there almost immediately.

@@ -22,10 +22,10 @@ async function tg(method: string, body: unknown) {
 }
 
 async function setBotAvatar() {
-  const image = await readFile(path.join(process.cwd(), "public", "images", "puggift-bot-avatar-v2.png"))
+  const image = await readFile(path.join(process.cwd(), "public", "images", "puggift-bot-avatar-v3.png"))
   const form = new FormData()
   form.set("photo", JSON.stringify({ type: "static", photo: "attach://avatar" }))
-  form.set("avatar", new Blob([new Uint8Array(image)], { type: "image/png" }), "puggift-avatar-v2.png")
+  form.set("avatar", new Blob([new Uint8Array(image)], { type: "image/png" }), "puggift-avatar-v3.png")
   const res = await fetch(`https://api.telegram.org/bot${token}/setMyProfilePhoto`, { method: "POST", body: form })
   return res.json()
 }

@@ -182,7 +182,7 @@ function UpgradeWheel({ angle, spinning, animating, chance, multiplier, outcome 
 
     <div className="absolute inset-0 z-20" style={{ transform: `rotate(${angle}deg)`, transition: animating ? "transform 3s cubic-bezier(.08,.72,.08,1)" : "none", willChange: "transform" }}>
       <div className={cn("absolute left-1/2 top-[0.5%] flex h-12 w-12 -translate-x-1/2 items-center justify-center overflow-hidden rounded-full border-[3px] bg-[#081a3b] shadow-[0_0_0_4px_rgba(14,36,83,.65),0_0_28px_rgba(102,145,255,.75)] md:h-14 md:w-14", outcome === false ? "border-rose-400 shadow-[0_0_0_4px_rgba(70,14,30,.65),0_0_32px_rgba(251,113,133,.7)]" : outcome === true ? "border-emerald-300 shadow-[0_0_0_4px_rgba(6,78,59,.6),0_0_32px_rgba(110,231,183,.78)]" : "border-[#9daeff]")}>
-        <img src="/images/puggift-bot-avatar-web-v2.webp" alt="Pug marker" className="h-full w-full object-cover" />
+        <img src="/images/puggift-mark-v3.svg" alt="Pug marker" className="h-full w-full object-cover" />
       </div>
     </div>
 

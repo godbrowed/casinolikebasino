@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 360" role="img" aria-labelledby="title">
+  <title id="title">PugGift crash impact</title>
+  <g fill="none" stroke-linecap="round"><path d="M75 94 35 63M92 55 71 14M430 65l36-34M448 107l48-12" stroke="#FB7185" stroke-width="12"/><path d="M54 184H15M466 184h39" stroke="#8EA6FF" stroke-width="9"/></g>
+  <path d="M129 214c0-100 59-168 131-168s131 68 131 168v42c0 43-35 78-78 78H207c-43 0-78-35-78-78v-42Z" fill="#202735" stroke="#6F8EFF" stroke-width="14"/>
+  <path d="M145 107c-38 11-50 56-24 106l49-21 29-73c-14-19-34-20-54-12ZM375 107c38 11 50 56 24 106l-49-21-29-73c14-19 34-20 54-12Z" fill="#141923" stroke="#3D4656" stroke-width="9"/>
+  <path d="M170 181c0-79 40-120 90-120s90 41 90 120v55c0 62-36 98-90 98s-90-36-90-98v-55Z" fill="#394250"/>
+  <path d="m195 170 38 25M325 170l-38 25" stroke="#0A0D14" stroke-width="16" stroke-linecap="round"/>
+  <path d="m198 195 34-22M322 195l-34-22" stroke="#F7F8FF" stroke-width="10" stroke-linecap="round"/>
+  <path d="M213 250c0-43 21-64 47-64s47 21 47 64c0 43-20 65-47 65s-47-22-47-65Z" fill="#555F6D" stroke="#151A22" stroke-width="8"/>
+  <path d="M242 232c0-12 8-19 18-19s18 7 18 19-8 19-18 19-18-7-18-19Z" fill="#080A0F"/>
+  <path d="M260 251v18M232 282c9-8 18-12 28-12s19 4 28 12" fill="none" stroke="#151A22" stroke-width="8" stroke-linecap="round"/>
+  <path d="m408 228 22 9 18-16-2 24 21 12-24 6-5 24-13-20-24 3 15-19-8-23Z" fill="#FB7185"/>
+</svg>

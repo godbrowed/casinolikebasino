@@ -22,7 +22,7 @@ export function AppHeader({ title }: { title?: string }) {
 
         <Link href="/" aria-label="PugGift home" className="absolute left-1/2 flex -translate-x-1/2 items-center gap-2.5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <span className="pug-logo-mark relative flex h-9 w-9 items-center justify-center rounded-[14px] border border-[#617fff]/45 bg-[#11182b] shadow-[0_0_22px_rgba(74,105,255,.28)]"><img src="/images/puggift-bot-avatar-web-v2.webp" alt="PugGift" className="h-full w-full rounded-[13px] object-cover" /><i className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-amber-300 shadow-[0_0_8px_#fcd34d]" /></span>
+          <span className="pug-logo-mark relative flex h-9 w-9 items-center justify-center rounded-[14px] border border-[#617fff]/45 bg-[#11182b] shadow-[0_0_22px_rgba(74,105,255,.22)]"><img src="/images/puggift-mark-v3.svg" alt="PugGift" className="h-full w-full rounded-[13px] object-cover" /><i className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-amber-300 shadow-[0_0_8px_#fcd34d]" /></span>
           <div className="font-display text-[17px] font-black tracking-[-.04em]">Pug<span className="text-[#6f8cff]">Gift</span></div>
         </Link>
 

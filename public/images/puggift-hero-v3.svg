@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 620" role="img" aria-labelledby="title">
+  <title id="title">PugGift arcade hero</title>
+  <defs>
+    <linearGradient id="hero-bg" x1="0" y1="0" x2="1280" y2="620" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#11182A"/>
+      <stop offset=".62" stop-color="#142044"/>
+      <stop offset="1" stop-color="#273E91"/>
+    </linearGradient>
+    <linearGradient id="hero-blue" x1="815" y1="150" x2="1135" y2="500" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7895FF"/>
+      <stop offset="1" stop-color="#345EF4"/>
+    </linearGradient>
+  </defs>
+  <rect width="1280" height="620" rx="48" fill="url(#hero-bg)"/>
+  <g opacity=".16" stroke="#C9D4FF" stroke-width="2">
+    <path d="M0 108h1280M0 250h1280M0 392h1280M0 534h1280"/>
+    <path d="M108 0v620M250 0v620M392 0v620M534 0v620M676 0v620M818 0v620M960 0v620M1102 0v620"/>
+  </g>
+  <circle cx="990" cy="310" r="248" fill="#0A0E18" stroke="#7390FF" stroke-width="16" opacity=".98"/>
+  <path d="M826 194c-55 17-70 79-31 150l69-29 41-104c-19-26-47-28-79-17ZM1154 194c55 17 70 79 31 150l-69-29-41-104c19-26 47-28 79-17Z" fill="#1E2532" stroke="#465064" stroke-width="12"/>
+  <path d="M848 294c0-113 61-174 142-174s142 61 142 174v80c0 91-59 151-142 151s-142-60-142-151v-80Z" fill="#303846" stroke="#0A0D14" stroke-width="17"/>
+  <path d="M869 284c28-42 66-62 110-57M1111 284c-28-42-66-62-110-57" fill="none" stroke="#0A0D14" stroke-width="25" stroke-linecap="round"/>
+  <ellipse cx="922" cy="324" rx="49" ry="54" fill="#F7F8FF"/><ellipse cx="1058" cy="324" rx="49" ry="54" fill="#F7F8FF"/>
+  <circle cx="934" cy="334" r="27" fill="#090C13"/><circle cx="1046" cy="334" r="27" fill="#090C13"/>
+  <circle cx="944" cy="322" r="7" fill="#fff"/><circle cx="1036" cy="322" r="7" fill="#fff"/>
+  <path d="M900 405c0-56 40-87 90-87s90 31 90 87c0 66-39 99-90 99s-90-33-90-99Z" fill="#4B5565" stroke="#111620" stroke-width="14"/>
+  <path d="M948 370c0-21 18-32 42-32s42 11 42 32c0 22-18 37-42 37s-42-15-42-37Z" fill="#080A0F"/>
+  <path d="M990 406v34M947 447c14 20 28 30 43 30s29-10 43-30" fill="none" stroke="#171C25" stroke-width="10" stroke-linecap="round"/>
+  <path d="M877 465c26 56 66 82 113 82s87-26 113-82" fill="none" stroke="url(#hero-blue)" stroke-width="31" stroke-linecap="round"/>
+  <path d="m990 489 11 22 25 4-18 17 4 25-22-12-22 12 4-25-18-17 25-4 11-22Z" fill="#FFC247"/>
+  <g fill="#171F36" stroke="#6E8CFF" stroke-width="5">
+    <rect x="704" y="86" width="108" height="108" rx="30" transform="rotate(-10 758 140)"/>
+    <rect x="1116" y="407" width="108" height="108" rx="30" transform="rotate(9 1170 461)"/>
+  </g>
+  <path d="M747 121v38M728 140h38" stroke="#FFC247" stroke-width="14" stroke-linecap="round"/>
+  <path d="m1162 440 17 10v20l-17 10-17-10v-20l17-10Z" fill="none" stroke="#F2F5FF" stroke-width="9"/>
+</svg>

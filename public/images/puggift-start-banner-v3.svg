@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
+  <title id="title">PugGift</title>
+  <desc id="desc">PugGift Telegram gift arcade launch banner.</desc>
+  <defs>
+    <linearGradient id="banner-bg" x1="0" y1="0" x2="1280" y2="720" gradientUnits="userSpaceOnUse"><stop stop-color="#090D16"/><stop offset=".58" stop-color="#111A31"/><stop offset="1" stop-color="#233B91"/></linearGradient>
+    <linearGradient id="word" x1="130" y1="270" x2="650" y2="470" gradientUnits="userSpaceOnUse"><stop stop-color="#8CA4FF"/><stop offset="1" stop-color="#416BF7"/></linearGradient>
+  </defs>
+  <rect width="1280" height="720" fill="url(#banner-bg)"/>
+  <g opacity=".13" stroke="#AEC0FF" stroke-width="2"><path d="M0 120h1280M0 270h1280M0 420h1280M0 570h1280"/><path d="M120 0v720M270 0v720M420 0v720M570 0v720M720 0v720M870 0v720M1020 0v720M1170 0v720"/></g>
+  <rect x="88" y="94" width="166" height="42" rx="21" fill="#1D2842" stroke="#5F7EFF" stroke-width="2"/>
+  <circle cx="116" cy="115" r="7" fill="#5DE3B3"/>
+  <text x="136" y="122" fill="#C7D2FF" font-family="Arial, DejaVu Sans, sans-serif" font-size="19" font-weight="800" letter-spacing="3">LIVE ARCADE</text>
+  <text x="86" y="354" fill="#F7F8FF" font-family="Arial, DejaVu Sans, sans-serif" font-size="112" font-weight="900" letter-spacing="-5">PUG</text>
+  <text x="356" y="354" fill="url(#word)" font-family="Arial, DejaVu Sans, sans-serif" font-size="112" font-weight="900" letter-spacing="-5">GIFT</text>
+  <text x="92" y="405" fill="#9BA6BD" font-family="Arial, DejaVu Sans, sans-serif" font-size="25" font-weight="700" letter-spacing="5">GIFTS  ·  GAMES  ·  LIVE</text>
+  <rect x="88" y="474" width="310" height="72" rx="25" fill="#4B72FB"/>
+  <text x="243" y="520" text-anchor="middle" fill="#FFFFFF" font-family="Arial, DejaVu Sans, sans-serif" font-size="25" font-weight="900">OPEN PUGGIFT</text>
+  <circle cx="952" cy="356" r="259" fill="#090D16" stroke="#597BFF" stroke-width="18"/>
+  <path d="M778 234c-57 17-74 83-33 158l73-31 43-109c-20-28-50-30-83-18ZM1126 234c57 17 74 83 33 158l-73-31-43-109c20-28 50-30 83-18Z" fill="#1D2430" stroke="#465064" stroke-width="13"/>
+  <path d="M802 338c0-119 64-183 150-183s150 64 150 183v84c0 96-62 160-150 160s-150-64-150-160v-84Z" fill="#303846" stroke="#090C13" stroke-width="18"/>
+  <path d="M823 326c30-44 69-65 116-60M1081 326c-30-44-69-65-116-60" fill="none" stroke="#090C13" stroke-width="27" stroke-linecap="round"/>
+  <ellipse cx="881" cy="370" rx="52" ry="57" fill="#F7F8FF"/><ellipse cx="1023" cy="370" rx="52" ry="57" fill="#F7F8FF"/>
+  <circle cx="894" cy="381" r="29" fill="#090C13"/><circle cx="1010" cy="381" r="29" fill="#090C13"/><circle cx="904" cy="368" r="8" fill="#fff"/><circle cx="1000" cy="368" r="8" fill="#fff"/>
+  <path d="M858 455c0-59 42-92 94-92s94 33 94 92c0 70-40 104-94 104s-94-34-94-104Z" fill="#4B5565" stroke="#111620" stroke-width="15"/>
+  <path d="M908 417c0-21 19-34 44-34s44 13 44 34c0 24-19 40-44 40s-44-16-44-40Z" fill="#080A0F"/>
+  <path d="M952 456v35M907 499c15 21 30 31 45 31s30-10 45-31" fill="none" stroke="#171C25" stroke-width="11" stroke-linecap="round"/>
+  <path d="M834 519c27 59 69 86 118 86s91-27 118-86" fill="none" stroke="#5077FF" stroke-width="33" stroke-linecap="round"/>
+  <path d="m952 543 12 24 27 4-20 19 5 27-24-13-24 13 5-27-20-19 27-4 12-24Z" fill="#FFC247"/>
+</svg>

@@ -139,9 +139,9 @@ export function ProfileView({ me, inventory, history, freeCaseClaim, referral }:
 
       <section className="app-panel relative overflow-hidden rounded-[34px] p-5 md:p-6">
         <div className="absolute -right-16 -top-20 h-64 w-64 rounded-full bg-[#2f70ff]/15 blur-3xl" />
-        <img src="/images/puggift-bot-avatar-web-v2.webp" alt="" className="absolute -bottom-16 -right-12 h-52 w-52 rounded-full object-cover opacity-[.07]" />
+        <img src="/images/puggift-mark-v3.svg" alt="" className="absolute -bottom-16 -right-12 h-52 w-52 rounded-[52px] object-cover opacity-[.07]" />
         <div className="relative flex items-center gap-4">
-          <div className="relative"><img src={me?.photoUrl || "/images/puggift-bot-avatar-web-v2.webp"} alt="" className="h-20 w-20 rounded-full border-[3px] border-[#2f70ff] object-cover shadow-[0_0_30px_rgba(47,112,255,.3)]" /><i className="absolute bottom-1 right-1 h-4 w-4 rounded-full border-[3px] border-[#30343c] bg-emerald-400" /></div>
+          <div className="relative"><img src={me?.photoUrl || "/images/puggift-mark-v3.svg"} alt="" className="h-20 w-20 rounded-[24px] border-[2px] border-[#6685ff]/70 object-cover shadow-[0_0_30px_rgba(47,112,255,.24)]" /><i className="absolute bottom-1 right-1 h-4 w-4 rounded-full border-[3px] border-[#171c29] bg-emerald-400" /></div>
           <div className="min-w-0 flex-1"><div className="text-[9px] font-black uppercase tracking-[.18em] text-[#75a0ff]">PugGift player</div><h1 className="mt-1 truncate font-display text-2xl font-black">{me?.firstName || me?.username || "Player"}</h1><div className="mt-1 flex items-center gap-2"><span className="truncate text-xs text-white/40">@{me?.username || "puggift"}</span><span className="rounded-full bg-white/10 px-2 py-1 text-[9px] font-black">LVL {lvl.level}</span></div></div>
         </div>
 
@@ -189,7 +189,7 @@ export function ProfileView({ me, inventory, history, freeCaseClaim, referral }:
         </div>
         {items.length === 0 ? (
           <div className="relative flex flex-col items-center gap-3 overflow-hidden rounded-[24px] border border-dashed border-white/10 bg-[#22252b] p-8 text-center">
-            <div className="absolute -right-10 -top-12 h-32 w-32 rounded-full bg-[#2f70ff]/10 blur-2xl" /><div className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-[#11141a] ring-1 ring-white/10"><img src="/images/puggift-bot-avatar-web-v2.webp" alt="" className="h-full w-full object-cover opacity-75" /></div>
+            <div className="absolute -right-10 -top-12 h-32 w-32 rounded-full bg-[#2f70ff]/10 blur-2xl" /><div className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-[20px] bg-[#11141a] ring-1 ring-white/10"><img src="/images/puggift-mark-v3.svg" alt="" className="h-full w-full object-cover opacity-80" /></div>
             <p className="text-sm text-white/40">No gifts yet. Open a case to build your collection.</p><Link href="/cases" className="rounded-2xl bg-[#2f70ff] px-4 py-2.5 text-xs font-black">Open cases</Link>
           </div>
         ) : (

@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" role="img" aria-labelledby="title desc">
+  <title id="title">PugGift mark</title>
+  <desc id="desc">A clean geometric black pug badge with a blue collar and star tag.</desc>
+  <defs>
+    <linearGradient id="bg" x1="110" y1="60" x2="690" y2="760" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#151C2C"/>
+      <stop offset="1" stop-color="#070A11"/>
+    </linearGradient>
+    <linearGradient id="blue" x1="246" y1="620" x2="585" y2="720" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6F8EFF"/>
+      <stop offset="1" stop-color="#315CF1"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="800" rx="190" fill="url(#bg)"/>
+  <path d="M80 190H270M530 610H720" stroke="#587BFF" stroke-width="22" stroke-linecap="round" opacity=".18"/>
+  <path d="M122 118h78v78h-78zM600 604h78v78h-78z" fill="none" stroke="#91A7FF" stroke-width="9" opacity=".12"/>
+  <circle cx="400" cy="394" r="292" fill="#0A0E17" stroke="#5578FF" stroke-width="24"/>
+  <path d="M188 210c-78 16-106 98-68 202 24 65 69 74 123 45l51-140c-14-77-54-118-106-107Z" fill="#171C27" stroke="#353D4C" stroke-width="16"/>
+  <path d="M612 210c78 16 106 98 68 202-24 65-69 74-123 45l-51-140c14-77 54-118 106-107Z" fill="#171C27" stroke="#353D4C" stroke-width="16"/>
+  <path d="M206 370c0-155 83-240 194-240s194 85 194 240v110c0 125-80 209-194 209s-194-84-194-209V370Z" fill="#272E3A" stroke="#0A0D14" stroke-width="22"/>
+  <path d="M231 350c39-58 91-86 152-84M569 350c-39-58-91-86-152-84" fill="none" stroke="#0B0E15" stroke-width="35" stroke-linecap="round"/>
+  <path d="M249 349c30-35 71-50 118-42M551 349c-30-35-71-50-118-42" fill="none" stroke="#626C7C" stroke-width="12" stroke-linecap="round" opacity=".55"/>
+  <ellipse cx="306" cy="396" rx="69" ry="76" fill="#F5F7FF"/>
+  <ellipse cx="494" cy="396" rx="69" ry="76" fill="#F5F7FF"/>
+  <circle cx="324" cy="411" r="37" fill="#0A0D14"/>
+  <circle cx="476" cy="411" r="37" fill="#0A0D14"/>
+  <circle cx="338" cy="395" r="10" fill="#FFFFFF"/>
+  <circle cx="462" cy="395" r="10" fill="#FFFFFF"/>
+  <path d="M276 509c0-78 55-121 124-121s124 43 124 121c0 92-53 137-124 137s-124-45-124-137Z" fill="#454D5B" stroke="#10141D" stroke-width="18"/>
+  <path d="M342 461c0-27 24-43 58-43s58 16 58 43c0 31-25 52-58 52s-58-21-58-52Z" fill="#090B10"/>
+  <path d="M400 507v44M337 560c19 30 40 44 63 44s44-14 63-44" fill="none" stroke="#151A23" stroke-width="14" stroke-linecap="round"/>
+  <path d="M241 591c34 75 91 109 159 109s125-34 159-109" fill="none" stroke="url(#blue)" stroke-width="42" stroke-linecap="round"/>
+  <path d="m400 622 15 30 34 5-25 24 6 34-30-16-30 16 6-34-25-24 34-5 15-30Z" fill="#FFC247" stroke="#FFF0B3" stroke-width="7" stroke-linejoin="round"/>
+</svg>

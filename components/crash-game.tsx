@@ -64,6 +64,7 @@ export function CrashGame() {
         ? multiplierAtElapsed(clock - board.flightStart)
         : 1
   const countdown = phase === "betting" ? Math.max(0, Math.ceil(((board?.flightStart ?? clock) - clock) / 1000)) : 0
+  const nextRoundCountdown = board ? Math.max(1, Math.ceil((board.flightStart + (CRASH_ROUND_MS - CRASH_BETTING_MS) - clock) / 1000)) : 1
   const canBet = phase === "betting" && !wager
   const canCashout = phase === "flying" && Boolean(wager)
   const stakeValue = wager?.kind === "gift" ? wager.stakeValue : wager?.kind === "stars" ? wager.amount : stakeKind === "gift" ? selectedGifts.reduce((sum, gift) => sum + gift.value, 0) : bet
@@ -72,9 +73,9 @@ export function CrashGame() {
     let timer = 0
     const tick = () => {
       setClock(Date.now())
-      timer = window.setTimeout(tick, phase === "flying" ? 100 : 250)
+      timer = window.setTimeout(tick, 250)
     }
-    timer = window.setTimeout(tick, phase === "flying" ? 100 : 250)
+    timer = window.setTimeout(tick, 250)
     return () => window.clearTimeout(timer)
   }, [phase])
 
@@ -204,14 +205,16 @@ export function CrashGame() {
       multiplier={multiplier}
       payloadImage={wager?.kind === "gift" ? wager.gifts[0]?.imageUrl ?? null : null}
       collectImages={giftData?.rewardImages ?? []}
+      flightStart={board?.flightStart ?? null}
     >
       {phase === "betting" ? <>
         <div className="font-display text-[82px] font-black leading-none tabular-nums text-white md:text-[104px]">{countdown || 1}</div>
         <div className="mt-2 flex items-center gap-2 text-[10px] font-black uppercase tracking-[.28em] text-white/45"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#6e96ff]" />bets open</div>
       </> : phase === "crashed" ? <>
         <div className="rounded-full bg-[#071126]/75 px-4 py-2 font-display text-xl font-black text-rose-300 backdrop-blur-sm">CRASHED · {multiplier.toFixed(2)}×</div>
+        <div className="mt-2 text-[10px] font-black uppercase tracking-[.18em] text-white/38">next flight in {nextRoundCountdown}s</div>
       </> : <>
-        <div className="font-display text-5xl font-black tabular-nums text-white md:text-7xl">{multiplier.toFixed(2)}×</div>
+        <LiveFlightReadout flightStart={board?.flightStart ?? null} fallback={multiplier} />
         <div className="mt-1 flex items-center gap-2 text-[10px] font-black uppercase tracking-[.2em] text-emerald-300"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-300" />live flight</div>
       </>}
       {outcome?.kind === "stars" && <div className="mt-3 flex items-center gap-1.5 rounded-full bg-emerald-400 px-3 py-1.5 text-xs font-black text-emerald-950"><Coin className="h-4 w-4" />CASHED {outcome.at.toFixed(2)}× · +{fmt(outcome.payout)}</div>}
@@ -268,6 +271,23 @@ export function CrashGame() {
       </section>
     </div>
   </div>
+}
+
+function LiveFlightReadout({ flightStart, fallback }: { flightStart: number | null; fallback: number }) {
+  const valueRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!flightStart) return
+    let frame = 0
+    const draw = () => {
+      if (valueRef.current) valueRef.current.textContent = `${multiplierAtElapsed(Date.now() - flightStart).toFixed(2)}×`
+      frame = window.requestAnimationFrame(draw)
+    }
+    draw()
+    return () => window.cancelAnimationFrame(frame)
+  }, [flightStart])
+
+  return <div ref={valueRef} className="font-display text-5xl font-black tabular-nums text-white md:text-7xl">{fallback.toFixed(2)}×</div>
 }
 
 function GiftStakeShelf({ gifts, selected, disabled, onSelect }: { gifts: OwnedGift[]; selected: OwnedGift[]; disabled: boolean; onSelect: (gift: OwnedGift) => void }) {

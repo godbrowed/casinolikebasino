@@ -373,13 +373,23 @@
   }
   .pug-logo-mark { animation: pug-logo-alive 4.6s ease-in-out infinite; transform-origin: 50% 70%; }
 
-  @keyframes pug-fall {
-    0% { opacity: 0; transform: translate3d(0,-36px,0) rotate(-8deg) scale(.76); }
-    28% { opacity: 1; transform: translate3d(-8px,0,0) rotate(7deg) scale(1); }
-    62% { transform: translate3d(8px,12px,0) rotate(-5deg) scale(.98); }
-    100% { opacity: .94; transform: translate3d(-3px,28px,0) rotate(4deg) scale(.94); }
+  .crash-stars {
+    opacity: .7;
+    background-image:
+      radial-gradient(circle, rgb(255 255 255 / .78) 0 1px, transparent 1.5px),
+      radial-gradient(circle, rgb(132 162 255 / .62) 0 1px, transparent 1.7px),
+      radial-gradient(circle, rgb(255 255 255 / .4) 0 1.5px, transparent 2px);
+    background-position: 11px 17px, 39px 73px, 83px 29px;
+    background-size: 67px 67px, 113px 113px, 173px 173px;
   }
-  .animate-pug-fall { animation: pug-fall 1.8s cubic-bezier(.2,.75,.25,1) both; will-change: transform, opacity; }
+
+  @keyframes pug-impact {
+    0% { opacity: 0; transform: translate3d(0,-24px,0) rotate(-6deg) scale(.74); }
+    32% { opacity: 1; transform: translate3d(0,0,0) rotate(3deg) scale(1.04); }
+    65% { opacity: 1; transform: translate3d(0,5px,0) rotate(-2deg) scale(1); }
+    100% { opacity: 0; transform: translate3d(0,12px,0) rotate(0) scale(.94); }
+  }
+  .animate-pug-impact { animation: pug-impact .72s cubic-bezier(.2,.75,.25,1) both; will-change: transform, opacity; }
 
   .giveaway-hero {
     border: 1px solid rgb(255 255 255 / .11);

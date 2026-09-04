@@ -22,7 +22,7 @@ export function HomeLobby({ online }: { online: number }) {
     </div>}
 
     <Link href="/cases" className="group relative min-h-[190px] overflow-hidden rounded-[32px] border border-white/[.09] bg-[#121a2b] shadow-[0_28px_80px_-48px_rgba(68,103,255,.85)] md:min-h-[230px]">
-      <img src="/images/puggift-start-banner-v2.webp" alt="PugGift arcade" className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-[1.025]" />
+      <img src="/images/puggift-hero-v3.svg" alt="PugGift arcade" className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-[1.015]" />
       <span className="absolute inset-0 bg-[linear-gradient(90deg,rgba(5,9,18,.94),rgba(5,9,18,.64)_46%,rgba(5,9,18,.12))]" />
       <span className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#070b13]/70 to-transparent" />
       <div className="relative flex h-full min-h-[190px] max-w-[60%] flex-col justify-between p-5 md:min-h-[230px] md:p-7">
@@ -41,13 +41,13 @@ export function HomeLobby({ online }: { online: number }) {
     </div>
 
     <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-      <ModeCard href="/cases" title="Cases" subtitle="Animated gift drops" art="/images/puggift-cases-card-v2.webp" icon={<Gift className="h-4 w-4" />} accent="blue" className="col-span-2 min-h-[176px] md:min-h-[205px]" />
-      <ModeCard href="/upgrade" title="Upgrade" subtitle="Reach a better gift" art="/images/puggift-upgrade-card-v2.webp" icon={<Sparkles className="h-4 w-4" />} accent="violet" className="min-h-[176px] md:min-h-[205px]" />
-      <ModeCard href="/crash" title="Crash" subtitle="One global flight" art="/images/puggift-crash-card-v2.webp" icon={<Rocket className="h-4 w-4" />} accent="indigo" className="min-h-[176px] md:min-h-[205px]" live />
+      <ModeCard href="/cases" title="Cases" subtitle="Animated gift drops" icon={<Gift className="h-4 w-4" />} accent="blue" className="col-span-2 min-h-[176px] md:min-h-[205px]" />
+      <ModeCard href="/upgrade" title="Upgrade" subtitle="Reach a better gift" icon={<Sparkles className="h-4 w-4" />} accent="violet" className="min-h-[176px] md:min-h-[205px]" />
+      <ModeCard href="/crash" title="Crash" subtitle="One global flight" icon={<Rocket className="h-4 w-4" />} accent="indigo" className="min-h-[176px] md:min-h-[205px]" live />
       <ModeCard href="/mines" title="Mines" subtitle="Find every safe bone" icon={<Bomb className="h-4 w-4" />} accent="green" className="min-h-[132px]" />
       <ModeCard href="/dice" title="Pug Dice" subtitle="Pick your risk" icon={<Dices className="h-4 w-4" />} accent="orange" className="min-h-[132px]" />
-      <ModeCard href="/battles" title="PvP" subtitle="Stake-weighted wheel" art="/images/puggift-pvp-card-v2.webp" icon={<Swords className="h-4 w-4" />} accent="gold" className="min-h-[132px]" live />
-      <ModeCard href="/giveaways" title="Giveaways" subtitle="Channel NFT drops" art="/images/puggift-mascot-share-v1.png" icon={<Gift className="h-4 w-4" />} accent="pink" className="min-h-[132px]" />
+      <ModeCard href="/battles" title="PvP" subtitle="Stake-weighted wheel" icon={<Swords className="h-4 w-4" />} accent="gold" className="min-h-[132px]" live />
+      <ModeCard href="/giveaways" title="Giveaways" subtitle="Channel NFT drops" icon={<Gift className="h-4 w-4" />} accent="pink" className="min-h-[132px]" />
     </div>
 
     <Link href="/deposit" className="app-panel group mb-2 flex items-center justify-between rounded-[22px] px-4 py-3.5 transition hover:border-white/15">
@@ -67,16 +67,20 @@ const accents = {
   pink: "from-[#db5aa8]/26 via-[#7a285c]/14 to-transparent",
 } as const
 
-function ModeCard({ href, title, subtitle, art, icon, accent, className, live }: { href: string; title: string; subtitle: string; art?: string; icon: React.ReactNode; accent: keyof typeof accents; className: string; live?: boolean }) {
+function ModeCard({ href, title, subtitle, icon, accent, className, live }: { href: string; title: string; subtitle: string; icon: React.ReactNode; accent: keyof typeof accents; className: string; live?: boolean }) {
   return <Link href={href} className={`app-panel lobby-card group relative flex overflow-hidden rounded-[27px] p-4 ${className}`}>
     <span className={`absolute inset-0 bg-gradient-to-br ${accents[accent]}`} />
-    {art && <img src={art} alt="" className="absolute inset-y-0 right-0 h-full w-[62%] object-cover object-center opacity-85 [mask-image:linear-gradient(to_right,transparent,black_45%)] transition-transform duration-500 group-hover:scale-105" />}
+    <span className="absolute -bottom-5 -right-4 flex h-32 w-32 rotate-[-8deg] items-center justify-center rounded-[38px] border border-white/[.08] bg-black/15 text-white/[.14] shadow-[inset_0_1px_0_rgba(255,255,255,.08)] transition duration-300 group-hover:-translate-y-1 group-hover:rotate-[-3deg] [&_svg]:!h-16 [&_svg]:!w-16">
+      {icon}
+      <i className="absolute -left-3 top-4 h-3 w-3 rounded-full border border-white/15 bg-white/[.07]" />
+      <i className="absolute bottom-5 right-4 h-5 w-5 rotate-12 rounded-[7px] border border-white/10 bg-white/[.05]" />
+    </span>
     <div className="relative z-10 flex w-full flex-col justify-between">
       <div className="flex items-start justify-between gap-2">
         <span className="flex h-9 w-9 items-center justify-center rounded-[13px] bg-white/[.08] text-white/80 ring-1 ring-white/[.08]">{icon}</span>
         {live && <span className="flex items-center gap-1 rounded-full bg-emerald-400/10 px-2 py-1 text-[8px] font-black uppercase tracking-wider text-emerald-300"><i className="h-1.5 w-1.5 rounded-full bg-emerald-300" />Live</span>}
       </div>
-      <div className="max-w-[72%]"><h3 className="app-title text-xl md:text-2xl">{title}</h3><p className="mt-1 text-[10px] font-semibold text-white/43 md:text-[11px]">{subtitle}</p></div>
+      <div className="max-w-[68%]"><h3 className="app-title text-xl md:text-2xl">{title}</h3><p className="mt-1 text-[10px] font-semibold text-white/43 md:text-[11px]">{subtitle}</p></div>
     </div>
     <span className="absolute bottom-3 right-3 z-10 flex h-8 w-8 items-center justify-center rounded-[12px] bg-white/[.08] text-white/55 ring-1 ring-white/[.07]"><ArrowUpRight className="h-4 w-4 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" /></span>
   </Link>

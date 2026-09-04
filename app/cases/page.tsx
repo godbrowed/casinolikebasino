@@ -14,7 +14,7 @@ export default async function CasesPage() {
     <main className="mx-auto w-full max-w-[980px] px-3 pb-8 pt-5 md:px-5">
       <div className="app-panel relative mb-5 overflow-hidden rounded-[28px] px-5 py-5 md:px-6 md:py-6">
         <div className="pointer-events-none absolute -right-16 -top-24 h-64 w-64 rounded-full bg-[#4f75ff]/16 blur-3xl" />
-        <img src="/images/puggift-cases-card-v2.webp" alt="" className="absolute -bottom-8 -right-4 h-40 w-40 object-cover opacity-55 [mask-image:linear-gradient(to_right,transparent,black_38%)] md:h-52 md:w-52" />
+        <img src="/images/puggift-mark-v3.svg" alt="" className="absolute -bottom-8 -right-4 h-40 w-40 rounded-[42px] object-cover opacity-50 [mask-image:linear-gradient(to_right,transparent,black_38%)] md:h-52 md:w-52" />
         <div className="relative max-w-[70%]"><div className="app-kicker flex items-center gap-1.5"><Sparkles className="h-3 w-3" />PugGift drops</div><h1 className="app-title mt-1 text-3xl md:text-4xl">Choose your case</h1><p className="mt-2 text-xs font-semibold leading-relaxed text-white/42">Open one or several reels and keep the gifts you like.</p></div>
       </div>
       <div className="mb-4 flex items-end justify-between gap-3">

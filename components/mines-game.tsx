@@ -89,7 +89,7 @@ export function MinesGame() {
       </div>
       <div className="absolute -bottom-5 right-1 h-[126px] w-[126px] md:right-8 md:h-[154px] md:w-[154px]">
         <div className="absolute inset-5 rounded-full bg-emerald-300/25 blur-2xl" />
-        <img src="/images/puggift-mascot-web-v1.webp" alt="Pug treasure hunter" className={cn("relative h-full w-full rounded-full object-cover drop-shadow-[0_14px_22px_rgba(0,0,0,.45)]", round?.status === "bust" && "animate-bounce saturate-50")} />
+        <img src="/images/puggift-mark-v3.svg" alt="Pug treasure hunter" className={cn("relative h-full w-full rounded-[30%] object-cover drop-shadow-[0_14px_22px_rgba(0,0,0,.45)]", round?.status === "bust" && "animate-bounce saturate-50")} />
       </div>
     </header>
 

@@ -88,9 +88,7 @@ export function GiveawaysView() {
 
   return <div className="mx-auto w-full max-w-[860px] space-y-4">
     <section className="giveaway-hero relative overflow-hidden rounded-[28px] px-4 py-5 sm:px-6 sm:py-7">
-      <div className="absolute -right-8 -top-8 h-36 w-36 rounded-full bg-violet-500/25 blur-3xl" />
-      <img src="/images/puggift-mark-v3.svg" alt="" className="absolute -bottom-5 -right-5 h-36 w-36 rotate-3 rounded-[38px] object-contain opacity-75 sm:h-44 sm:w-44" />
-      <div className="relative z-10 max-w-[70%] sm:max-w-[560px]"><span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-[9px] font-black uppercase tracking-[.13em] text-violet-200"><Sparkles className="h-3 w-3" />Live drops</span><h1 className="mt-3 font-display text-2xl font-black leading-tight sm:text-4xl">Win gifts in channel giveaways</h1><p className="mt-2 text-xs leading-relaxed text-white/55 sm:text-sm">Choose a free draw or buy weighted tickets with Stars. Everything you joined stays in one place.</p></div>
+      <div className="relative z-10"><h1 className="font-display text-2xl font-bold leading-tight sm:text-3xl">Giveaways</h1><p className="mt-2 text-sm leading-relaxed text-white/55">Explore community prizes. Find all your entries here.</p></div>
       <button onClick={() => { setScreen("create"); setError(""); setSuccess("") }} className="relative z-10 mt-4 flex min-h-11 items-center gap-2 rounded-2xl bg-[#3674ff] px-4 text-xs font-black shadow-[0_10px_26px_rgba(54,116,255,.32)] active:scale-95"><Plus className="h-4 w-4" strokeWidth={3} />Create giveaway</button>
     </section>
 

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title">
+  <title id="title">PugGift</title>
+  <rect width="256" height="256" rx="64" fill="#2B6EFF"/>
+  <path d="M64 113c0-43 24-66 64-66s64 23 64 66v32c0 43-26 67-64 67s-64-24-64-67z" fill="#F1DEB9"/>
+  <path d="M72 57c-23 1-37 15-38 37-1 22 7 38 22 49l25-69c3-9 0-16-9-17zm112 0c23 1 37 15 38 37 1 22-7 38-22 49l-25-69c-3-9 0-16 9-17z" fill="#23252B"/>
+  <path d="M100 87c8-5 17-7 28-7s20 2 28 7" fill="none" stroke="#BCA787" stroke-width="7" stroke-linecap="round"/>
+  <ellipse cx="92" cy="125" rx="20" ry="25" fill="#23252B"/>
+  <ellipse cx="164" cy="125" rx="20" ry="25" fill="#23252B"/>
+  <circle cx="96" cy="119" r="5" fill="#fff"/>
+  <circle cx="160" cy="119" r="5" fill="#fff"/>
+  <path d="M83 166c0-25 19-42 45-42s45 17 45 42c0 25-18 37-45 37s-45-12-45-37z" fill="#444248"/>
+  <path d="M112 151c3-5 29-5 32 0 3 6-8 16-16 16s-19-10-16-16z" fill="#191B20"/>
+  <path d="M128 165v13m-15 4c6 2 11 1 15-4 4 5 9 6 15 4" fill="none" stroke="#F1DEB9" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

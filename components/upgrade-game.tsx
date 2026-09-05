@@ -166,9 +166,7 @@ function UpgradeWheel({ angle, spinning, animating, chance, multiplier, outcome 
   const winLength = chance > 0 ? Math.max(4, chance * circumference) : 0
 
   return <div className="relative mx-auto aspect-square w-[min(82vw,380px)] md:w-[410px] lg:w-[430px]">
-    <div className={cn("absolute inset-[1%] rounded-full border border-dashed border-violet-200/15 transition-transform duration-[3000ms]", spinning && "rotate-180")} />
-    <div className="absolute inset-[4%] rounded-full bg-[radial-gradient(circle_at_46%_38%,#193878,#071633_72%)] shadow-[0_32px_80px_rgba(1,5,22,.52),inset_0_0_80px_rgba(96,87,255,.18),0_0_55px_rgba(90,91,255,.12)] ring-1 ring-white/10" />
-    <div className="absolute inset-[9%] rounded-full border border-white/[.045] shadow-[inset_0_0_32px_rgba(94,234,201,.08)]" />
+    <div className="absolute inset-[4%] rounded-full bg-[#292c32]" />
     <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full -rotate-90 drop-shadow-[0_15px_28px_rgba(4,11,36,.4)]">
       <circle cx="50" cy="50" r="44" fill="none" stroke="rgba(5,14,38,.86)" strokeWidth="10" />
       <circle cx="50" cy="50" r="44" fill="none" stroke="rgba(151,168,255,.22)" strokeWidth="8" />
@@ -182,11 +180,11 @@ function UpgradeWheel({ angle, spinning, animating, chance, multiplier, outcome 
 
     <div className="absolute inset-0 z-20" style={{ transform: `rotate(${angle}deg)`, transition: animating ? "transform 3s cubic-bezier(.08,.72,.08,1)" : "none", willChange: "transform" }}>
       <div className={cn("absolute left-1/2 top-[0.5%] flex h-12 w-12 -translate-x-1/2 items-center justify-center overflow-hidden rounded-full border-[3px] bg-[#081a3b] shadow-[0_0_0_4px_rgba(14,36,83,.65),0_0_28px_rgba(102,145,255,.75)] md:h-14 md:w-14", outcome === false ? "border-rose-400 shadow-[0_0_0_4px_rgba(70,14,30,.65),0_0_32px_rgba(251,113,133,.7)]" : outcome === true ? "border-emerald-300 shadow-[0_0_0_4px_rgba(6,78,59,.6),0_0_32px_rgba(110,231,183,.78)]" : "border-[#9daeff]")}>
-        <img src="/images/puggift-mark-v3.svg" alt="Pug marker" className="h-full w-full object-cover" />
+        <img src="/images/puggift-mark-v4.svg" alt="Pug marker" className="h-full w-full object-cover" />
       </div>
     </div>
 
-    <div className={cn("absolute inset-[23%] flex flex-col items-center justify-center rounded-full bg-[radial-gradient(circle_at_45%_35%,#1b3d82,#07152f_72%)] text-center shadow-[inset_0_1px_0_rgba(255,255,255,.12),0_15px_35px_rgba(3,11,35,.4)] ring-1 ring-white/10", outcome === true && "shadow-[inset_0_1px_0_rgba(255,255,255,.15),0_0_42px_rgba(52,211,153,.25)]", outcome === false && "shadow-[inset_0_1px_0_rgba(255,255,255,.12),0_0_42px_rgba(244,63,94,.2)]")}>
+    <div className={cn("absolute inset-[23%] flex flex-col items-center justify-center rounded-full bg-[#202225] text-center ring-1 ring-white/[.06]", outcome === true && "ring-emerald-300/40", outcome === false && "ring-rose-300/40")}>
       <Sparkles className={cn("mb-1 h-5 w-5", outcome === true ? "text-emerald-300" : outcome === false ? "text-rose-300" : "text-blue-200")} />
       <span className="text-[8px] font-black uppercase tracking-[.2em] text-white/40">Upgrade chance</span>
       <span className={cn("mt-0.5 font-display text-4xl font-black md:text-5xl", outcome === true ? "text-emerald-300" : outcome === false ? "text-rose-300" : "text-white")}>{chance ? `${Math.round(chance * 100)}%` : "—"}</span>

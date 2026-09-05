@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
+  <title id="title">PugGift</title><desc id="desc">Telegram gifts. All in one place.</desc>
+  <rect width="1280" height="720" fill="#202225"/>
+  <rect x="832" width="448" height="720" fill="#2B6EFF"/>
+  <text x="84" y="112" fill="#A6A8AD" font-family="Arial,Helvetica,sans-serif" font-size="22" font-weight="600" letter-spacing="3">TELEGRAM GIFTS</text>
+  <text x="80" y="340" fill="#FFFFFF" font-family="Arial,Helvetica,sans-serif" font-size="136" font-weight="700" letter-spacing="-7">PugGift<tspan fill="#2B6EFF">.</tspan></text>
+  <text x="86" y="404" fill="#B6B8BD" font-family="Arial,Helvetica,sans-serif" font-size="28">Gifts. Games. Your collection.</text>
+  <path d="M84 548h640" stroke="#3D3F44" stroke-width="2"/>
+  <text x="86" y="597" fill="#FFFFFF" font-family="Arial,Helvetica,sans-serif" font-size="23">Open the app in Telegram</text>
+  <g transform="translate(852 168) scale(1.57)">
+    <path d="M64 113c0-43 24-66 64-66s64 23 64 66v32c0 43-26 67-64 67s-64-24-64-67z" fill="#F1DEB9"/>
+    <path d="M72 57c-23 1-37 15-38 37-1 22 7 38 22 49l25-69c3-9 0-16-9-17zm112 0c23 1 37 15 38 37 1 22-7 38-22 49l-25-69c-3-9 0-16 9-17z" fill="#23252B"/>
+    <path d="M100 87c8-5 17-7 28-7s20 2 28 7" fill="none" stroke="#BCA787" stroke-width="7" stroke-linecap="round"/>
+    <ellipse cx="92" cy="125" rx="20" ry="25" fill="#23252B"/><ellipse cx="164" cy="125" rx="20" ry="25" fill="#23252B"/>
+    <circle cx="96" cy="119" r="5" fill="#fff"/><circle cx="160" cy="119" r="5" fill="#fff"/>
+    <path d="M83 166c0-25 19-42 45-42s45 17 45 42c0 25-18 37-45 37s-45-12-45-37z" fill="#444248"/>
+    <path d="M112 151c3-5 29-5 32 0 3 6-8 16-16 16s-19-10-16-16z" fill="#191B20"/>
+    <path d="M128 165v13m-15 4c6 2 11 1 15-4 4 5 9 6 15 4" fill="none" stroke="#F1DEB9" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

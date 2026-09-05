@@ -137,11 +137,9 @@ export function ProfileView({ me, inventory, history, freeCaseClaim, referral }:
       )}
       {showGiveawayTasks && <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 p-4 backdrop-blur-md"><div className="w-full max-w-sm rounded-[28px] bg-[#292d34] p-5 text-center ring-1 ring-white/10"><div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#3674ff]/15 text-3xl">🎁</div><h2 className="mt-4 font-display text-xl font-black">Complete withdrawal tasks</h2><p className="mt-2 text-xs leading-relaxed text-white/50">Before sending a giveaway NFT, share PugGift with one friend and subscribe to @PugGift — the same tasks as the Free Case.</p><Link href="/cases" onClick={() => setShowGiveawayTasks(false)} className="mt-5 flex min-h-12 items-center justify-center rounded-2xl bg-[#3674ff] text-sm font-black">Open Free Case tasks</Link><button onClick={() => setShowGiveawayTasks(false)} className="mt-2 w-full py-2 text-xs font-bold text-white/35">Not now</button></div></div>}
 
-      <section className="app-panel relative overflow-hidden rounded-[34px] p-5 md:p-6">
-        <div className="absolute -right-16 -top-20 h-64 w-64 rounded-full bg-[#2f70ff]/15 blur-3xl" />
-        <img src="/images/puggift-mark-v3.svg" alt="" className="absolute -bottom-16 -right-12 h-52 w-52 rounded-[52px] object-cover opacity-[.07]" />
+      <section className="app-panel relative overflow-hidden rounded-[28px] p-5 md:p-6">
         <div className="relative flex items-center gap-4">
-          <div className="relative"><img src={me?.photoUrl || "/images/puggift-mark-v3.svg"} alt="" className="h-20 w-20 rounded-[24px] border-[2px] border-[#6685ff]/70 object-cover shadow-[0_0_30px_rgba(47,112,255,.24)]" /><i className="absolute bottom-1 right-1 h-4 w-4 rounded-full border-[3px] border-[#171c29] bg-emerald-400" /></div>
+          {me?.photoUrl ? <img src={me.photoUrl} alt="Your profile" className="h-[72px] w-[72px] shrink-0 rounded-full object-cover" /> : <span aria-label="Your profile" className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-full bg-[#2b6eff] text-3xl font-semibold">{(me?.firstName || me?.username || "P").charAt(0).toUpperCase()}</span>}
           <div className="min-w-0 flex-1"><div className="text-[9px] font-black uppercase tracking-[.18em] text-[#75a0ff]">PugGift player</div><h1 className="mt-1 truncate font-display text-2xl font-black">{me?.firstName || me?.username || "Player"}</h1><div className="mt-1 flex items-center gap-2"><span className="truncate text-xs text-white/40">@{me?.username || "puggift"}</span><span className="rounded-full bg-white/10 px-2 py-1 text-[9px] font-black">LVL {lvl.level}</span></div></div>
         </div>
 
@@ -189,7 +187,7 @@ export function ProfileView({ me, inventory, history, freeCaseClaim, referral }:
         </div>
         {items.length === 0 ? (
           <div className="relative flex flex-col items-center gap-3 overflow-hidden rounded-[24px] border border-dashed border-white/10 bg-[#22252b] p-8 text-center">
-            <div className="absolute -right-10 -top-12 h-32 w-32 rounded-full bg-[#2f70ff]/10 blur-2xl" /><div className="relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-[20px] bg-[#11141a] ring-1 ring-white/10"><img src="/images/puggift-mark-v3.svg" alt="" className="h-full w-full object-cover opacity-80" /></div>
+            <Gift className="h-10 w-10 text-white/35" strokeWidth={1.5} />
             <p className="text-sm text-white/40">No gifts yet. Open a case to build your collection.</p><Link href="/cases" className="rounded-2xl bg-[#2f70ff] px-4 py-2.5 text-xs font-black">Open cases</Link>
           </div>
         ) : (

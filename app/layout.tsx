@@ -7,12 +7,12 @@ import { AppProviders } from "@/components/app-providers"
 export const metadata: Metadata = {
   title: "PugGift — Telegram Gifts",
   description: "Open cases, collect Telegram gifts, and play live games with the PugGift mascot.",
-  icons: { icon: "/images/puggift-bot-avatar-v3.png", apple: "/images/puggift-bot-avatar-v3.png" },
+  icons: { icon: "/images/puggift-mark-v4.svg", apple: "/images/puggift-bot-avatar-v4.png" },
 }
 
 export const viewport: Viewport = {
   colorScheme: "dark",
-  themeColor: "#0b0e17",
+  themeColor: "#202225",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,

@@ -3,6 +3,7 @@ import { crashPointForRound } from "@/lib/crash-server"
 import { CRASH_BETTING_MS, CRASH_ROUND_MS, elapsedForMultiplier, sharedRoundId, sharedRoundStart } from "@/lib/crash-shared"
 
 export const dynamic = "force-dynamic"
+export const maxDuration = 30
 
 /**
  * One lightweight long-poll per client and round. The response is held until

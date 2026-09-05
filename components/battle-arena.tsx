@@ -35,7 +35,7 @@ export function BattleArena({ result, onDone }: { result: BattleResult; onDone: 
 
   const winner = result.players.find((player) => player.slot === result.winnerSlot)
   return <div className="app-panel flex min-h-[calc(100dvh-170px)] flex-col items-center gap-5 overflow-hidden rounded-[32px] p-4 md:p-6">
-    <div className="flex items-center gap-3 text-left"><img src="/images/puggift-mark-v3.svg" alt="" className="h-11 w-11 rounded-[15px] border border-[#6685ff]/45 object-cover" /><div><div className="text-[9px] font-black uppercase tracking-[.18em] text-blue-300">PugGift PvP</div><h1 className="font-display text-xl font-black">{done ? `${winner?.name ?? "Winner"} takes the bank` : "The wheel is spinning"}</h1></div></div>
+    <div className="flex items-center gap-3 text-left"><img src="/images/puggift-mark-v4.svg" alt="" className="h-11 w-11 rounded-[15px] border border-[#6685ff]/45 object-cover" /><div><div className="text-[9px] font-black uppercase tracking-[.18em] text-blue-300">PugGift PvP</div><h1 className="font-display text-xl font-black">{done ? `${winner?.name ?? "Winner"} takes the bank` : "The wheel is spinning"}</h1></div></div>
 
     <div className="relative mt-2 aspect-square w-full max-w-[480px]">
       <div className="absolute left-1/2 top-[-10px] z-20 -translate-x-1/2 border-x-[13px] border-t-[22px] border-x-transparent border-t-white drop-shadow-[0_5px_8px_rgba(0,0,0,.7)]" />

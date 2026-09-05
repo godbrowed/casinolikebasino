@@ -38,7 +38,7 @@ export const startCrashApi = (bet: number) =>
   })
 
 export const cashoutCrashApi = (token: string) =>
-  api<{ success: boolean; multiplier: number; crashPoint: number; payout: number; balance: number | null }>("/api/crash/action", {
+  api<{ success: boolean; multiplier: number; payout: number; balance: number | null }>("/api/crash/action", {
     method: "POST",
     body: JSON.stringify({ action: "cashout", token }),
   })
@@ -56,7 +56,7 @@ export const startGiftCrashApi = (inventoryIds: number[]) =>
   })
 
 export const cashoutGiftCrashApi = (token: string) =>
-  api<{ success: boolean; multiplier: number; crashPoint: number; gift: OwnedGift | null }>("/api/crash/gift-action", {
+  api<{ success: boolean; multiplier: number; gift: OwnedGift | null }>("/api/crash/gift-action", {
     method: "POST",
     body: JSON.stringify({ action: "cashout", token }),
   })

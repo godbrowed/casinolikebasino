@@ -117,7 +117,7 @@ export async function POST(req: Request) {
     if (isStart) {
       const photo = await tg("sendPhoto", {
         chat_id: message.chat.id,
-        photo: `${url}/images/puggift-start-banner-v3.jpg`,
+        photo: `${url}/images/puggift-start-banner-v4.jpg`,
         caption: `⚡ Welcome to PugGift, ${firstName}!\n\n🎁 Open Telegram gifts\n🚀 Join one shared live Crash\n⚔️ Play real-player PvP\n💎 Upgrade your collection\n\nYour black pug is ready. Are you?`,
         reply_markup: {
           inline_keyboard: [

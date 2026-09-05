@@ -6,14 +6,15 @@
 @import 'shadcn/tailwind.css';
 
 :root {
-  --font-geist: Arial, Helvetica, sans-serif;
-  --font-geist-mono: 'Courier New', monospace;
-  --font-display: Arial, Helvetica, sans-serif;
+  --font-geist: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+  --font-geist-mono: ui-monospace, 'SFMono-Regular', Consolas, monospace;
+  --font-display: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
 }
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  --font-weight-black: 750;
   --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-display), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
@@ -50,13 +51,13 @@
 
 :root {
   color-scheme: dark;
-  --background: #0d1018;
+  --background: #202225;
   --foreground: #f8f9ff;
-  --card: #171c29;
+  --card: #303237;
   --card-foreground: #f8f9ff;
-  --popover: #171c29;
+  --popover: #303237;
   --popover-foreground: #f8f9ff;
-  --primary: #4f75ff;
+  --primary: #2b6eff;
   --primary-foreground: #ffffff;
   --secondary: #222938;
   --secondary-foreground: #f8f9ff;
@@ -81,16 +82,12 @@
   html {
     -webkit-tap-highlight-color: transparent;
     min-height: 100%;
-    background: #090c13;
+    background: #202225;
   }
   body {
     @apply bg-background text-foreground;
     overflow-x: hidden;
-    background-color: #0d1018;
-    background-image:
-      radial-gradient(circle at 50% -18rem, rgb(68 99 208 / .22), transparent 34rem),
-      linear-gradient(180deg, #10141e 0%, #0d1018 62%, #0a0d14 100%);
-    background-attachment: fixed;
+    background-color: #202225;
     min-height: var(--tg-viewport-stable-height, 100dvh);
     width: 100%;
     margin: 0;
@@ -133,92 +130,62 @@
 
   /* Shared graphite surfaces: colour belongs to game cards, not the whole app. */
   .card-premium {
-    background: linear-gradient(145deg, rgb(255 255 255 / 7%), transparent 42%), var(--card);
-    box-shadow:
-      inset 0 1px 0 0 rgb(255 255 255 / 10%),
-      0 10px 24px -18px rgb(0 0 0 / .85);
+    background: var(--card);
   }
 
   .app-shell {
     position: relative;
     isolation: isolate;
-    background:
-      radial-gradient(circle at 14% 16rem, rgb(101 77 255 / .055), transparent 22rem),
-      radial-gradient(circle at 90% 34rem, rgb(37 112 255 / .06), transparent 25rem);
+    background: #202225;
   }
   .app-shell::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    z-index: -1;
-    pointer-events: none;
-    opacity: .32;
-    background-image: radial-gradient(rgb(255 255 255 / .16) .7px, transparent .7px);
-    background-size: 31px 31px;
-    mask-image: linear-gradient(to bottom, black, transparent 72%);
+    content: none;
   }
 
   .surface-panel {
-    border: 1px solid rgb(255 255 255 / .08);
-    background:
-      linear-gradient(145deg, rgb(255 255 255 / .07), transparent 44%),
-      linear-gradient(180deg, rgb(26 32 47 / .96), rgb(17 22 34 / .96));
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / .08), 0 22px 58px -38px rgb(0 0 0 / 1);
+    border: 1px solid rgb(255 255 255 / .06);
+    background: #303237;
   }
 
   .game-surface {
-    background:
-      radial-gradient(circle at 50% -7rem, rgb(74 105 220 / .2), transparent 28rem),
-      linear-gradient(180deg, #101522 0%, #0b0f18 68%, #090c13 100%) !important;
+    background: #202225 !important;
   }
   .game-surface--case {
-    background:
-      radial-gradient(circle at 50% 12rem, rgb(58 103 226 / .22), transparent 28rem),
-      linear-gradient(180deg, #11192a 0%, #0b101c 72%, #090c14 100%) !important;
+    background: #173d81 !important;
   }
   .game-surface--upgrade {
-    background:
-      radial-gradient(circle at 50% 12rem, rgb(123 83 255 / .18), transparent 28rem),
-      linear-gradient(180deg, #141629 0%, #0b101c 72%, #090c14 100%) !important;
+    background: #202225 !important;
   }
   .game-surface--mines {
-    background:
-      radial-gradient(circle at 50% 10rem, rgb(30 160 111 / .15), transparent 27rem),
-      linear-gradient(180deg, #101a1a 0%, #0b1118 72%, #090c13 100%) !important;
+    background: #182821 !important;
   }
   .game-surface--crash {
-    background:
-      radial-gradient(circle at 50% 9rem, rgb(62 102 222 / .18), transparent 31rem),
-      linear-gradient(180deg, #0c1425 0%, #080d18 72%, #070a11 100%) !important;
+    background: #081122 !important;
   }
 
   .app-kicker {
-    color: #86a0ff;
-    font-size: 9px;
-    font-weight: 900;
-    letter-spacing: .18em;
-    text-transform: uppercase;
+    color: #a3a6ad;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .03em;
   }
 
   .app-title {
     font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
-    font-weight: 900;
-    letter-spacing: -.035em;
+    font-weight: 700;
+    letter-spacing: -.025em;
   }
 
   .app-panel {
-    border: 1px solid rgb(255 255 255 / .075);
-    background:
-      linear-gradient(150deg, rgb(255 255 255 / .055), transparent 44%),
-      rgb(20 25 37 / .92);
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / .065), 0 20px 60px -42px rgb(0 0 0 / 1);
-    backdrop-filter: blur(16px);
+    border: 1px solid transparent;
+    background: #303237;
+    box-shadow: none;
   }
 
   .app-cta {
-    background: linear-gradient(180deg, #5a7fff, #3864f4);
+    background: #2b6eff;
     color: #fff;
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / .28), 0 8px 24px rgb(46 91 232 / .26);
+    box-shadow: none;
   }
   .app-cta:active { transform: scale(.985); }
 
@@ -229,24 +196,18 @@
   }
 
   .case-card {
-    background:
-      linear-gradient(145deg, rgb(255 255 255 / .075), transparent 40%),
-      linear-gradient(180deg, #1c2332, #121722);
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / .085), 0 18px 44px -28px rgb(0 0 0 / .95);
+    background: #303237;
   }
   .case-card:hover {
     transform: translateY(-2px);
-    box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.1), 0 22px 50px -26px oklch(0 0 0 / 1);
+    background: #383b40;
   }
 
-  /* Glowing primary CTA */
+  /* Shared button treatment, including older screens. */
   .btn-glow {
-    background: linear-gradient(180deg, #4670ff, #2f5bff);
+    background: #2b6eff;
     color: var(--primary-foreground);
-    box-shadow:
-      0 0 0 1px rgb(255 255 255 / .25) inset,
-      0 6px 0 #1938a8,
-      0 13px 24px -8px rgb(47 91 255 / .55);
+    box-shadow: none;
   }
   .btn-glow:active {
     transform: scale(0.97);
@@ -337,9 +298,9 @@
   .lobby-card:active { transform: scale(.975); filter: brightness(1.08); }
   .lobby-float { animation: lobby-float 3.8s ease-in-out infinite; will-change: transform; }
 
-  main > * { animation: lobby-enter .35s cubic-bezier(.2,.8,.2,1) both; }
-  main > *:nth-child(2) { animation-delay: .04s; }
-  main > *:nth-child(3) { animation-delay: .08s; }
+  .lobby-mode-row { transition: filter .15s ease, transform .15s ease; }
+  .lobby-mode-row:hover { filter: brightness(1.06); }
+  .lobby-mode-row:active { transform: scale(.99); }
 
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
@@ -371,10 +332,10 @@
     92% { transform: rotate(-8deg) scale(1.08); }
     96% { transform: rotate(7deg) scale(1.08); }
   }
-  .pug-logo-mark { animation: pug-logo-alive 4.6s ease-in-out infinite; transform-origin: 50% 70%; }
+  .pug-logo-mark { animation: none; }
 
   .crash-stars {
-    opacity: .7;
+    opacity: .35;
     background-image:
       radial-gradient(circle, rgb(255 255 255 / .78) 0 1px, transparent 1.5px),
       radial-gradient(circle, rgb(132 162 255 / .62) 0 1px, transparent 1.7px),
@@ -392,11 +353,7 @@
   .animate-pug-impact { animation: pug-impact .72s cubic-bezier(.2,.75,.25,1) both; will-change: transform, opacity; }
 
   .giveaway-hero {
-    border: 1px solid rgb(255 255 255 / .11);
-    background:
-      radial-gradient(circle at 78% 22%, rgb(139 92 246 / .22), transparent 34%),
-      linear-gradient(135deg, #151927 0%, #261b3e 55%, #171920 100%);
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / .08), 0 26px 70px -44px rgb(109 72 255 / .8);
+    background: #303237;
   }
 
   .giveaway-input {

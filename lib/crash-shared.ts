@@ -13,7 +13,7 @@ export const CRASH_MAINTENANCE = false
 // Server result generator source of truth. This is intentionally not rendered
 // inside the play surface; completed multipliers remain visible in history.
 export const CRASH_RTP_PERCENT = 85
-// A calmer curve keeps the flight readable on a phone: 2× takes ~3 seconds,
+// The shared curve reaches 2× in ~2.17 seconds,
 // rather than jumping there almost immediately.
 // Reaches the rare 100x ceiling in ~14.4s, still inside the 15s shared flight.
 export const CRASH_GROWTH_K = 0.32 // growth rate per second (exponential)

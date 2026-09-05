@@ -3,11 +3,12 @@
 import crypto from "crypto"
 import { and, desc, eq, gte, inArray, sql } from "drizzle-orm"
 import { revalidatePath } from "next/cache"
+import { after } from "next/server"
 import { db } from "@/lib/db"
 import { users, gameHistory, inventory, gifts } from "@/lib/db/schema"
 import { requireUserId } from "@/lib/session"
-import { crashRoundPhase, CRASH_MAINTENANCE, CRASH_ROUND_MS, multiplierAtElapsed, sharedFlightStart, sharedRoundId, sharedRoundStart } from "@/lib/crash-shared"
-import { crashPointForRound as rollCrashPoint, crashSecret } from "@/lib/crash-server"
+import { crashRoundPhase, CRASH_MAINTENANCE, CRASH_ROUND_MS, CRASH_BETTING_MS, multiplierAtElapsed, sharedFlightStart, sharedRoundId, sharedRoundStart } from "@/lib/crash-shared"
+import { crashPointForRound as rollCrashPoint, crashSecret, getPublicCrashClock } from "@/lib/crash-server"
 import { giftValueInStars } from "@/lib/pricing"
 import { assertFreeCaseGiftUnlocked, getFreeCaseClaimStatus } from "@/lib/free-case-referrals"
 import { notifyAdmins } from "@/lib/admin-notify"
@@ -21,6 +22,7 @@ function signRound(p: RoundPayload): string {
 }
 
 function verifyRound(token: string): RoundPayload | null {
+  if (typeof token !== "string" || token.length > 4096) return null
   const idx = token.lastIndexOf(".")
   if (idx === -1) return null
   const body = token.slice(0, idx)
@@ -28,15 +30,37 @@ function verifyRound(token: string): RoundPayload | null {
   const expected = crypto.createHmac("sha256", crashSecret()).update(body).digest("hex").slice(0, 32)
   if (sig.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null
   try {
-    return JSON.parse(Buffer.from(body, "base64url").toString("utf8"))
+    const round = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as RoundPayload
+    return validRoundIdentity(round) && Number.isFinite(round.bet) && round.bet > 0 ? round : null
   } catch {
     return null
   }
 }
 
+function validRoundIdentity(round: RoundPayload | GiftRound): boolean {
+  return Boolean(round && typeof round.userId === "string" && Number.isSafeInteger(round.historyId) && round.historyId > 0
+    && Number.isSafeInteger(round.roundId) && round.roundId >= 0
+    && round.startTime === round.roundId * CRASH_ROUND_MS + CRASH_BETTING_MS)
+}
+
+function assertBettingRound(roundId: number): void {
+  const now = Date.now()
+  if (sharedRoundId(now) !== roundId || crashRoundPhase(now) !== "betting") throw new Error("BETTING_CLOSED")
+}
+
+type HistoryMeta = Record<string, unknown>
+function checkedHistoryMeta(row: typeof gameHistory.$inferSelect | undefined, round: RoundPayload | GiftRound, mode: "stars" | "gift"): HistoryMeta {
+  const meta = (row?.meta ?? {}) as HistoryMeta
+  if (!row || row.userId !== round.userId || row.game !== "crash" || Number(meta.roundId) !== round.roundId
+    || (meta.mode ?? "stars") !== mode) throw new Error("Invalid round")
+  return meta
+}
+
 export type CrashBoard = {
+  serverTime: number
   roundId: number
   flightStart: number
+  nextRoundAt: number
   phase: "betting" | "flying" | "crashed"
   multiplier: number
   secondsLeft: number
@@ -57,12 +81,6 @@ export type CrashBoard = {
  * a future crash point: clients learn it only once the rocket has busted. */
 export async function getCrashBoard(): Promise<CrashBoard> {
   const now = Date.now()
-  const roundId = sharedRoundId(now)
-  const flightStart = sharedFlightStart(now)
-  const phase = crashRoundPhase(now)
-  const point = rollCrashPoint(roundId)
-  const current = phase === "betting" ? 1 : multiplierAtElapsed(now - flightStart)
-  const crashed = phase === "flying" && current >= point
   let rows: { bet: string; result: string; meta: unknown; username: string | null; firstName: string | null }[] = []
   try {
     rows = await db
@@ -76,12 +94,13 @@ export async function getCrashBoard(): Promise<CrashBoard> {
     // The board must still render during a transient database reconnect.
     // It will populate again on the next lightweight refresh.
   }
+  // Snapshot time after the database query; a slow reconnect must not send a
+  // seconds-old flight clock to clients. Player rows are filtered to that clock.
+  const clock = getPublicCrashClock()
+  const { roundId } = clock
+  const crashed = clock.phase === "crashed"
   return {
-    roundId,
-    flightStart,
-    phase: crashed ? "crashed" : phase,
-    multiplier: crashed ? point : Math.max(1, current),
-    secondsLeft: Math.max(0, Math.ceil(((phase === "betting" ? flightStart : sharedRoundStart(now) + CRASH_ROUND_MS) - now) / 1000)),
+    ...clock,
     players: rows.filter((row) => Number((row.meta as Record<string, unknown> | null)?.roundId) === roundId).map((row) => {
       const meta = (row.meta ?? {}) as Record<string, unknown>
       const status = meta.status === "cashed" || meta.status === "bust" ? meta.status : crashed ? "bust" : "bet"
@@ -96,14 +115,6 @@ export async function getCrashBoard(): Promise<CrashBoard> {
         giftRarity: typeof meta.giftRarity === "string" ? meta.giftRarity : typeof meta.rarity === "string" ? meta.rarity : undefined,
       }
     }),
-    // These are the actual deterministic results of completed shared rounds,
-    // so history is present even when a round had no wagers. No fake LIVE
-    // players or random client-only numbers are injected.
-    recent: Array.from({ length: 18 }, (_, index) => {
-      const latestCompleted = crashed ? roundId : roundId - 1
-      const multiplier = rollCrashPoint(latestCompleted - index)
-      return { multiplier, won: multiplier >= 2 }
-    }),
   }
 }
 
@@ -114,10 +125,14 @@ export async function startCrash(bet: number): Promise<{
 }> {
   if (CRASH_MAINTENANCE) throw new Error("CRASH_MAINTENANCE")
   const userId = await requireUserId()
+  if (!Number.isFinite(bet) || !Number.isSafeInteger(Math.round(bet * 100))) throw new Error("Invalid bet")
+  bet = Math.round(bet * 100) / 100
   if (!(bet > 0)) throw new Error("Invalid bet")
-  if (crashRoundPhase() !== "betting") throw new Error("BETTING_CLOSED")
+  const roundId = sharedRoundId()
+  assertBettingRound(roundId)
 
   const result = await db.transaction(async (tx) => {
+    assertBettingRound(roundId)
     const user = (await tx.select().from(users).where(eq(users.id, userId)).limit(1))[0]
     if (!user) throw new Error("Unauthorized")
     if (Number(user.balance) < bet) throw new Error("INSUFFICIENT_FUNDS")
@@ -130,8 +145,9 @@ export async function startCrash(bet: number): Promise<{
 
     if (updated.length === 0) throw new Error("INSUFFICIENT_FUNDS")
 
-    const roundId = sharedRoundId()
-    const startTime = sharedFlightStart()
+    // Reject and roll back the debit if a lock/connection wait passed launch.
+    assertBettingRound(roundId)
+    const startTime = roundId * CRASH_ROUND_MS + CRASH_BETTING_MS
     const history = await tx.insert(gameHistory).values({
       userId, game: "crash", bet: String(bet), result: "0", meta: { roundId, mode: "stars", status: "active" },
     }).returning({ id: gameHistory.id })
@@ -139,55 +155,47 @@ export async function startCrash(bet: number): Promise<{
 
     return { token, startTime, balance: Number(updated[0].balance) }
   })
-  await notifyAdmins(`🚀 <b>Ставка Crash</b>\n\n👤 User: <code>${userId}</code>\n⭐ ${bet.toLocaleString("en-US")}\n🎮 Round: ${sharedRoundId()}`)
+  after(() => notifyAdmins(`🚀 <b>Ставка Crash</b>\n\n👤 User: <code>${userId}</code>\n⭐ ${bet.toLocaleString("en-US")}\n🎮 Round: ${roundId}`))
   return result
 }
 
 export async function cashoutCrash(token: string): Promise<{
   success: boolean
   multiplier: number
-  crashPoint: number
   payout: number
   balance: number | null
 }> {
+  const requestedAt = Date.now()
   const userId = await requireUserId()
   const round = verifyRound(token)
   if (!round || round.userId !== userId) throw new Error("Invalid round")
+  if (requestedAt < round.startTime) throw new Error("ROUND_NOT_STARTED")
 
-  const crashPoint = rollCrashPoint(round.roundId)
-  const elapsed = Date.now() - round.startTime
-  const current = multiplierAtElapsed(elapsed)
-  const crashed = current >= crashPoint
-
-  if (crashed) {
-    await db.update(gameHistory).set({ result: "0", meta: { roundId: round.roundId, crashPoint, status: "bust" } }).where(eq(gameHistory.id, round.historyId))
-    return {
-      success: false,
-      multiplier: crashPoint,
-      crashPoint,
-      payout: 0,
-      balance: null,
+  return db.transaction(async (tx) => {
+    // The history row is the settlement lock: retries and simultaneous requests
+    // return the original result, and the credit commits in the same transaction.
+    const row = (await tx.select().from(gameHistory).where(eq(gameHistory.id, round.historyId)).limit(1).for("update"))[0]
+    const meta = checkedHistoryMeta(row, round, "stars")
+    if (meta.status === "cashed") {
+      const user = (await tx.select({ balance: users.balance }).from(users).where(eq(users.id, userId)).limit(1))[0]
+      return { success: true, multiplier: Math.round(Number(meta.multiplier) * 100) / 100, payout: Number(row.result), balance: user ? Number(user.balance) : null }
     }
-  }
+    const point = rollCrashPoint(round.roundId)
+    if (meta.status === "bust") return { success: false, multiplier: point, payout: 0, balance: null }
+    if (meta.status !== "active") throw new Error("ROUND_NOT_ACTIVE")
 
-  const mult = Math.min(current, crashPoint)
-  const payout = Math.round(round.bet * mult * 100) / 100
-
-  const updated = await db
-    .update(users)
-    .set({ balance: sql`${users.balance} + ${payout}` })
-    .where(eq(users.id, userId))
-    .returning({ balance: users.balance })
-
-  await db.update(gameHistory).set({ result: String(payout), meta: { roundId: round.roundId, crashPoint, status: "cashed", multiplier: mult } }).where(eq(gameHistory.id, round.historyId))
-
-  return {
-    success: true,
-    multiplier: Math.round(mult * 100) / 100,
-    crashPoint,
-    payout,
-    balance: Number(updated[0].balance),
-  }
+    const current = multiplierAtElapsed(requestedAt - round.startTime)
+    if (current >= point) {
+      await tx.update(gameHistory).set({ result: "0", meta: { ...meta, crashPoint: point, status: "bust" } }).where(eq(gameHistory.id, row.id))
+      return { success: false, multiplier: point, payout: 0, balance: null }
+    }
+    const payout = Math.round(Number(row.bet) * current * 100) / 100
+    const updated = await tx.update(users).set({ balance: sql`${users.balance} + ${payout}` }).where(eq(users.id, userId)).returning({ balance: users.balance })
+    if (!updated.length) throw new Error("Unauthorized")
+    // Never save or return a future crash point with a successful cashout.
+    await tx.update(gameHistory).set({ result: String(payout), meta: { ...meta, status: "cashed", multiplier: current } }).where(eq(gameHistory.id, row.id))
+    return { success: true, multiplier: Math.round(current * 100) / 100, payout, balance: Number(updated[0].balance) }
+  })
 }
 
 /** Settle a round that busted without the client cashing out (for history). */
@@ -195,7 +203,14 @@ export async function settleCrashBust(token: string): Promise<void> {
   const userId = await requireUserId()
   const round = verifyRound(token)
   if (!round || round.userId !== userId) return
-  await db.update(gameHistory).set({ result: "0", meta: { roundId: round.roundId, crashPoint: rollCrashPoint(round.roundId), status: "bust" } }).where(eq(gameHistory.id, round.historyId))
+  const point = rollCrashPoint(round.roundId)
+  if (Date.now() < round.startTime || multiplierAtElapsed(Date.now() - round.startTime) < point) throw new Error("ROUND_NOT_FINISHED")
+  await db.transaction(async (tx) => {
+    const row = (await tx.select().from(gameHistory).where(eq(gameHistory.id, round.historyId)).limit(1).for("update"))[0]
+    const meta = checkedHistoryMeta(row, round, "stars")
+    if (meta.status !== "active") return
+    await tx.update(gameHistory).set({ result: "0", meta: { ...meta, crashPoint: point, status: "bust" } }).where(eq(gameHistory.id, row.id))
+  })
 }
 
 /* ----------------------------- Gift Crash ----------------------------- */
@@ -266,10 +281,13 @@ export async function startGiftCrash(inventoryIds: number[]): Promise<{
   if (CRASH_MAINTENANCE) throw new Error("CRASH_MAINTENANCE")
   const userId = await requireUserId()
   const claim = await getFreeCaseClaimStatus(userId)
-  if (crashRoundPhase() !== "betting") throw new Error("BETTING_CLOSED")
+  const roundId = sharedRoundId()
+  assertBettingRound(roundId)
+  if (!Array.isArray(inventoryIds)) throw new Error("Choose valid gifts")
   const uniqueIds = [...new Set(inventoryIds.map(Number))]
   if (!uniqueIds.length || uniqueIds.length > 20 || uniqueIds.some((id) => !Number.isSafeInteger(id) || id <= 0)) throw new Error("Choose valid gifts")
   const result = await db.transaction(async (tx) => {
+    assertBettingRound(roundId)
     const items = await tx
         .select({
           id: inventory.id,
@@ -283,17 +301,23 @@ export async function startGiftCrash(inventoryIds: number[]): Promise<{
         .from(inventory)
         .innerJoin(gifts, eq(inventory.giftId, gifts.id))
         .where(and(inArray(inventory.id, uniqueIds), eq(inventory.userId, userId), eq(inventory.status, "owned")))
+        .orderBy(inventory.id)
+        .for("update", { of: inventory })
     if (items.length !== uniqueIds.length) throw new Error("One of the gifts is no longer available")
     items.forEach((item) => assertFreeCaseGiftUnlocked(item.source, claim.ready))
     const item = items[0]
 
     // Lock the gift for the duration of the round.
-    await tx.update(inventory).set({ status: "wagered" }).where(inArray(inventory.id, uniqueIds))
+    const locked = await tx.update(inventory).set({ status: "wagered" })
+      .where(and(inArray(inventory.id, uniqueIds), eq(inventory.userId, userId), eq(inventory.status, "owned")))
+      .returning({ id: inventory.id })
+    if (locked.length !== uniqueIds.length) throw new Error("One of the gifts is no longer available")
 
-    const startTime = sharedFlightStart()
+    assertBettingRound(roundId)
+    const startTime = roundId * CRASH_ROUND_MS + CRASH_BETTING_MS
     // Gifts and Stars use the same authoritative shared crash point.
-    const roundId = sharedRoundId()
-    const stakeValue = items.reduce((sum, gift) => sum + giftValueInStars(gift.value, gift.floorTon), 0)
+    const stakeValue = Math.round(items.reduce((sum, gift) => sum + giftValueInStars(gift.value, gift.floorTon), 0) * 100) / 100
+    if (!Number.isFinite(stakeValue) || stakeValue <= 0) throw new Error("Invalid gift value")
     const history = await tx.insert(gameHistory).values({
       userId,
       game: "crash",
@@ -321,70 +345,77 @@ export async function startGiftCrash(inventoryIds: number[]): Promise<{
     })
     return { token, startTime, stakeValue }
   })
-  await notifyAdmins(`🚀 <b>Ставка Gift Crash</b>\n\n👤 User: <code>${userId}</code>\n🎁 ${uniqueIds.length} NFT\n⭐ ${result.stakeValue.toLocaleString("en-US")}`)
+  after(() => notifyAdmins(`🚀 <b>Ставка Gift Crash</b>\n\n👤 User: <code>${userId}</code>\n🎁 ${uniqueIds.length} NFT\n⭐ ${result.stakeValue.toLocaleString("en-US")}`))
   return result
 }
 
 export async function cashoutGiftCrash(token: string): Promise<{
   success: boolean
   multiplier: number
-  crashPoint: number
   gift: OwnedGift | null
 }> {
+  const requestedAt = Date.now()
   const userId = await requireUserId()
   const round = verifyGiftRound(token)
   if (!round || round.userId !== userId) throw new Error("Invalid round")
-
-  const crashPoint = rollCrashPoint(round.roundId)
-  const elapsed = Date.now() - round.startTime
-  const current = multiplierAtElapsed(elapsed)
-
-  if (current >= crashPoint) {
-    // Bust — the wagered gift is lost.
-    await db.update(inventory).set({ status: "lost" }).where(inArray(inventory.id, round.inventoryIds))
-    await db.update(gameHistory).set({ result: "0", meta: { roundId: round.roundId, mode: "gift", crashPoint, status: "bust", giftName: round.giftName, giftImage: round.giftImage, giftRarity: round.giftRarity } }).where(eq(gameHistory.id, round.historyId))
-    revalidatePath("/profile")
-    return { success: false, multiplier: crashPoint, crashPoint, gift: null }
-  }
-
-  const mult = Math.min(current, crashPoint)
-  const targetValue = round.stakeValue * mult
+  if (requestedAt < round.startTime) throw new Error("ROUND_NOT_STARTED")
 
   return db.transaction(async (tx) => {
-    // Pick the gift whose value is closest to (and not above) the target,
-    // falling back to the cheapest gift if none qualify.
+    const row = (await tx.select().from(gameHistory).where(eq(gameHistory.id, round.historyId)).limit(1).for("update"))[0]
+    const meta = checkedHistoryMeta(row, round, "gift")
+    if (meta.status === "cashed") {
+      const reward = meta.reward as OwnedGift | undefined
+      return {
+        success: true,
+        multiplier: Math.round(Number(meta.multiplier) * 100) / 100,
+        gift: reward ?? { id: round.inventoryIds[0], name: String(meta.giftName), imageUrl: String(meta.giftImage), rarity: String(meta.giftRarity), value: Number(row.result) },
+      }
+    }
+    const point = rollCrashPoint(round.roundId)
+    if (meta.status === "bust") return { success: false, multiplier: point, gift: null }
+    if (meta.status !== "active") throw new Error("ROUND_NOT_ACTIVE")
+    const locked = await tx.select().from(inventory)
+      .where(and(inArray(inventory.id, round.inventoryIds), eq(inventory.userId, userId), eq(inventory.status, "wagered")))
+      .orderBy(inventory.id).for("update")
+    if (locked.length !== round.inventoryIds.length) throw new Error("ROUND_NOT_ACTIVE")
+
+    const mult = multiplierAtElapsed(requestedAt - round.startTime)
+    if (mult >= point) {
+      await tx.update(inventory).set({ status: "lost" }).where(and(inArray(inventory.id, round.inventoryIds), eq(inventory.userId, userId), eq(inventory.status, "wagered")))
+      await tx.update(gameHistory).set({ result: "0", meta: { ...meta, crashPoint: point, status: "bust" } }).where(eq(gameHistory.id, row.id))
+      revalidatePath("/profile")
+      return { success: false, multiplier: point, gift: null }
+    }
+
+    const targetValue = Number(row.bet) * mult
+    // Never award a more expensive gift just because no catalogue floor fits.
+    // A stale/missing catalogue leaves the wager unchanged and can be retried.
     const all = (await tx.select().from(gifts)).map((gift) => ({
       gift,
       value: giftValueInStars(gift.value, gift.floorTon),
     }))
     const affordable = all
-      .filter((entry) => entry.value <= targetValue)
+      .filter((entry) => entry.value > 0 && entry.value <= targetValue)
       .sort((a, b) => b.value - a.value)
-    const chosenEntry = affordable[0] ?? all.sort((a, b) => a.value - b.value)[0]
-    if (!chosenEntry) throw new Error("No gifts available")
+    const chosenEntry = affordable[0]
+    if (!chosenEntry) throw new Error("NO_AFFORDABLE_GIFT")
     const chosen = chosenEntry.gift
     const chosenValue = chosenEntry.value
 
     await tx
       .update(inventory)
       .set({ giftId: chosen.id, value: String(chosenValue), source: "crash", status: "owned" })
-      .where(eq(inventory.id, round.inventoryIds[0]))
-    if (round.inventoryIds.length > 1) await tx.update(inventory).set({ status: "lost" }).where(inArray(inventory.id, round.inventoryIds.slice(1)))
+      .where(and(eq(inventory.id, round.inventoryIds[0]), eq(inventory.userId, userId), eq(inventory.status, "wagered")))
+    if (round.inventoryIds.length > 1) await tx.update(inventory).set({ status: "lost" }).where(and(inArray(inventory.id, round.inventoryIds.slice(1)), eq(inventory.userId, userId), eq(inventory.status, "wagered")))
 
-    await tx.update(gameHistory).set({ result: String(chosenValue), meta: { roundId: round.roundId, mode: "gift", crashPoint, status: "cashed", multiplier: mult, giftName: chosen.name, giftImage: chosen.imageUrl, giftRarity: chosen.rarity } }).where(eq(gameHistory.id, round.historyId))
+    const reward = { id: round.inventoryIds[0], name: chosen.name, rarity: chosen.rarity, imageUrl: chosen.imageUrl, value: chosenValue }
+    await tx.update(gameHistory).set({ result: String(chosenValue), meta: { ...meta, status: "cashed", multiplier: mult, giftName: chosen.name, giftImage: chosen.imageUrl, giftRarity: chosen.rarity, reward } }).where(eq(gameHistory.id, row.id))
 
     revalidatePath("/profile")
     return {
       success: true,
       multiplier: Math.round(mult * 100) / 100,
-      crashPoint,
-      gift: {
-        id: chosen.id,
-        name: chosen.name,
-        rarity: chosen.rarity,
-        imageUrl: chosen.imageUrl,
-        value: chosenValue,
-      },
+      gift: reward,
     }
   })
 }
@@ -393,13 +424,19 @@ export async function settleGiftBust(token: string): Promise<void> {
   const userId = await requireUserId()
   const round = verifyGiftRound(token)
   if (!round || round.userId !== userId) return
-  // Only lose it if still wagered (avoid double-settle after cashout).
-  const item = (
-    await db.select().from(inventory).where(inArray(inventory.id, round.inventoryIds)).limit(1)
-  )[0]
-  if (!item || item.status !== "wagered") return
-  await db.update(inventory).set({ status: "lost" }).where(inArray(inventory.id, round.inventoryIds))
-  await db.update(gameHistory).set({ result: "0", meta: { roundId: round.roundId, mode: "gift", crashPoint: rollCrashPoint(round.roundId), status: "bust", giftName: round.giftName, giftImage: round.giftImage, giftRarity: round.giftRarity } }).where(eq(gameHistory.id, round.historyId))
+  const point = rollCrashPoint(round.roundId)
+  if (Date.now() < round.startTime || multiplierAtElapsed(Date.now() - round.startTime) < point) throw new Error("ROUND_NOT_FINISHED")
+  await db.transaction(async (tx) => {
+    const row = (await tx.select().from(gameHistory).where(eq(gameHistory.id, round.historyId)).limit(1).for("update"))[0]
+    const meta = checkedHistoryMeta(row, round, "gift")
+    if (meta.status !== "active") return
+    const locked = await tx.select().from(inventory)
+      .where(and(inArray(inventory.id, round.inventoryIds), eq(inventory.userId, userId), eq(inventory.status, "wagered")))
+      .orderBy(inventory.id).for("update")
+    if (locked.length !== round.inventoryIds.length) throw new Error("ROUND_NOT_ACTIVE")
+    await tx.update(inventory).set({ status: "lost" }).where(and(inArray(inventory.id, round.inventoryIds), eq(inventory.userId, userId), eq(inventory.status, "wagered")))
+    await tx.update(gameHistory).set({ result: "0", meta: { ...meta, crashPoint: point, status: "bust" } }).where(eq(gameHistory.id, row.id))
+  })
   revalidatePath("/profile")
 }
 
@@ -410,6 +447,7 @@ function signGiftRound(p: GiftRound): string {
 }
 
 function verifyGiftRound(token: string): GiftRound | null {
+  if (typeof token !== "string" || token.length > 4096) return null
   const idx = token.lastIndexOf(".")
   if (idx === -1) return null
   const body = token.slice(0, idx)
@@ -417,7 +455,11 @@ function verifyGiftRound(token: string): GiftRound | null {
   const expected = crypto.createHmac("sha256", crashSecret()).update(body).digest("hex").slice(0, 32)
   if (sig.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null
   try {
-    return JSON.parse(Buffer.from(body, "base64url").toString("utf8"))
+    const round = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as GiftRound
+    return validRoundIdentity(round) && Number.isFinite(round.stakeValue) && round.stakeValue > 0
+      && Array.isArray(round.inventoryIds) && round.inventoryIds.length > 0 && round.inventoryIds.length <= 20
+      && new Set(round.inventoryIds).size === round.inventoryIds.length
+      && round.inventoryIds.every((id) => Number.isSafeInteger(id) && id > 0) ? round : null
   } catch {
     return null
   }

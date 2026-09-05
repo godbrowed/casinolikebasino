@@ -2,7 +2,6 @@
 
 import { memo, useEffect, useRef, useState, type ReactNode } from "react"
 import { cn } from "@/lib/utils"
-import { multiplierAtElapsed } from "@/lib/crash-shared"
 
 type Phase = "idle" | "running" | "cashed" | "crashed"
 
@@ -14,38 +13,49 @@ export function CrashRocket({
   multiplier,
   payloadImage,
   collectImages = [],
-  flightStart,
+  readMultiplier,
   children,
 }: {
   phase: Phase
   multiplier: number
   payloadImage?: string | null
   collectImages?: string[]
-  flightStart?: number | null
+  readMultiplier?: () => number
   children?: ReactNode
 }) {
   const running = phase === "running"
   const crashed = phase === "crashed"
   const [showImpact, setShowImpact] = useState(false)
   const rocketRef = useRef<HTMLDivElement>(null)
+  const spriteRef = useRef<HTMLDivElement>(null)
+  const giftRefs = useRef<(HTMLImageElement | null)[]>([])
+  const fallbackMultiplier = useRef(multiplier)
+  fallbackMultiplier.current = multiplier
 
   useEffect(() => {
-    if (!running || !flightStart) return
+    if (!running) return
     let frame = 0
     const draw = () => {
-      const current = multiplierAtElapsed(Date.now() - flightStart)
+      const current = readMultiplier?.() ?? fallbackMultiplier.current
       const progress = Math.min(1, Math.log(Math.max(1, current)) / Math.log(20))
       const node = rocketRef.current
       if (node) {
-        node.style.left = `${45 + progress * 15}%`
-        node.style.top = `${61 - progress * 31}%`
-        node.style.transform = `translate3d(-50%,-50%,0) rotate(${-8 + progress * 5}deg)`
+        // The layer has the stage's dimensions, so percentage translation
+        // moves the rocket without a layout pass on every animation frame.
+        node.style.transform = `translate3d(${progress * 15}%,${-progress * 31}%,0)`
       }
+      if (spriteRef.current) spriteRef.current.style.transform = `translate3d(-50%,-50%,0) rotate(${-8 + progress * 5}deg)`
+      giftRefs.current.forEach((gift, index) => {
+        if (!gift) return
+        const collected = current >= [1.35, 1.75, 2.4, 3.5, 5][index]
+        gift.style.opacity = collected ? "0" : ".65"
+        gift.style.transform = collected ? "scale(.3)" : "scale(1)"
+      })
       frame = window.requestAnimationFrame(draw)
     }
     draw()
     return () => window.cancelAnimationFrame(frame)
-  }, [flightStart, running])
+  }, [readMultiplier, running])
 
   useEffect(() => {
     if (!crashed) {
@@ -53,12 +63,9 @@ export function CrashRocket({
       return
     }
     setShowImpact(true)
-    const id = window.setTimeout(() => setShowImpact(false), 760)
+    const id = window.setTimeout(() => setShowImpact(false), 460)
     return () => window.clearTimeout(id)
   }, [crashed])
-
-  const climbByMultiplier = Math.min(1, Math.log(Math.max(1, multiplier)) / Math.log(20))
-  const thresholds = [1.35, 1.75, 2.4, 3.5, 5]
 
   return <div className="crash-space-stage relative min-h-[350px] w-full overflow-hidden bg-transparent md:min-h-[420px] lg:min-h-[440px]">
     <Starfield moving={running} />
@@ -70,19 +77,19 @@ export function CrashRocket({
       </svg>
 
       {collectImages.slice(0, 5).map((src, index) => {
-        const collected = multiplier >= thresholds[index]
         return <img
           key={`${src}-${index}`}
+          ref={(node) => { giftRefs.current[index] = node }}
           src={src || "/images/nft-gift.png"}
           alt=""
           aria-hidden
-          className={cn("absolute h-8 w-8 object-contain transition duration-200 md:h-10 md:w-10", collected ? "scale-0 opacity-0" : "opacity-75")}
+          className="absolute h-8 w-8 object-contain transition-[transform,opacity] duration-200 md:h-10 md:w-10"
           style={{ left: `${18 + index * 16}%`, top: `${25 + (index % 2) * 30}%` }}
         />
       })}
 
-      <div ref={rocketRef} className="absolute z-10 will-change-[left,top,transform]" style={{ left: "45%", top: "61%", transform: "translate3d(-50%,-50%,0) rotate(-8deg)" }}>
-        <div className="relative">
+      <div ref={rocketRef} className="pointer-events-none absolute inset-0 z-10 will-change-transform">
+        <div ref={spriteRef} className="absolute left-[45%] top-[61%]" style={{ transform: "translate3d(-50%,-50%,0) rotate(-8deg)" }}>
           <img src="/images/puggift-rocket-v2.svg" alt="PugGift rocket" className="h-32 w-32 object-contain drop-shadow-[0_16px_24px_rgba(30,72,210,.3)] md:h-48 md:w-48" />
           {payloadImage && <img src={payloadImage} alt="" aria-hidden className="absolute -bottom-1 -left-2 h-9 w-9 object-contain drop-shadow-lg md:h-11 md:w-11" />}
         </div>
@@ -94,6 +101,7 @@ export function CrashRocket({
         src="/images/puggift-impact-v2.svg"
         alt="PugGift crash impact"
         className="animate-pug-impact w-[min(58vw,260px)] object-contain"
+        style={{ animationDuration: "440ms" }}
       />
     </div>}
 

@@ -80,17 +80,9 @@ export function MinesGame() {
     <div className="pointer-events-none absolute -left-24 top-52 h-64 w-64 rounded-full bg-lime-400/10 blur-[80px]" />
     <div className="pointer-events-none absolute -right-20 top-10 h-72 w-72 rounded-full bg-emerald-300/10 blur-[90px]" />
 
-    <header className="relative mb-3 min-h-[116px] overflow-hidden rounded-[28px] border border-white/[.08] bg-[linear-gradient(120deg,rgba(30,81,51,.96),rgba(12,31,21,.98))] px-5 py-4 shadow-[0_18px_60px_rgba(0,0,0,.24),inset_0_1px_0_rgba(255,255,255,.06)] md:min-h-[132px] md:px-7 md:py-5">
-      <div className="absolute inset-y-0 right-0 w-[52%] bg-[radial-gradient(circle_at_72%_50%,rgba(74,222,128,.23),transparent_62%)]" />
-      <div className="relative z-10 max-w-[68%]">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-300/10 px-2.5 py-1 text-[8px] font-black uppercase tracking-[.18em] text-emerald-200 ring-1 ring-emerald-200/15"><Clover className="h-3 w-3" />Pug’s backyard</span>
-        <h1 className="mt-2 font-display text-[28px] font-black leading-none tracking-tight md:text-4xl">Bone Hunt</h1>
-        <p className="mt-2 max-w-[290px] text-[10px] font-bold leading-snug text-white/48 md:text-xs">Dig up the bones. Cash out before an angry pug catches you.</p>
-      </div>
-      <div className="absolute -bottom-5 right-1 h-[126px] w-[126px] md:right-8 md:h-[154px] md:w-[154px]">
-        <div className="absolute inset-5 rounded-full bg-emerald-300/25 blur-2xl" />
-        <img src="/images/puggift-mark-v3.svg" alt="Pug treasure hunter" className={cn("relative h-full w-full rounded-[30%] object-cover drop-shadow-[0_14px_22px_rgba(0,0,0,.45)]", round?.status === "bust" && "animate-bounce saturate-50")} />
-      </div>
+    <header className="relative mb-4 flex items-center gap-4 px-2 py-3">
+      <Bomb className="h-10 w-10 shrink-0 text-emerald-300" strokeWidth={1.6} />
+      <div><h1 className="font-display text-3xl font-bold tracking-tight">Mines</h1><p className="mt-1 text-sm text-white/50">Find the bones. Avoid the mines.</p></div>
     </header>
 
     <section className="relative grid gap-3 md:grid-cols-[minmax(0,1fr)_300px]">

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, type ReactNode } from "react"
-import { Loader2, Gift as GiftIcon, ExternalLink, ShieldCheck } from "lucide-react"
+import { Loader2, ExternalLink, ShieldCheck } from "lucide-react"
 import { useTonConnectUI, useTonWallet } from "@tonconnect/ui-react"
 import {
   createStarsInvoice,
@@ -168,22 +168,21 @@ export function DepositView({
   }, [giftIntent?.transactionId])
 
   return (
-    <div className="mx-auto flex min-h-[calc(var(--tg-viewport-stable-height,100dvh)-118px)] w-full max-w-[620px] flex-col px-1 pb-[max(1rem,var(--tg-content-safe-area-inset-bottom,0px))]">
+    <div className="mx-auto flex min-h-[calc(var(--tg-viewport-stable-height,100dvh)-118px)] w-full max-w-[560px] flex-col pb-[max(1rem,var(--tg-content-safe-area-inset-bottom,0px))]">
       <header className="relative flex flex-col items-center pt-2">
-        <div className="app-kicker">PugGift wallet</div>
-        <h1 className="app-title mt-1 px-12 text-2xl md:px-0 md:text-3xl"><span className="md:hidden">Top up balance</span><span className="hidden md:inline">Balance replenishment</span></h1>
-        <div className="app-panel mt-5 grid w-full max-w-[560px] grid-cols-3 gap-1 rounded-[22px] p-1.5">
+        <h1 className="text-center text-[28px] font-bold leading-tight tracking-tight text-white">Balance replenishment</h1>
+        <div className="mt-6 grid h-[60px] w-full grid-cols-3 rounded-[26px] bg-[#36383c]">
           <Tab active={method === "ton"} onClick={() => setMethod("ton")} icon={<img src="/icons/ton-network-v2.svg" alt="" className="h-6 w-6 shrink-0" />} label="TON" />
           <Tab active={method === "stars"} onClick={() => setMethod("stars")} icon={<Coin className="h-5 w-5" />} label="Stars" />
-          <Tab active={method === "gifts"} onClick={() => setMethod("gifts")} icon={<GiftIcon className="h-5 w-5 text-[#ff6fbd]" />} label="Gifts" />
+          <Tab active={method === "gifts"} onClick={() => setMethod("gifts")} icon={<img src="/images/menu/gift.svg" alt="" className="h-6 w-6 shrink-0 object-contain" />} label="Gifts" />
         </div>
       </header>
 
       {msg && (
         <div
           className={cn(
-            "rounded-xl px-3 py-2 text-center text-xs font-medium",
-            msg.type === "ok" ? "bg-emerald-500/15 text-emerald-300" : "bg-rose-500/15 text-rose-300",
+            "mt-4 rounded-2xl bg-[#36383c] px-4 py-3 text-center text-sm font-medium leading-relaxed",
+            msg.type === "ok" ? "text-[#91deb0]" : "text-[#efa9ab]",
           )}
         >
           {msg.text}
@@ -197,24 +196,27 @@ export function DepositView({
             const digits = value.replace(/\D/g, "").replace(/^0+(?=\d)/, "").slice(0, 5)
             setAmountText(digits && Number(digits) > 10_000 ? "10000" : digits)
           }}
-          detail={method === "ton" && tonAmount > 0 ? `≈ ${tonAmount} TON · +${TON_DEPOSIT_BONUS_PERCENT}% bonus · ${fmt(tonCreditedStars)} Stars total` : undefined}
+          bonus={method === "ton" && tonAmount > 0 ? `+ Bonus ${fmt(tonCreditedStars - starAmount)} Stars (${TON_DEPOSIT_BONUS_PERCENT}%)` : undefined}
+          detail={method === "ton" && tonAmount > 0 ? `≈ ${tonAmount} TON` : undefined}
+          connectWallet={method === "ton" && !wallet ? () => { void tonConnectUI.openModal() } : undefined}
+          walletConnected={method === "ton" && Boolean(wallet)}
         />
       )}
 
       {method === "gifts" && (
         <div className="flex flex-1 flex-col pt-7">
           {giftIntent ? (
-            <div className="app-panel mx-auto flex w-full max-w-[560px] flex-col gap-3 rounded-[30px] p-5">
+            <div className="mx-auto flex w-full flex-col gap-4 rounded-[28px] bg-[#36383c] p-5 sm:p-6">
               <div className="text-center">
-                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#2f70ff]/18 text-[#70a0ff] ring-1 ring-[#6f96ff]/30"><ShieldCheck className="h-6 w-6" /></div>
-                <div className="font-display text-xl font-black text-white">Send the gift to @{giftIntent.relayerUsername ?? "pugsrelayer"}</div>
-                <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-white/48">
-                  Transfer <span className="font-black text-white">{giftIntent.giftName}</span>{" "}from this Telegram account. PugGift will detect it and add the gift automatically.
+                <ShieldCheck className="mx-auto mb-4 h-9 w-9 text-[#aeb0b6]" strokeWidth={1.5} />
+                <h2 className="text-[24px] font-bold leading-tight tracking-tight text-white">Send the gift to @{giftIntent.relayerUsername ?? "pugsrelayer"}</h2>
+                <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-[#aeb0b6]">
+                  Transfer <span className="font-semibold text-white">{giftIntent.giftName}</span>{" "}from this Telegram account. PugGift will detect it and add the gift automatically.
                 </p>
               </div>
-              <a href={giftIntent.relayerUrl} target="_blank" rel="noreferrer" onClick={() => haptic("medium")} className="flex items-center justify-center gap-2 rounded-[20px] bg-[#2f70ff] py-4 font-display text-lg font-black text-white shadow-[0_5px_0_#1945b9] transition active:translate-y-0.5"><ExternalLink className="h-5 w-5" />Open t.me/{giftIntent.relayerUsername ?? "pugsrelayer"}</a>
-              <div className="flex items-center justify-center gap-2 rounded-[18px] bg-[#25282f] px-3 py-3 text-xs font-bold text-white/55"><Loader2 className="h-4 w-4 animate-spin text-[#70a0ff]" />Waiting for the transfer · value {fmt(giftIntent.value)} Stars</div>
-              <p className="text-center text-[11px] text-white/35">No code or Business Connection is needed. Keep the sender visible for instant matching; a private send is credited automatically only when it has one unambiguous pending owner.</p>
+              <a href={giftIntent.relayerUrl} target="_blank" rel="noreferrer" onClick={() => haptic("medium")} className="flex min-h-14 items-center justify-center gap-2 rounded-[20px] bg-[#2b6eff] px-3 py-3 text-base font-semibold text-white transition-colors hover:bg-[#3d7bff]"><ExternalLink className="h-5 w-5 shrink-0" />Open t.me/{giftIntent.relayerUsername ?? "pugsrelayer"}</a>
+              <div className="flex items-center justify-center gap-2 rounded-[18px] bg-[#45474c] px-3 py-3 text-center text-[13px] font-medium leading-relaxed text-[#c2c4ca]"><Loader2 className="h-4 w-4 shrink-0 animate-spin" />Waiting for the transfer · value {fmt(giftIntent.value)} Stars</div>
+              <p className="text-center text-[13px] leading-relaxed text-[#aeb0b6]">No code or Business Connection is needed. Keep the sender visible for instant matching; a private send is credited automatically only when it has one unambiguous pending owner.</p>
               <button
                 onClick={async () => {
                   setBusy(true)
@@ -225,29 +227,30 @@ export function DepositView({
                     setBusy(false)
                   }
                 }}
-                className="rounded-xl bg-secondary py-2.5 text-sm font-bold transition-colors hover:bg-secondary/70"
+                className="min-h-12 rounded-2xl bg-[#505258] px-3 py-3 text-sm font-semibold transition-colors hover:bg-[#5b5d63]"
               >
                 Cancel · choose another gift
               </button>
             </div>
           ) : (
             <>
-              <div className="mx-auto w-full max-w-[560px] rounded-[30px] bg-[#3b3f46] p-5 text-center ring-1 ring-white/[.07]"><h2 className="font-display text-2xl font-black">Add a gift</h2><p className="mx-auto mt-1 max-w-sm text-sm text-white/45">Send it to <a href={relayer.url} target="_blank" rel="noreferrer" className="font-black text-[#72a0ff] underline decoration-[#72a0ff]/35 underline-offset-2">@{relayer.username ?? "pugsrelayer"}</a>, then keep it, upgrade it or sell it for Stars.</p><button onClick={() => document.getElementById("deposit-gifts")?.scrollIntoView({ behavior: "smooth", block: "start" })} className="mt-5 w-full rounded-[20px] bg-[#2f70ff] py-4 text-lg font-black shadow-[0_5px_0_#1945b9]">Add</button></div>
+              <div className="mx-auto w-full rounded-[28px] bg-[#36383c] p-5 text-center sm:p-6"><h2 className="text-[28px] font-bold tracking-tight">Add a gift</h2><p className="mx-auto mt-2 max-w-sm text-[15px] leading-snug text-[#aeb0b6]">Send it to <a href={relayer.url} target="_blank" rel="noreferrer" className="font-semibold text-[#77a3ff] underline underline-offset-2">@{relayer.username ?? "pugsrelayer"}</a>, then keep it, upgrade it or sell it for Stars.</p><button onClick={() => document.getElementById("deposit-gifts")?.scrollIntoView({ behavior: "smooth", block: "start" })} className="mt-5 min-h-14 w-full rounded-[20px] bg-[#2b6eff] px-4 text-[18px] font-semibold transition-colors hover:bg-[#3d7bff]">Add</button></div>
               {giftCatalog.length === 0 ? (
-                <p className="py-6 text-center text-xs text-muted-foreground">No gifts available yet.</p>
+                <p className="py-6 text-center text-sm text-[#aeb0b6]">No gifts available yet.</p>
               ) : (
-                <div id="deposit-gifts" className="mx-auto mt-5 grid w-full max-w-[560px] scroll-mt-5 grid-cols-3 gap-x-2 gap-y-5 rounded-[30px] bg-[#363a42] p-4 ring-1 ring-white/[.07]">
+                <div id="deposit-gifts" className="mx-auto mt-6 grid w-full scroll-mt-5 grid-cols-3 gap-x-2 gap-y-5 rounded-[28px] bg-[#36383c] p-4 sm:gap-x-4 sm:p-5">
+                  <h3 className="col-span-3 text-center text-[15px] font-semibold text-[#aeb0b6]">Available gifts</h3>
                   {giftCatalog.map((g) => {
                     return (
                       <button
                         key={g.slug}
                         onClick={() => handleGiftDeposit(g.slug)}
                         disabled={busy}
-                        className="group flex min-w-0 flex-col items-center text-center transition-transform active:scale-95 disabled:opacity-50"
+                        className="group flex min-w-0 flex-col items-center rounded-2xl text-center transition-opacity hover:opacity-80 disabled:opacity-50"
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={g.imageUrl || "/images/nft-gift.png"} alt={g.name} className="h-20 w-20 object-contain drop-shadow-[0_9px_11px_rgba(0,0,0,.45)] transition-transform group-hover:scale-105 md:h-24 md:w-24" />
-                        <span className="mt-1 flex w-full items-center justify-center gap-1 rounded-full bg-white/10 px-2 py-2 text-xs font-black text-white"><Coin className="h-4 w-4" />{fmt(g.value)}</span>
+                        <img src={g.imageUrl || "/images/nft-gift.png"} alt={g.name} className="h-24 w-full object-contain sm:h-28" />
+                        <span className="mt-1 flex min-h-10 w-full items-center justify-center gap-1 rounded-full bg-[#505258] px-1 py-2 text-[13px] font-semibold text-white sm:text-sm"><Coin className="h-4 w-4 shrink-0" />{fmt(g.value)}</span>
                       </button>
                     )
                   })}
@@ -259,26 +262,35 @@ export function DepositView({
       )}
 
       {busy && (
-        <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+        <div role="status" className="flex items-center justify-center gap-2 py-3 text-sm text-[#aeb0b6]">
           <Loader2 className="h-4 w-4 animate-spin" /> Processing…
         </div>
       )}
 
-      {method !== "gifts" && <footer className="mt-auto pt-3">
-        <div className="grid grid-cols-3 gap-3 pb-3">
+      {method !== "gifts" && <footer className="mt-auto pt-5">
+        <div className="grid grid-cols-3 gap-2 pb-4 sm:gap-3">
           {[500, 2000, 5000].map((value) => {
-            const active = starAmount === value
-            return <button key={value} onClick={() => setAmountText(String(value))} className={cn("rounded-[18px] bg-[#50535a] px-3 py-3 text-sm font-black text-white transition", active && "bg-[#656971]")}>+{fmt(value)}</button>
+            return <button key={value} onClick={() => setAmountText((current) => String(Math.min(10_000, Number(current || 0) + value)))} disabled={busy || starAmount >= 10_000} className="min-h-[50px] rounded-[19px] bg-[#4b4d52] px-2 py-3 text-base font-semibold text-white transition-colors hover:bg-[#585b61] disabled:opacity-50">+{fmt(value)}</button>
           })}
         </div>
-        <button onClick={() => method === "stars" ? handleStars(starAmount) : handleTon(tonAmount)} disabled={busy || starAmount < 1 || starAmount > 10_000} className="app-cta flex w-full items-center justify-center gap-2 rounded-[20px] py-4 font-display text-lg font-black transition disabled:opacity-50">{busy ? <Loader2 className="h-5 w-5 animate-spin" /> : method === "ton" ? wallet ? `Top up ${tonAmount} TON` : "Connect wallet" : `Top up ${fmt(starAmount)} Stars`}</button>
+        <button onClick={() => method === "stars" ? handleStars(starAmount) : handleTon(tonAmount)} disabled={busy || starAmount < 1 || starAmount > 10_000} className="flex min-h-[64px] w-full items-center justify-center gap-2 rounded-[24px] bg-[#2b6eff] px-4 py-4 text-[20px] font-semibold text-white transition-colors hover:bg-[#3d7bff] disabled:opacity-50 sm:min-h-[70px]">{busy ? <Loader2 className="h-5 w-5 animate-spin" /> : method === "ton" ? wallet ? `Top up ${tonAmount} TON` : "Connect wallet" : `Top up ${fmt(starAmount)} Stars`}</button>
       </footer>}
     </div>
   )
 }
 
-function DepositAmountPane({ value, onChange, detail }: { value: string; onChange: (value: string) => void; detail?: string }) {
-  return <section className="flex min-h-[220px] flex-1 flex-col items-center justify-center py-8 text-center"><div className="flex w-full items-center justify-center gap-3"><input aria-label="Stars amount" type="text" inputMode="numeric" enterKeyHint="done" pattern="[0-9]*" autoComplete="off" spellCheck={false} maxLength={5} value={value} onChange={(event) => onChange(event.target.value)} onFocus={(event) => event.currentTarget.select()} placeholder="0" className="min-w-0 max-w-[76%] bg-transparent text-right font-display text-7xl font-black tabular-nums text-white caret-[#2f70ff] outline-none placeholder:text-white/20 md:text-8xl" style={{ width: `${Math.max(1, value.length) + 0.45}ch` }} /><Coin className="h-16 w-16 md:h-20 md:w-20" /></div>{detail && <div className="mt-4 text-sm font-bold text-white/42">{detail}</div>}</section>
+function DepositAmountPane({ value, onChange, bonus, detail, connectWallet, walletConnected }: { value: string; onChange: (value: string) => void; bonus?: string; detail?: string; connectWallet?: () => void; walletConnected?: boolean }) {
+  return (
+    <section className="flex min-h-[280px] flex-1 flex-col items-center justify-center py-10 text-center">
+      {connectWallet ? <button onClick={connectWallet} className="mb-5 rounded-full bg-[#505258] px-4 py-1.5 text-sm font-semibold text-white">Connect wallet</button> : walletConnected ? <span className="mb-5 rounded-full bg-[#505258] px-4 py-1.5 text-sm font-semibold text-white">Wallet connected</span> : null}
+      <div className="flex w-full items-center justify-center gap-3">
+        <input aria-label="Stars amount" type="text" inputMode="numeric" enterKeyHint="done" pattern="[0-9]*" autoComplete="off" spellCheck={false} maxLength={5} value={value} onChange={(event) => onChange(event.target.value)} onFocus={(event) => event.currentTarget.select()} placeholder="0" className="min-w-0 max-w-[76%] bg-transparent text-right text-[72px] font-bold leading-none tabular-nums text-white caret-[#2b6eff] outline-none placeholder:text-white/25 sm:text-[88px]" style={{ width: `${Math.max(1, value.length) + 0.15}ch` }} />
+        <Coin className="h-14 w-14 shrink-0 sm:h-16 sm:w-16" />
+      </div>
+      {bonus && <div className="mt-5 text-[15px] font-semibold text-[#2b6eff] sm:text-base">{bonus}</div>}
+      {detail && <div className="mt-2 text-[15px] text-[#989ba2] sm:text-base">{detail}</div>}
+    </section>
+  )
 }
 
 function Tab({
@@ -295,9 +307,10 @@ function Tab({
   return (
     <button
       onClick={onClick}
+      aria-pressed={active}
       className={cn(
-        "flex items-center justify-center gap-1.5 rounded-2xl py-2.5 text-xs font-bold transition-all",
-        active ? "bg-[#2f70ff] text-white" : "text-white/65",
+        "flex min-h-[60px] items-center justify-center gap-2 rounded-[26px] px-2 text-[15px] font-semibold transition-colors sm:text-base",
+        active ? "bg-[#2b6eff] text-white" : "text-[#e4e5e8] hover:bg-white/[.04]",
       )}
     >
       {Icon}

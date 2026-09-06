@@ -47,15 +47,13 @@ export function TonWalletCard({ linkedAddress }: { linkedAddress: string | null 
   }
 
   return (
-    <section className="app-panel rounded-2xl p-4">
+    <section className="rounded-[26px] bg-[#36383c] p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 text-primary">
-            <Wallet className="h-5 w-5" />
-          </div>
+          <img src="/icons/ton-network-v2.svg" alt="" className="h-10 w-10" />
           <div>
-            <h2 className="font-display text-sm font-black">TON wallet</h2>
-            <p className="mt-0.5 text-xs text-muted-foreground">
+            <h2 className="text-[16px] font-bold">TON wallet</h2>
+            <p className="mt-0.5 text-[13px] text-muted-foreground">
               {saved ? "Linked to your Telegram account" : "Connect for deposits and payouts"}
             </p>
           </div>
@@ -93,7 +91,7 @@ export function TonWalletCard({ linkedAddress }: { linkedAddress: string | null 
           type="button"
           disabled={busy}
           onClick={() => tonConnectUI.openModal()}
-          className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-sm font-black text-primary-foreground transition-transform active:scale-[0.98] disabled:opacity-50"
+          className="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-[18px] bg-primary py-3 text-[15px] font-bold text-primary-foreground transition-colors hover:bg-[#3d7bff] disabled:opacity-50"
         >
           <Wallet className="h-4 w-4" />
           Connect TON wallet

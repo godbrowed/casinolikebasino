@@ -8,21 +8,25 @@ const React = require('react')
 const { renderToStaticMarkup } = require('react-dom/server')
 const root = path.resolve(__dirname, '..')
 const cache = new Map()
+const screen = process.argv[2] || 'home'
+const route = screen === 'home' ? '/' : '/' + screen
 const mocks = {
   'next/link': ({ children, ...props }) => React.createElement('a', props, children),
-  'next/navigation': { usePathname: () => '/' },
+  'next/navigation': { usePathname: () => route, useRouter: () => ({ refresh() {} }) },
   swr: () => ({ data: undefined }),
-  '@/components/user-provider': { useUser: () => ({ me: { balance: 200 }, isLoading: false }) },
+  '@/components/user-provider': { useUser: () => ({ me: { balance: 200 }, isLoading: false, refresh() {}, setBalance() {} }) },
+  '@tonconnect/ui-react': { useTonWallet: () => null, useTonConnectUI: () => [{}] },
   '@/components/language-provider': { useLanguage: () => ({ t: key => ({ games: 'Games', battles: 'PvP', crash: 'Crash', upgrade: 'Upgrade', profile: 'Profile' })[key] }) },
-  '@/lib/telegram-webapp': { haptic() {} },
+  '@/lib/telegram-webapp': { haptic() {}, hapticNotify() {} },
   '@/lib/client-game-api': { fetchLiveDrops() {} },
 }
 function load(file) {
   if (cache.has(file)) return cache.get(file)
   const exports = {}
-  const context = { exports, module: { exports }, React, console,
+  const context = { exports, module: { exports }, React, console, process: { env: {} },
     require(name) {
       if (name in mocks) return mocks[name]
+      if (name.startsWith('@/app/actions/')) return new Proxy({}, { get() { return () => { throw new Error('Actions are disabled in the static design fixture') } } })
       if (name.startsWith('@/')) {
         const base = name.slice(2)
         return load(fs.existsSync(path.join(root, base + '.tsx')) ? base + '.tsx' : base + '.ts')
@@ -40,8 +44,24 @@ async function main() {
   const { HomeLobby } = load('components/home-lobby.tsx')
   const { AppHeader } = load('components/app-header.tsx')
   const { BottomNav } = load('components/bottom-nav.tsx')
+  const fixtureGifts = [
+    { id: 1, name: 'Bunny Muffin', imageUrl: '/images/menu/bunny-muffin.png', rarity: 'rare', value: 480, source: 'case', locked: false, sending: false },
+    { id: 2, name: 'Heart Locket', imageUrl: '/images/menu/heart-locket.png', rarity: 'legendary', value: 920, source: 'case', locked: false, sending: false },
+    { id: 3, name: 'Plush Pepe', imageUrl: '/images/menu/plush-pepe.png', rarity: 'mythic', value: 1200, source: 'case', locked: false, sending: false },
+  ]
+  let content = React.createElement(HomeLobby, { online: 0, paidCaseCount: 18, freeCaseSlug: 'free' })
+  if (screen === 'profile') content = React.createElement('main', { className: 'mx-auto w-full max-w-[584px] px-3 pt-5' }, React.createElement(load('components/profile-view.tsx').ProfileView, {
+    me: { firstName: 'Design preview', username: 'preview', balance: 200, xp: 0, photoUrl: null }, inventory: fixtureGifts, history: [], freeCaseClaim: null,
+    referral: { invited: 0, earned: 0, ratePercent: 10, inviteUrl: '' },
+  }))
+  if (screen === 'deposit') content = React.createElement('main', { className: 'mx-auto w-full max-w-[584px] px-3 pt-5' }, React.createElement(load('components/deposit-view.tsx').DepositView, { tonRate: 100, giftCatalog: [], relayer: { username: 'pugsrelayer', url: 'https://t.me/pugsrelayer' } }))
+  if (screen === 'upgrade') content = React.createElement(load('components/upgrade-game.tsx').UpgradeGame, { inventory: fixtureGifts.slice(0, 1), targets: fixtureGifts.slice(1) })
+  if (screen === 'cases') {
+    const Card = load('components/case-card.tsx').CaseCard
+    content = React.createElement('main', { className: 'mx-auto w-full max-w-[800px] px-3 pt-5' }, React.createElement('h1', { className: 'mb-6 text-center text-[28px] font-bold' }, 'Cases'), React.createElement('div', { className: 'grid grid-cols-2 gap-3 md:grid-cols-3' }, ...['Free case', 'Pug Pocket', 'Pug Club', 'Collectibles'].map((name, i) => React.createElement(Card, { key: name, c: { id: i, slug: 'preview', name, isFree: i === 0, price: [0,199,250,500][i], items: fixtureGifts } }))))
+  }
   const body = renderToStaticMarkup(React.createElement(React.Fragment, null,
-    React.createElement('div', { className: 'app-shell min-h-screen pb-24' }, React.createElement(AppHeader), React.createElement('main', { className: 'pt-3' }, React.createElement(HomeLobby, { online: 0 }))),
+    React.createElement('div', { className: 'app-shell min-h-screen ' + (screen === 'deposit' ? '' : 'pb-24') }, React.createElement(AppHeader), React.createElement('div', { className: 'pt-3' }, content)),
     React.createElement(BottomNav)))
   const css = await require('postcss')([require('@tailwindcss/postcss')()]).process(fs.readFileSync(path.join(root, 'app/globals.css'), 'utf8'), { from: path.join(root, 'app/globals.css') })
   fs.writeFileSync(path.join(root, 'public/__design-preview.css'), css.css)

@@ -12,15 +12,14 @@ export default async function HomePage() {
     ? statsResult[0].value
     : { online: 0, wonToday: 0 }
   const catalog = statsResult[1].status === "fulfilled" ? statsResult[1].value : []
-  const featuredGifts = Array.from(new Map(catalog.flatMap((item) => item.items)
-    .filter((item) => item.rewardType !== "currency")
-    .map((item) => [item.imageUrl, { name: item.name, imageUrl: item.imageUrl }])).values()).slice(0, 3)
+  const freeCaseSlug = catalog.find((item) => item.isFree)?.slug
+  const paidCaseCount = catalog.filter((item) => !item.isFree).length
 
   return (
     <>
       <AppHeader />
       <main className="flex flex-col pb-5 pt-3">
-        <HomeLobby online={stats.online} featuredGifts={featuredGifts} />
+        <HomeLobby online={stats.online} freeCaseSlug={freeCaseSlug} paidCaseCount={paidCaseCount} />
       </main>
     </>
   )

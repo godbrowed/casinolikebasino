@@ -5,10 +5,18 @@
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
 
+@font-face {
+  font-family: 'Manrope';
+  src: url('/fonts/manrope-variable.ttf') format('truetype');
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+}
+
 :root {
-  --font-geist: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+  --font-geist: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
   --font-geist-mono: ui-monospace, 'SFMono-Regular', Consolas, monospace;
-  --font-display: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+  --font-display: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
 }
 
 @custom-variant dark (&:is(.dark *));
@@ -59,10 +67,10 @@
   --popover-foreground: #f8f9ff;
   --primary: #2b6eff;
   --primary-foreground: #ffffff;
-  --secondary: #222938;
+  --secondary: #36383c;
   --secondary-foreground: #f8f9ff;
-  --muted: #181e2b;
-  --muted-foreground: #939bad;
+  --muted: #292b2f;
+  --muted-foreground: #a0a2a7;
   --accent: #8b5cf6;
   --accent-foreground: #ffffff;
   --destructive: #f05252;
@@ -94,7 +102,11 @@
     padding-top: max(env(safe-area-inset-top), var(--tg-content-safe-area-inset-top, 0px));
     padding-left: max(env(safe-area-inset-left), var(--tg-content-safe-area-inset-left, 0px));
     padding-right: max(env(safe-area-inset-right), var(--tg-content-safe-area-inset-right, 0px));
+    font-feature-settings: 'ss01' on;
   }
+  button, input { font: inherit; }
+  button:not(:disabled), a { touch-action: manipulation; }
+  :focus-visible { outline: 2px solid #8aadff; outline-offset: 3px; }
 }
 
 @layer utilities {
@@ -345,10 +357,9 @@
   }
 
   @keyframes pug-impact {
-    0% { opacity: 0; transform: translate3d(0,-24px,0) rotate(-6deg) scale(.74); }
-    32% { opacity: 1; transform: translate3d(0,0,0) rotate(3deg) scale(1.04); }
-    65% { opacity: 1; transform: translate3d(0,5px,0) rotate(-2deg) scale(1); }
-    100% { opacity: 0; transform: translate3d(0,12px,0) rotate(0) scale(.94); }
+    0% { opacity: 1; transform: translate3d(0,0,0) rotate(-8deg) scale(1); }
+    40% { opacity: 1; transform: translate3d(5px,8px,0) rotate(26deg) scale(.96); }
+    100% { opacity: 0; transform: translate3d(30px,92px,0) rotate(95deg) scale(.8); }
   }
   .animate-pug-impact { animation: pug-impact .72s cubic-bezier(.2,.75,.25,1) both; will-change: transform, opacity; }
 

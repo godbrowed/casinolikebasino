@@ -27,14 +27,15 @@ export function BottomNav() {
               <li key={item.href} className="flex-1">
                 <Link
                   href={item.href}
+                  aria-current={active ? "page" : undefined}
                   onClick={() => haptic("light")}
                   className={cn(
-                    "relative flex min-h-[76px] flex-col items-center justify-center gap-1.5 px-1 py-2 text-[11px] font-medium transition-colors sm:text-[12px]",
+                    "relative flex min-h-[76px] flex-col items-center justify-center gap-1.5 px-1 py-2 text-[11px] font-semibold transition-colors sm:text-[13px]",
                     active ? "text-[#2b6eff]" : "text-[#8a8d92] hover:text-white/80",
                   )}
                 >
                   <span className="flex h-7 w-8 items-center justify-center">
-                    <Icon className="h-6 w-6" strokeWidth={active ? 2.5 : 2} />
+                    <Icon className="h-[27px] w-[27px]" strokeWidth={active ? 2.5 : 2} />
                   </span>
                   <span>{t(item.label as "games" | "battles" | "crash" | "mines" | "upgrade" | "profile")}</span>
                 </Link>

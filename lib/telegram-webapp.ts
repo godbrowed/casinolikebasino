@@ -44,8 +44,8 @@ export function initWebApp() {
     }
     if (wa.isVersionAtLeast?.("7.7") ?? false) wa.disableVerticalSwipes?.()
     if (wa.isVersionAtLeast?.("6.1") ?? false) {
-      wa.setHeaderColor?.("#0b0e17")
-      wa.setBackgroundColor?.("#0b0e17")
+      wa.setHeaderColor?.("#202225")
+      wa.setBackgroundColor?.("#202225")
     }
   } catch {
     // ignore

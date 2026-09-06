@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Bomb, Dices, Package, TrendingUp, Rocket, Gift, Swords, Send, Loader2, Shield, WalletCards, History, Layers3, Plus, ChevronRight, Crown, LockKeyhole, Users, RefreshCw, Copy, CheckCheck } from "lucide-react"
+import { Bomb, Dices, Package, TrendingUp, Rocket, Gift, Swords, Loader2, Shield, WalletCards, History, Layers3, Plus, ChevronRight, LockKeyhole, Users, RefreshCw, Copy, CheckCheck, X } from "lucide-react"
 import Link from "next/link"
 import { Coin } from "@/components/coin"
 import { TonWalletCard } from "@/components/ton-wallet-card"
 import { useUser } from "@/components/user-provider"
-import { rarityOf, fmt } from "@/lib/format"
+import { fmt } from "@/lib/format"
 import { levelProgress } from "@/lib/level"
 import { haptic } from "@/lib/telegram-webapp"
 import { cn } from "@/lib/utils"
@@ -74,7 +74,7 @@ export function ProfileView({ me, inventory, history, freeCaseClaim, referral }:
     try {
       const result = await withdrawGiftApi(id)
       setBalance(result.balance)
-      setItems((prev) => prev.filter((i) => i.id !== id))
+      setItems((prev) => prev.map((item) => item.id === id ? { ...item, sending: true } : item))
       setToast(`Withdrawal requested for ${name}. The 25 Stars transfer fee was charged.`)
       setTimeout(() => setToast(null), 4500)
     } catch (e) {
@@ -116,7 +116,7 @@ export function ProfileView({ me, inventory, history, freeCaseClaim, referral }:
     try {
       const res = await sellAllGiftsApi()
       if (res.balance != null) setBalance(res.balance)
-      setItems((current) => current.filter((item) => item.locked))
+      setItems((current) => current.filter((item) => item.locked || item.sending))
     } catch {
       // ignore
     } finally {
@@ -129,32 +129,38 @@ export function ProfileView({ me, inventory, history, freeCaseClaim, referral }:
   const lvl = levelProgress(me?.xp ?? 0)
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="mx-auto flex w-full max-w-[560px] flex-col gap-6 pb-4">
       {toast && (
-        <div className="fixed inset-x-4 top-20 z-50 mx-auto max-w-md rounded-2xl bg-[#2f70ff] px-4 py-3 text-center text-xs font-bold text-white shadow-2xl">
+        <div role="status" className="fixed inset-x-4 top-20 z-50 mx-auto max-w-md rounded-2xl bg-[#42454b] px-4 py-3 text-center text-sm font-medium leading-relaxed text-white">
           {toast}
         </div>
       )}
-      {showGiveawayTasks && <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 p-4 backdrop-blur-md"><div className="w-full max-w-sm rounded-[28px] bg-[#292d34] p-5 text-center ring-1 ring-white/10"><div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#3674ff]/15 text-3xl">🎁</div><h2 className="mt-4 font-display text-xl font-black">Complete withdrawal tasks</h2><p className="mt-2 text-xs leading-relaxed text-white/50">Before sending a giveaway NFT, share PugGift with one friend and subscribe to @PugGift — the same tasks as the Free Case.</p><Link href="/cases" onClick={() => setShowGiveawayTasks(false)} className="mt-5 flex min-h-12 items-center justify-center rounded-2xl bg-[#3674ff] text-sm font-black">Open Free Case tasks</Link><button onClick={() => setShowGiveawayTasks(false)} className="mt-2 w-full py-2 text-xs font-bold text-white/35">Not now</button></div></div>}
-
-      <section className="app-panel relative overflow-hidden rounded-[28px] p-5 md:p-6">
-        <div className="relative flex items-center gap-4">
-          {me?.photoUrl ? <img src={me.photoUrl} alt="Your profile" className="h-[72px] w-[72px] shrink-0 rounded-full object-cover" /> : <span aria-label="Your profile" className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-full bg-[#2b6eff] text-3xl font-semibold">{(me?.firstName || me?.username || "P").charAt(0).toUpperCase()}</span>}
-          <div className="min-w-0 flex-1"><div className="text-[9px] font-black uppercase tracking-[.18em] text-[#75a0ff]">PugGift player</div><h1 className="mt-1 truncate font-display text-2xl font-black">{me?.firstName || me?.username || "Player"}</h1><div className="mt-1 flex items-center gap-2"><span className="truncate text-xs text-white/40">@{me?.username || "puggift"}</span><span className="rounded-full bg-white/10 px-2 py-1 text-[9px] font-black">LVL {lvl.level}</span></div></div>
+      {showGiveawayTasks && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4">
+          <div role="dialog" aria-modal="true" aria-labelledby="withdrawal-tasks-title" className="relative w-full max-w-[460px] rounded-[28px] bg-[#303236] p-6 text-center">
+            <button onClick={() => setShowGiveawayTasks(false)} aria-label="Close withdrawal tasks" className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full text-white/60 hover:bg-white/10"><X className="h-5 w-5" /></button>
+            <Gift className="mx-auto mt-4 h-10 w-10 text-[#76a1ff]" strokeWidth={1.7} />
+            <h2 id="withdrawal-tasks-title" className="mt-5 text-2xl font-bold tracking-tight">Complete withdrawal tasks</h2>
+            <p className="mt-3 text-sm leading-relaxed text-[#aeb0b6]">Before sending a giveaway NFT, share PugGift with one friend and subscribe to @PugGift — the same tasks as the Free Case.</p>
+            <Link href="/cases" onClick={() => setShowGiveawayTasks(false)} className="mt-6 flex min-h-14 items-center justify-center rounded-[20px] bg-[#2b6eff] px-4 text-base font-semibold">Open Free Case tasks</Link>
+            <button onClick={() => setShowGiveawayTasks(false)} className="mt-2 min-h-11 w-full text-sm font-medium text-[#aeb0b6]">Not now</button>
+          </div>
         </div>
+      )}
 
-        <div className="relative mt-5 grid grid-cols-3 gap-2">
-          <ProfileMetric label="Balance" value={fmt(me?.balance ?? 0)} icon={<Coin className="h-4 w-4" />} />
-          <ProfileMetric label="Gifts" value={String(items.length)} icon={<Gift className="h-4 w-4 text-[#6e96ff]" />} />
-          <ProfileMetric label="Value" value={fmt(invValue)} icon={<Coin className="h-4 w-4" />} />
+      <section className="flex items-center gap-3 px-1">
+        {me?.photoUrl ? <img src={me.photoUrl} alt="Your profile" className="h-16 w-16 shrink-0 rounded-full object-cover" /> : <span aria-label="Your profile" className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-[#2b6eff] text-2xl font-semibold">{(me?.firstName || me?.username || "P").charAt(0).toUpperCase()}</span>}
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-[24px] font-bold leading-tight tracking-tight">{me?.firstName || me?.username || "Your profile"}</h1>
+          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-[#aeb0b6]">
+            {me?.username && <span className="max-w-full truncate">@{me.username}</span>}
+            <span title={`${fmt(Math.round(lvl.into))} / ${fmt(Math.round(lvl.span))} XP`}>Level {lvl.level}</span>
+          </div>
         </div>
-
-        <div className="relative mt-4 rounded-2xl bg-[#242830] p-3"><div className="flex items-center justify-between text-[10px]"><span className="font-bold text-white/65">Level {lvl.level}</span><span className="text-white/35">{fmt(Math.round(lvl.into))} / {fmt(Math.round(lvl.span))} XP</span></div><div className="mt-2 h-2 overflow-hidden rounded-full bg-black/25"><div className="h-full rounded-full bg-[linear-gradient(90deg,#2f70ff,#79a1ff)] shadow-[0_0_10px_rgba(47,112,255,.6)]" style={{ width: `${Math.min(100, lvl.pct)}%` }} /></div></div>
-
-        <div className="relative mt-4 grid grid-cols-2 gap-2"><Link href="/deposit" className="flex items-center justify-center gap-2 rounded-[18px] bg-[#2f70ff] py-3 text-sm font-black shadow-[0_4px_0_#1945b9]"><Plus className="h-4 w-4" />Top up</Link><button onClick={() => setView("wallet")} className="flex items-center justify-center gap-2 rounded-[18px] bg-white/10 py-3 text-sm font-black text-white/75"><WalletCards className="h-4 w-4" />Wallet</button></div>
+        <Link href="/deposit" aria-label="Top up balance" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#2b6eff] text-white transition-colors hover:bg-[#3d7bff]"><Plus className="h-5 w-5" /></Link>
       </section>
 
-      <div className="app-panel grid grid-cols-4 gap-1 rounded-[24px] p-1.5">
+      <div className="grid grid-cols-4 gap-1 rounded-[21px] bg-[#36383c] p-1">
         <ProfileTab active={view === "collection"} onClick={() => setView("collection")} icon={Layers3} label="Gifts" />
         <ProfileTab active={view === "activity"} onClick={() => setView("activity")} icon={History} label="Activity" />
         <ProfileTab active={view === "wallet"} onClick={() => setView("wallet")} icon={WalletCards} label="Wallet" />
@@ -162,85 +168,105 @@ export function ProfileView({ me, inventory, history, freeCaseClaim, referral }:
       </div>
 
       {view === "wallet" && <TonWalletCard linkedAddress={me?.tonWalletAddress ?? null} />}
-      {view === "refer" && referral && <section className="overflow-hidden rounded-[30px] bg-[radial-gradient(circle_at_85%_0%,rgba(54,116,255,.28),transparent_42%),#292d34] p-5 ring-1 ring-white/[.07]"><div className="flex items-start gap-3"><span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#3674ff] shadow-[0_10px_28px_rgba(54,116,255,.3)]"><Users className="h-6 w-6" /></span><div><div className="text-[9px] font-black uppercase tracking-[.16em] text-[#8fabff]">PugGift referrals</div><h2 className="mt-1 font-display text-xl font-black">Earn {referral.ratePercent}% forever</h2><p className="mt-1 text-xs leading-relaxed text-white/45">Receive {referral.ratePercent}% of every confirmed deposit made by friends who join through your personal link.</p></div></div><div className="mt-5 grid grid-cols-2 gap-2"><ProfileMetric label="Invited" value={String(referral.invited)} icon={<Users className="h-4 w-4 text-[#7da0ff]" />} /><ProfileMetric label="Earned" value={fmt(referral.earned)} icon={<Coin className="h-4 w-4" />} /></div><div className="mt-4 rounded-2xl bg-black/20 p-2"><div className="truncate px-2 py-2 font-mono text-[10px] text-white/48">{referral.inviteUrl}</div><div className="grid grid-cols-[1fr_auto] gap-2"><button onClick={() => { const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(referral.inviteUrl)}&text=${encodeURIComponent("🎁 Join PugGift with me!")}`; window.open(shareUrl, "_blank", "noopener,noreferrer") }} className="flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#3674ff] text-xs font-black"><Send className="h-4 w-4" />Invite friends</button><button onClick={async () => { await navigator.clipboard.writeText(referral.inviteUrl); setCopiedReferral(true); window.setTimeout(() => setCopiedReferral(false), 1600) }} aria-label="Copy referral link" className="flex w-12 items-center justify-center rounded-xl bg-white/10 text-white/65">{copiedReferral ? <CheckCheck className="h-4 w-4 text-emerald-300" /> : <Copy className="h-4 w-4" />}</button></div></div><p className="mt-3 text-[10px] leading-relaxed text-white/32">Commission is credited automatically after a Stars, TON or NFT gift deposit is confirmed. Replayed payments cannot be credited twice.</p></section>}
+
+      {(view === "refer" || view === "collection") && referral && (
+        <section className="rounded-[28px] bg-[#36383c] p-5 sm:p-6">
+          <h2 className="text-[25px] font-bold leading-[1.2] tracking-tight sm:text-[28px]">Invite friends and earn <span className="inline-block rounded-lg bg-[#2b6eff] px-1.5 pb-0.5">{referral.ratePercent}%</span> from their deposits!</h2>
+          <p className="mt-3 text-[15px] leading-snug text-[#aeb0b6]">Share your link. Get a reward whenever your friends top up.</p>
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <ProfileMetric label="Invited" value={String(referral.invited)} />
+            <ProfileMetric label="Earned" value={fmt(referral.earned)} icon={<Coin className="h-5 w-5" />} />
+          </div>
+          {view === "refer" && <div className="mt-4 break-all rounded-2xl bg-[#424449] px-4 py-3 text-[13px] leading-relaxed text-[#d0d1d5]">{referral.inviteUrl}</div>}
+          <div className="mt-4 grid grid-cols-[1fr_56px] gap-3">
+            <button onClick={() => { const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(referral.inviteUrl)}&text=${encodeURIComponent("🎁 Join PugGift with me!")}`; window.open(shareUrl, "_blank", "noopener,noreferrer") }} className="flex min-h-14 items-center justify-center rounded-[20px] bg-[#2b6eff] text-[17px] font-semibold transition-colors hover:bg-[#3d7bff]">Invite</button>
+            <button onClick={async () => { await navigator.clipboard.writeText(referral.inviteUrl); setCopiedReferral(true); window.setTimeout(() => setCopiedReferral(false), 1600) }} aria-label={copiedReferral ? "Referral link copied" : "Copy referral link"} className="flex min-h-14 items-center justify-center rounded-[20px] bg-[#55575c] text-white transition-colors hover:bg-[#62646a]">{copiedReferral ? <CheckCheck className="h-6 w-6" /> : <Copy className="h-6 w-6" />}</button>
+          </div>
+          {view === "refer" && <p className="mt-4 text-[13px] leading-relaxed text-[#aeb0b6]">Rewards are added to your balance after a Stars, TON or NFT gift deposit is confirmed.</p>}
+        </section>
+      )}
 
       {me?.isAdmin && (
-        <Link href="/admin" className="flex items-center justify-between rounded-[24px] border border-primary/30 bg-primary/10 p-4 text-primary">
-          <span className="flex items-center gap-2 font-display font-bold"><Shield className="h-5 w-5" /> Admin panel</span>
-          <span className="text-xs font-semibold">Open</span>
+        <Link href="/admin" className="flex items-center justify-between rounded-[20px] bg-[#36383c] px-4 py-4 text-[#d0d1d5]">
+          <span className="flex items-center gap-3 text-sm font-semibold"><Shield className="h-5 w-5" /> Admin panel</span>
+          <ChevronRight className="h-5 w-5 text-[#aeb0b6]" />
         </Link>
       )}
 
-      {view === "collection" && <section className="app-panel rounded-[30px] p-4">
-        {lockedFreeGifts > 0 && freeCaseClaim && !freeCaseClaim.ready && <div className="mb-4 overflow-hidden rounded-[24px] bg-[linear-gradient(135deg,#342a17,#252a38)] p-4 ring-1 ring-amber-300/20"><div className="flex items-start gap-3"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-300 text-amber-950"><Crown className="h-5 w-5" /></span><div className="min-w-0 flex-1"><div className="text-[9px] font-black uppercase tracking-[.16em] text-amber-200/70">Free case prize</div><h3 className="mt-0.5 font-display text-base font-black">Invite 3 qualified friends</h3><p className="mt-1 text-[11px] leading-relaxed text-white/45">Each new friend needs Telegram Premium and at least one Telegram NFT gift in their profile.</p></div></div><div className="mt-3 flex items-center gap-2"><div className="h-2 flex-1 overflow-hidden rounded-full bg-black/25"><div className="h-full rounded-full bg-amber-300 transition-all" style={{ width: `${Math.min(100, freeCaseClaim.qualified / freeCaseClaim.required * 100)}%` }} /></div><b className="text-xs text-amber-200">{freeCaseClaim.qualified}/{freeCaseClaim.required}</b></div><div className="mt-3 grid grid-cols-[1fr_auto] gap-2"><button onClick={inviteFriends} className="flex items-center justify-center gap-2 rounded-2xl bg-[#2f70ff] py-3 text-xs font-black shadow-[0_4px_0_#1945b9]"><Users className="h-4 w-4" />Invite friends</button><button onClick={() => router.refresh()} aria-label="Check referral progress" className="flex w-12 items-center justify-center rounded-2xl bg-white/10 text-white/65"><RefreshCw className="h-4 w-4" /></button></div></div>}
-        <div className="mb-4 flex items-center justify-between">
-          <div><div className="text-[9px] font-black uppercase tracking-[.16em] text-[#6e96ff]">Collection</div><h2 className="font-display text-xl font-black">Your gifts · {items.length}</h2></div>
-          {sellableItems.length > 0 && (
-            <button
-              onClick={handleSellAll}
-              disabled={busy}
-              className="rounded-full bg-white/10 px-3 py-2 text-[10px] font-black text-white/65 transition hover:bg-white/15 disabled:opacity-50"
-            >
-              Sell all · {fmt(sellableValue)}
-            </button>
-          )}
+      {view === "collection" && <section>
+        <div className="mb-6 text-center">
+          <h2 className="text-[27px] font-bold tracking-tight">Your gifts <span className="text-[#aeb0b6]">· {items.length}</span></h2>
+          <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+            <span className="inline-flex min-h-8 items-center gap-1.5 rounded-full bg-[#4b4d52] px-3 text-sm font-semibold"><Coin className="h-4 w-4" />{fmt(invValue)}</span>
+            {sellableItems.length > 0 && <button onClick={handleSellAll} disabled={busy} className="inline-flex min-h-8 items-center gap-1.5 rounded-full bg-[#36383c] px-3 text-[13px] font-semibold text-white transition-colors hover:bg-[#424449] disabled:opacity-50">{busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}Sell all · {fmt(sellableValue)}</button>}
+          </div>
         </div>
+        {lockedFreeGifts > 0 && freeCaseClaim && !freeCaseClaim.ready && (
+          <div className="mb-5 rounded-[24px] bg-[#36383c] p-5">
+            <div className="flex items-start gap-3">
+              <LockKeyhole className="mt-1 h-5 w-5 shrink-0 text-[#aeb0b6]" />
+              <div className="min-w-0 flex-1"><h3 className="text-base font-bold">Unlock your free case gifts</h3><p className="mt-2 text-[13px] leading-relaxed text-[#aeb0b6]">Invite 3 new friends with Telegram Premium and at least one Telegram NFT gift in their profile.</p></div>
+            </div>
+            <div className="mt-4 flex items-center gap-3"><div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#505258]"><div className="h-full rounded-full bg-[#2b6eff] transition-[width]" style={{ width: `${Math.min(100, freeCaseClaim.qualified / freeCaseClaim.required * 100)}%` }} /></div><span className="text-[13px] font-semibold text-[#d0d1d5]">{freeCaseClaim.qualified}/{freeCaseClaim.required}</span></div>
+            <div className="mt-4 grid grid-cols-[1fr_48px] gap-2"><button onClick={inviteFriends} className="flex min-h-12 items-center justify-center rounded-2xl bg-[#2b6eff] text-sm font-semibold">Invite friends</button><button onClick={() => router.refresh()} aria-label="Check referral progress" className="flex min-h-12 items-center justify-center rounded-2xl bg-[#55575c] text-white"><RefreshCw className="h-5 w-5" /></button></div>
+          </div>
+        )}
         {items.length === 0 ? (
-          <div className="relative flex flex-col items-center gap-3 overflow-hidden rounded-[24px] border border-dashed border-white/10 bg-[#22252b] p-8 text-center">
-            <Gift className="h-10 w-10 text-white/35" strokeWidth={1.5} />
-            <p className="text-sm text-white/40">No gifts yet. Open a case to build your collection.</p><Link href="/cases" className="rounded-2xl bg-[#2f70ff] px-4 py-2.5 text-xs font-black">Open cases</Link>
+          <div className="flex flex-col items-center rounded-[26px] bg-[#36383c] px-6 py-8 text-center">
+            <Gift className="h-9 w-9 text-[#aeb0b6]" strokeWidth={1.5} />
+            <h3 className="mt-4 text-lg font-semibold">Your collection starts here</h3>
+            <p className="mt-2 text-sm leading-relaxed text-[#aeb0b6]">Open a case or add a gift from Telegram.</p>
+            <div className="mt-5 flex flex-wrap justify-center gap-2"><Link href="/cases" className="flex min-h-11 items-center justify-center rounded-2xl bg-[#2b6eff] px-5 text-sm font-semibold">Open cases</Link><Link href="/deposit" className="flex min-h-11 items-center justify-center rounded-2xl bg-[#505258] px-5 text-sm font-semibold">Add gift</Link></div>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-            {items.map((it) => {
-              const r = rarityOf(it.rarity)
-              return (
+          <div className="grid grid-cols-2 gap-3 min-[440px]:grid-cols-3">
+            {items.map((it) => (
                 <div
                   key={it.id}
-                  className={cn("group flex min-w-0 flex-col rounded-[22px] bg-[#363a42] p-2.5 text-center ring-1", r.ring)}
+                  className="flex min-w-0 flex-col rounded-[25px] bg-[#36383c] p-2.5 text-center"
                 >
-                  <div className="relative mx-auto h-20 w-20">
+                  <div className="relative mx-auto flex h-28 w-full items-center justify-center sm:h-32">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={it.imageUrl || "/images/nft-gift.png"} alt={it.name} className="h-full w-full object-contain" />
-                    {it.locked && <span className="absolute right-0 top-0 flex h-7 w-7 items-center justify-center rounded-full bg-amber-300 text-amber-950 shadow-lg"><LockKeyhole className="h-3.5 w-3.5" /></span>}
+                    <img src={it.imageUrl || "/images/nft-gift.png"} alt={it.name} className="h-full w-full object-contain p-1" />
+                    {it.locked && <span aria-label="Gift locked" className="absolute right-0 top-0 flex h-7 w-7 items-center justify-center rounded-full bg-[#55575c] text-white"><LockKeyhole className="h-3.5 w-3.5" /></span>}
                   </div>
-                  <div className={cn("mt-1 truncate text-xs font-black", r.text)}>{it.name}</div><div className="mt-1 flex items-center justify-center gap-1 text-[10px] text-white/50"><Coin className="h-3 w-3" />{fmt(it.value)}</div>
-                  {it.sending ? <button disabled className="mt-2 flex w-full items-center justify-center gap-1 rounded-xl bg-[#2f70ff]/20 py-2 text-[9px] font-black text-[#8eb0ff]"><Loader2 className="h-3 w-3 animate-spin" />Sending</button> : it.locked ? <button onClick={inviteFriends} className="mt-2 flex w-full items-center justify-center gap-1 rounded-xl bg-amber-300 py-2 text-[9px] font-black text-amber-950"><Users className="h-3 w-3" />Invite to unlock</button> : <div className="mt-2 grid grid-cols-2 gap-1">
+                  <div title={it.name} className="mt-2 truncate text-[13px] font-semibold text-white">{it.name}</div>
+                  <div className="mt-2 flex min-h-8 items-center justify-center gap-1 rounded-full bg-[#505258] px-1 text-sm font-semibold text-white"><Coin className="h-4 w-4" />{fmt(it.value)}</div>
+                  {it.sending ? <button disabled className="mt-2 flex min-h-10 w-full items-center justify-center gap-1.5 rounded-[14px] bg-[#45474c] text-[13px] font-semibold text-[#aeb0b6]"><Loader2 className="h-4 w-4 animate-spin" />Sending</button> : it.locked ? <button onClick={inviteFriends} className="mt-2 flex min-h-10 w-full items-center justify-center gap-1 rounded-[14px] bg-[#2b6eff] text-[13px] font-semibold text-white">Invite to unlock</button> : <div className="mt-2 grid grid-cols-2 gap-1.5">
                   <button
                     onClick={() => handleSell(it.id)}
                     disabled={busy || withdrawing === it.id}
-                    className="flex items-center justify-center gap-1 rounded-xl bg-white/10 py-2 text-[9px] font-black transition hover:bg-white/15 disabled:opacity-50"
+                    className="flex min-h-10 items-center justify-center rounded-[14px] bg-[#505258] text-[13px] font-semibold transition-colors hover:bg-[#5b5d63] disabled:opacity-50"
                   >
                     Sell
                   </button>
                   <button
                     onClick={() => handleWithdraw(it.id, it.name)}
                     disabled={busy || withdrawing === it.id}
-                    className="flex items-center justify-center gap-1 rounded-xl bg-[#2f70ff] py-2 text-[9px] font-black text-white transition hover:bg-[#3e7aff] disabled:opacity-50"
+                    className="flex min-h-10 items-center justify-center gap-1 rounded-[14px] bg-[#2b6eff] text-[12px] font-semibold text-white transition-colors hover:bg-[#3d7bff] disabled:opacity-50"
                   >
                     {withdrawing === it.id ? (
-                      <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                      <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
                       <>
-                        <Send className="h-2.5 w-2.5" /> Send · 25
+                        Send · 25
                       </>
                     )}
                   </button>
                   </div>
                   }
                 </div>
-              )
-            })}
+            ))}
           </div>
         )}
       </section>}
 
-      {view === "activity" && <section className="app-panel rounded-[30px] p-4">
-        <div className="mb-4"><div className="text-[9px] font-black uppercase tracking-[.16em] text-[#6e96ff]">Timeline</div><h2 className="font-display text-xl font-black">Recent activity</h2></div>
+      {view === "activity" && <section>
+        <h2 className="mb-5 px-1 text-[25px] font-bold tracking-tight">Recent activity</h2>
         {history.length === 0 ? (
-          <p className="text-xs text-muted-foreground">No games played yet.</p>
+          <div className="rounded-[26px] bg-[#36383c] px-6 py-8 text-center"><History className="mx-auto h-8 w-8 text-[#aeb0b6]" strokeWidth={1.5} /><p className="mt-4 text-sm text-[#aeb0b6]">Your game history will appear here.</p></div>
         ) : (
-          <div className="flex flex-col gap-1.5">
+          <div className="divide-y divide-white/[.07] overflow-hidden rounded-[26px] bg-[#36383c] px-4">
             {history.map((h) => {
               const Icon = GAME_ICON[h.game] ?? Package
               const won = h.result > 0
@@ -248,27 +274,27 @@ export function ProfileView({ me, inventory, history, freeCaseClaim, referral }:
               return (
                 <div
                   key={h.id}
-                  className="flex items-center gap-3 rounded-[20px] bg-[#363a42] px-3 py-3 ring-1 ring-white/[.05]"
+                  className="flex items-center gap-3 py-4"
                 >
-                  <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-[14px] bg-white/[.07]">
-                    {rewardImage ? <img src={rewardImage} alt="" className="h-9 w-9 object-contain" /> : <Icon className="h-4 w-4 text-muted-foreground" />}
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#4b4d52]">
+                    {rewardImage ? <img src={rewardImage} alt="" className="h-10 w-10 object-contain" /> : <Icon className="h-5 w-5 text-[#d0d1d5]" />}
                   </div>
-                  <div className="flex-1 leading-tight">
-                    <div className="text-xs font-black capitalize">{h.game}</div>
-                    <div className="text-[11px] text-muted-foreground">
-                      Bet <span className="font-mono">{fmt(h.bet)}</span>
+                  <div className="min-w-0 flex-1 leading-tight">
+                    <div className="text-[15px] font-semibold capitalize">{h.game}</div>
+                    <div className="mt-1 text-[13px] text-[#aeb0b6]">
+                      Bet {fmt(h.bet)}
                     </div>
                   </div>
                   <div
                     className={cn(
-                      "flex items-center gap-1 font-mono text-sm font-bold",
-                      won ? "text-emerald-400" : "text-rose-400",
+                      "flex items-center gap-1 text-sm font-semibold tabular-nums",
+                      won ? "text-[#7cdca0]" : "text-[#eaa0a4]",
                     )}
                   >
                     {won ? "+" : "-"}
                     {fmt(won ? h.result : h.bet)}
-                    <Coin className="h-3 w-3" />
-                  </div><ChevronRight className="h-4 w-4 text-white/20" />
+                    <Coin className="h-4 w-4" />
+                  </div>
                 </div>
               )
             })}
@@ -279,10 +305,10 @@ export function ProfileView({ me, inventory, history, freeCaseClaim, referral }:
   )
 }
 
-function ProfileMetric({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
-  return <div className="min-w-0 rounded-[18px] bg-white/[.045] p-3 text-center ring-1 ring-white/[.045]"><div className="flex items-center justify-center gap-1 text-[9px] font-bold text-white/35">{icon}{label}</div><div className="mt-1 truncate font-display text-base font-black">{value}</div></div>
+function ProfileMetric({ label, value, icon }: { label: string; value: string; icon?: React.ReactNode }) {
+  return <div className="min-w-0 rounded-[22px] bg-[#505258] px-3 py-3 text-center"><div className="flex items-center justify-center gap-1.5 text-[25px] font-bold leading-tight tabular-nums">{icon}<span className="truncate">{value}</span></div><div className="mt-1 text-[13px] font-medium text-[#b7b9bf]">{label}</div></div>
 }
 
 function ProfileTab({ active, onClick, icon: Icon, label }: { active: boolean; onClick: () => void; icon: typeof Layers3; label: string }) {
-  return <button onClick={onClick} className={cn("flex items-center justify-center gap-1.5 rounded-[18px] py-3 text-[11px] font-black transition", active ? "bg-[#2f70ff] text-white shadow-[0_4px_0_#1945b9]" : "text-white/42 hover:text-white/65")}><Icon className="h-4 w-4" />{label}</button>
+  return <button onClick={onClick} aria-pressed={active} className={cn("flex min-h-11 items-center justify-center gap-1.5 rounded-[17px] px-1 text-[13px] font-semibold transition-colors sm:text-sm", active ? "bg-[#2b6eff] text-white" : "text-[#b7b9bf] hover:text-white")}><Icon className="hidden h-[17px] w-[17px] min-[440px]:block" />{label}</button>
 }

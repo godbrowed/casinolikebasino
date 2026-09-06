@@ -19,11 +19,11 @@ export function AppHeader({ title }: { title?: string }) {
 
         <Link href="/" aria-label="PugGift home" className="flex shrink-0 items-center gap-2 md:absolute md:left-1/2 md:-translate-x-1/2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/images/puggift-mark-v4.svg" alt="" className="h-7 w-7 rounded-full object-cover" />
-          <span className="text-[17px] font-bold tracking-[-.025em]">PugGift</span>
+          <img src="/images/puggift-mark-v5.webp" alt="" className="h-7 w-7 rounded-full object-cover" />
+          <span className="text-[17px] font-extrabold tracking-[-.03em]">PugGift</span>
         </Link>
 
-        {title && <span className="hidden truncate text-[13px] font-medium text-white/45 lg:block">{title}</span>}
+        {title && <span className="sr-only">{title}</span>}
 
         <Link href="/deposit" aria-label="Balance and deposit" className="ml-auto flex min-w-0 items-center gap-1.5 rounded-full bg-[#34363b] py-1.5 pl-2.5 pr-1.5 transition-colors hover:bg-[#3d4046]">
           <Coin className="h-[18px] w-[18px]" />

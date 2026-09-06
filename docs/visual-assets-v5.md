@@ -22,6 +22,8 @@ Use case: ads-marketing. Asset type: 16:9 Telegram bot /start banner for PugGift
 
 ## Rocket
 
+Output: public/images/puggift-rocket-v5-source.png; web: public/images/puggift-rocket-v5.webp.
+
 Use case: illustration-story. Asset type: transparent-background 2D game sprite for PugGift rocket and game menu. Reference: preserve this exact fawn pug identity, dark ears and muzzle and unimpressed confident face. Draw that pug sitting visibly in the open round cockpit of a small bright royal-blue and cyan cartoon rocket, entire rocket points diagonally up-right about45 degrees, polished collectible Telegram sticker illustration. Big simple face, rounded metallic-white cockpit rim, two blue fins, compact orange flame trailing bottom-left. One coherent clean silhouette, bold dark tapered outlines and a few flat cel-shading areas, transparent background with real alpha. Entire rocket and flame visible with generous margin. No text, letters, numbers, badges, stars, currency, moon, border, square background, neon glow, photorealism, fur texture, gradients, 3D or glossy plastic. It must feel like an attractive drawn 2D animation character sprite, with the dog's face actually inside the cockpit, not a pasted avatar medallion.
 
 The first rocket output had a baked checkerboard, not an alpha channel, and was rejected for UI use. Final background correction:
@@ -33,4 +35,3 @@ Change ONLY the background of this rocket sprite. Remove the checkerboard comple
 - Manrope variable: https://github.com/google/fonts/tree/main/ofl/manrope — SIL OFL; license in public/fonts/manrope-OFL.txt.
 - Gift, swords, bomb, dice symbols: https://github.com/jdecked/twemoji — CC BY 4.0; license in public/images/menu/LICENSE-TWEMOJI.txt. Unmodified SVG artwork by Twitter/Twemoji contributors.
 - Plush Pepe, Heart Locket, Bunny Muffin: original Telegram gift catalogue images already used by this application, cached from storage.portal-market.com. These are menu illustrations, not fabricated live drops.
-

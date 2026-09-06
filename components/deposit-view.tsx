@@ -174,7 +174,7 @@ export function DepositView({
         <div className="mt-6 grid h-[60px] w-full grid-cols-3 rounded-[26px] bg-[#36383c]">
           <Tab active={method === "ton"} onClick={() => setMethod("ton")} icon={<img src="/icons/ton-network-v2.svg" alt="" className="h-6 w-6 shrink-0" />} label="TON" />
           <Tab active={method === "stars"} onClick={() => setMethod("stars")} icon={<Coin className="h-5 w-5" />} label="Stars" />
-          <Tab active={method === "gifts"} onClick={() => setMethod("gifts")} icon={<img src="/images/menu/gift.svg" alt="" className="h-6 w-6 shrink-0 object-contain" />} label="Gifts" />
+          <Tab active={method === "gifts"} onClick={() => setMethod("gifts")} icon={<img src="/images/menu/gift-v6.svg" alt="" className="h-6 w-6 shrink-0 object-contain" />} label="Gifts" />
         </div>
       </header>
 

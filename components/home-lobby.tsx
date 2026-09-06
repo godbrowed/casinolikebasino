@@ -22,13 +22,13 @@ export function HomeLobby({ online, freeCaseSlug, paidCaseCount = 0 }: { online:
     <div className="mx-auto flex w-full max-w-[584px] flex-col gap-3 px-3">
       <h1 className="sr-only">PugGift games</h1>
       <div className="flex flex-col gap-3">
-        {freeCaseSlug && <ModeRow href={`/case/${freeCaseSlug}`} title="Free" subtitle="Free case" color="#343946" image="/images/menu/gift.svg" />}
+        {freeCaseSlug && <ModeRow href={`/case/${freeCaseSlug}`} title="Free" subtitle="Free case" color="#343946" image="/images/menu/gift-v6.svg" />}
         <ModeRow href="/cases" title="Cases" subtitle={paidCaseCount ? `${paidCaseCount} cases` : "Collect Telegram gifts"} color="#2054bd" art={<CaseStack />} />
         <ModeRow href="/upgrade" title="Upgrade" subtitle="Improve your gifts" color="#552393" image="/images/menu/plush-pepe.webp" />
-        <ModeRow href="/crash" title="Crash" subtitle="Live rounds" color="#081122" art={<img src="/images/puggift-rocket-v5.webp" alt="" className="h-[88px] w-[88px] max-w-none object-contain mix-blend-lighten" />} />
-        <ModeRow href="/battles" title="PvP" subtitle="One room for everyone" color="#ae713a" image="/images/menu/swords.svg" />
-        <ModeRow href="/mines" title="Mines" subtitle="Find the safe cells" color="#b71d37" image="/images/menu/bomb.svg" />
-        <ModeRow href="/dice" title="Dice" subtitle="Choose your number" color="#138256" image="/images/menu/dice.svg" />
+        <ModeRow href="/crash" title="Crash" subtitle="Live rounds" color="#081122" image="/images/menu/rocket-v6.svg" />
+        <ModeRow href="/battles" title="PvP" color="#ae713a" image="/images/menu/swords-v6.svg" />
+        <ModeRow href="/mines" title="Mines" subtitle="Find the safe cells" color="#b71d37" image="/images/menu/bomb-v6.svg" />
+        <ModeRow href="/dice" title="Dice" subtitle="Choose your number" color="#138256" image="/images/menu/dice-v6.svg" />
         <ModeRow href="/giveaways" title="Giveaways" subtitle="Gifts from the community" color="#a51ac0" image="/images/menu/heart-locket.webp" />
       </div>
 
@@ -41,14 +41,14 @@ export function HomeLobby({ online, freeCaseSlug, paidCaseCount = 0 }: { online:
   </section>
 }
 
-function ModeRow({ href, title, subtitle, color, image, art }: { href: string; title: string; subtitle: string; color: string; image?: string; art?: ReactNode }) {
+function ModeRow({ href, title, subtitle, color, image, art }: { href: string; title: string; subtitle?: string; color: string; image?: string; art?: ReactNode }) {
   return <Link href={href} className="lobby-mode-row group flex min-h-[96px] items-center gap-4 overflow-hidden rounded-[30px] py-3 pl-4 pr-5 text-white sm:min-h-[108px] sm:gap-5 sm:rounded-[38px] sm:pl-5" style={{ backgroundColor: color }}>
     <span className="relative flex h-[70px] w-[70px] shrink-0 items-center justify-center transition-transform duration-200 group-hover:-rotate-3" aria-hidden="true">
       {art ?? <img src={image} alt="" className="h-[70px] w-[70px] object-contain" loading="lazy" />}
     </span>
     <span className="min-w-0 flex-1">
       <span className="block text-[24px] font-extrabold leading-tight tracking-[-.03em] sm:text-[26px]">{title}</span>
-      <span className="mt-1 block text-[14px] font-semibold leading-snug text-white/55 sm:text-[16px]">{subtitle}</span>
+      {subtitle && <span className="mt-1 block text-[14px] font-semibold leading-snug text-white/55 sm:text-[16px]">{subtitle}</span>}
     </span>
   </Link>
 }

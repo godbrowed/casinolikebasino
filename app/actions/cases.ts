@@ -8,6 +8,7 @@ import { cases, caseItems, gifts, users, inventory, gameHistory, freeCaseProgres
 import { getCurrentUserId, requireUserId } from "@/lib/session"
 import { BALANCE_REWARD_MAX_CASE_PRICE, caseExpectedValue, giftValueInStars, priceFromContents } from "@/lib/pricing"
 import { freeCaseRequirements } from "@/lib/free-case"
+import { compareCasesByPrice } from "@/lib/case-order"
 
 export type GiftDTO = {
   id: number
@@ -175,7 +176,7 @@ export async function getCases(): Promise<CaseDTO[]> {
       id: c.id,
       slug: c.slug,
       name: c.isFree ? "Free Case" : c.name,
-      coverUrl: c.isFree ? "/images/giftlys-free-case.png" : c.coverUrl,
+      coverUrl: c.isFree ? "/images/menu/gift-v6.svg" : c.coverUrl,
       price: livePrice || Number(c.price),
       accent: c.accent,
       isFree: c.isFree,
@@ -205,7 +206,7 @@ export async function getCases(): Promise<CaseDTO[]> {
           ...(promoConfig ? promoCurrencyRewards(promoConfig) : currencyRewards(livePrice || Number(c.price))),
         ],
     }
-  })
+  }).sort(compareCasesByPrice)
 }
 
 export async function getCaseBySlug(slug: string): Promise<CaseDTO | null> {

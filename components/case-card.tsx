@@ -12,10 +12,10 @@ export function CaseCard({ c }: { c: CaseDTO }) {
 
   return <Link href={`/case/${c.slug}`} onClick={() => haptic("light")} className="case-card group flex min-w-0 flex-col rounded-[28px] p-3 transition-colors active:scale-[.985] sm:p-4">
     <div className="relative flex aspect-[1.15] items-center justify-center overflow-hidden">
-      {c.isFree ? <img src="/images/menu/gift.svg" alt="" className="h-[66%] w-[66%] object-contain transition-transform duration-200 group-hover:-rotate-3" /> : <>
+      {c.isFree ? <img src="/images/menu/gift-v6.svg" alt="" className="h-[76%] w-[76%] object-contain" /> : <>
         {left && <img src={left.imageUrl} alt="" className="absolute bottom-[9%] left-0 h-[43%] w-[43%] -rotate-12 object-contain" loading="lazy" />}
         {right && <img src={right.imageUrl} alt="" className="absolute bottom-[9%] right-0 h-[43%] w-[43%] rotate-12 object-contain" loading="lazy" />}
-        <img src={featured?.imageUrl || "/images/menu/gift.svg"} alt="" className="relative z-10 h-[80%] w-[80%] object-contain transition-transform duration-200 group-hover:-translate-y-1" loading="lazy" />
+        <img src={featured?.imageUrl || "/images/menu/gift-v6.svg"} alt="" className="relative z-10 h-[80%] w-[80%] object-contain transition-transform duration-200 group-hover:-translate-y-1" loading="lazy" />
       </>}
     </div>
     <h2 className="mt-1 truncate text-center text-[18px] font-extrabold tracking-tight sm:text-[20px]">{c.isFree ? "Free case" : c.name}</h2>

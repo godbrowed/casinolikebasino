@@ -9,11 +9,11 @@ const { renderToStaticMarkup } = require('react-dom/server')
 const root = path.resolve(__dirname, '..')
 const cache = new Map()
 const screen = process.argv[2] || 'home'
-const route = screen === 'home' ? '/' : '/' + screen
+const route = screen === 'home' ? '/' : screen === 'case' || screen === 'free-case' ? '/case/preview' : '/' + screen
 const mocks = {
   'next/link': ({ children, ...props }) => React.createElement('a', props, children),
   'next/navigation': { usePathname: () => route, useRouter: () => ({ refresh() {} }) },
-  swr: () => ({ data: undefined }),
+  swr: key => ({ data: key === 'free-case-requirements' && screen === 'free-case' ? { shares: 0, requiredShares: 1, subscribed: false, tradeVisited: false, ready: false, channelCheckAvailable: true } : undefined }),
   '@/components/user-provider': { useUser: () => ({ me: { balance: 200 }, isLoading: false, refresh() {}, setBalance() {} }) },
   '@tonconnect/ui-react': { useTonWallet: () => null, useTonConnectUI: () => [{}] },
   '@/components/language-provider': { useLanguage: () => ({ t: key => ({ games: 'Games', battles: 'PvP', crash: 'Crash', upgrade: 'Upgrade', profile: 'Profile' })[key] }) },
@@ -56,12 +56,13 @@ async function main() {
   }))
   if (screen === 'deposit') content = React.createElement('main', { className: 'mx-auto w-full max-w-[584px] px-3 pt-5' }, React.createElement(load('components/deposit-view.tsx').DepositView, { tonRate: 100, giftCatalog: [], relayer: { username: 'pugsrelayer', url: 'https://t.me/pugsrelayer' } }))
   if (screen === 'upgrade') content = React.createElement(load('components/upgrade-game.tsx').UpgradeGame, { inventory: fixtureGifts.slice(0, 1), targets: fixtureGifts.slice(1) })
+  if (screen === 'case' || screen === 'free-case') content = React.createElement(load('components/case-view.tsx').CaseView, { c: { id: 1, slug: 'preview', name: 'Pug Pocket', isFree: screen === 'free-case', price: 199, nextFreeAt: null, items: fixtureGifts.map((gift, i) => ({ ...gift, slug: 'gift-' + i, rewardType: 'gift' })) } })
   if (screen === 'cases') {
     const Card = load('components/case-card.tsx').CaseCard
     content = React.createElement('main', { className: 'mx-auto w-full max-w-[800px] px-3 pt-5' }, React.createElement('h1', { className: 'mb-6 text-center text-[28px] font-bold' }, 'Cases'), React.createElement('div', { className: 'grid grid-cols-2 gap-3 md:grid-cols-3' }, ...['Free case', 'Pug Pocket', 'Pug Club', 'Collectibles'].map((name, i) => React.createElement(Card, { key: name, c: { id: i, slug: 'preview', name, isFree: i === 0, price: [0,199,250,500][i], items: fixtureGifts } }))))
   }
   const body = renderToStaticMarkup(React.createElement(React.Fragment, null,
-    React.createElement('div', { className: 'app-shell min-h-screen ' + (screen === 'deposit' ? '' : 'pb-24') }, React.createElement(AppHeader), React.createElement('div', { className: 'pt-3' }, content)),
+    React.createElement('div', { className: 'app-shell min-h-screen ' + (screen === 'deposit' || screen === 'case' || screen === 'free-case' ? '' : 'pb-24') }, screen === 'case' || screen === 'free-case' ? content : React.createElement(React.Fragment, null, React.createElement(AppHeader), React.createElement('div', { className: 'pt-3' }, content))),
     React.createElement(BottomNav)))
   const css = await require('postcss')([require('@tailwindcss/postcss')()]).process(fs.readFileSync(path.join(root, 'app/globals.css'), 'utf8'), { from: path.join(root, 'app/globals.css') })
   fs.writeFileSync(path.join(root, 'public/__design-preview.css'), css.css)

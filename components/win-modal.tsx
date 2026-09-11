@@ -17,55 +17,48 @@ export function WinModal({ gift, onSell, onKeep, busy, locked = false }: Props) 
   if (!gift) return null
   const r = rarityOf(gift.rarity)
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-6">
-      <button className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onKeep} aria-label="Close" />
-      <div className="relative w-full max-w-xs animate-in fade-in zoom-in-95 duration-300">
-        <div
-          className={cn(
-            "flex flex-col items-center rounded-3xl border border-border bg-card p-6 text-center ring-1",
-            r.ring,
-            r.glow,
-          )}
-        >
-          <span className={cn("rounded-full px-3 py-1 text-xs font-bold", r.chip)}>{r.label}</span>
-          <div className="relative my-4">
-            <div className={cn("absolute inset-0 rounded-full blur-2xl", r.bg, "bg-gradient-to-b to-transparent")} />
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-5">
+      <button className="absolute inset-0 bg-black/60" onClick={onKeep} aria-label="Close" />
+      <div role="dialog" aria-modal="true" aria-labelledby="won-gift-title" className="relative max-h-[calc(100dvh-2.5rem)] w-full max-w-sm overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
+        <div className="flex flex-col items-center rounded-2xl bg-[#282b30] p-6 text-center">
+          <span className={cn("text-xs font-medium", r.text)}>{r.label}</span>
+          <div className="my-5">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={gift.imageUrl || "/images/nft-gift.png"} alt={gift.name} className="relative h-32 w-32 object-contain" />
+            <img src={gift.imageUrl || "/images/nft-gift.png"} alt={gift.name} className="h-40 w-40 object-contain" />
           </div>
-          <h3 className="font-display text-xl font-black">{gift.name}</h3>
+          <h3 id="won-gift-title" className="text-xl font-semibold tracking-tight">{gift.name}</h3>
           <div className="mt-1 flex items-center gap-1.5">
             <Coin className="h-4 w-4" />
-            <span className="font-mono text-lg font-bold">{fmt(gift.value)}</span>
+            <span className="text-lg font-semibold tabular-nums">{fmt(gift.value)}</span>
           </div>
 
           {gift.rewardType === "currency" ? (
             <button
               onClick={onKeep}
               disabled={busy}
-              className="mt-5 w-full rounded-xl bg-primary py-3 text-sm font-bold text-primary-foreground transition-opacity disabled:opacity-50"
+              className="mt-5 w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground transition-opacity disabled:opacity-50"
             >
               Added to balance
             </button>
           ) : locked ? (
-            <div className="mt-5 w-full rounded-2xl bg-amber-400/10 p-3 ring-1 ring-amber-300/20">
-              <b className="block text-sm text-amber-200">Gift saved — invite 3 friends to unlock</b>
-              <p className="mt-1 text-[11px] leading-relaxed text-white/50">Each friend must be new to PugGift, have Telegram Premium and own at least one Telegram NFT gift.</p>
-              <button onClick={onKeep} disabled={busy} className="mt-3 w-full rounded-xl bg-primary py-3 text-sm font-bold text-primary-foreground disabled:opacity-50">Keep in profile</button>
+            <div className="mt-5 w-full rounded-xl bg-white/5 p-3">
+              <b className="block text-sm font-semibold text-white/90">Invite 3 friends to unlock your gift</b>
+              <p className="mt-2 text-xs leading-relaxed text-white/65">Each friend must be new to PugGift, have Telegram Premium and own at least one Telegram NFT gift.</p>
+              <button onClick={onKeep} disabled={busy} className="mt-3 w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground disabled:opacity-50">Keep in profile</button>
             </div>
           ) : (
             <div className="mt-5 grid w-full grid-cols-2 gap-2">
               <button
                 onClick={onSell}
                 disabled={busy}
-                className="rounded-xl bg-secondary py-3 text-sm font-bold text-foreground transition-colors hover:bg-secondary/70 disabled:opacity-50"
+                className="rounded-xl bg-secondary py-3 text-sm font-semibold text-foreground transition-colors hover:bg-secondary/70 disabled:opacity-50"
               >
                 Sell · {fmt(gift.value)}
               </button>
               <button
                 onClick={onKeep}
                 disabled={busy}
-                className="rounded-xl bg-primary py-3 text-sm font-bold text-primary-foreground transition-opacity disabled:opacity-50"
+                className="rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground transition-opacity disabled:opacity-50"
               >
                 Keep
               </button>

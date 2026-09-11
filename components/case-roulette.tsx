@@ -3,10 +3,11 @@
 import { useEffect, useRef, useState } from "react"
 import type { GiftDTO } from "@/app/actions/cases"
 import { Coin } from "@/components/coin"
-import { fmt, rarityOf } from "@/lib/format"
+import { fmt } from "@/lib/format"
 import { cn } from "@/lib/utils"
 
-const ITEM_STEP = 144
+const ITEM_WIDTH = 164
+const ITEM_STEP = ITEM_WIDTH + 12
 const REEL_LENGTH = 40
 const WIN_INDEX = 32
 
@@ -34,8 +35,7 @@ export function CaseRoulette({ pool, spinning, results, selectedCount, fast = fa
     return () => window.clearTimeout(timer)
   }, [fast, spinning])
 
-  return <section className="relative overflow-hidden py-3">
-    <div className="pointer-events-none absolute left-1/2 top-1/2 h-72 w-72 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#77a1ff]/20 blur-[90px]" />
+  return <section aria-label="Case opening reels" className="relative overflow-hidden py-3">
     <div className="relative flex flex-col gap-3">{shown.map((gift, index) => <Reel key={index} pool={pool} result={gift} spinning={spinning} lane={index + 1} compact={shown.length > 2} fast={fast} />)}</div>
   </section>
 }
@@ -59,7 +59,7 @@ function Reel({ pool, result, spinning, lane, compact, fast }: { pool: GiftDTO[]
       secondFrame = window.requestAnimationFrame(() => {
         const width = viewportRef.current?.offsetWidth ?? 360
         setMoving(true)
-        setOffset(-(landing * ITEM_STEP + ITEM_STEP / 2 - width / 2))
+        setOffset(-(landing * ITEM_STEP + ITEM_WIDTH / 2 - width / 2))
       })
     })
     return () => {
@@ -68,20 +68,18 @@ function Reel({ pool, result, spinning, lane, compact, fast }: { pool: GiftDTO[]
     }
   }, [pool, result, spinning])
 
-  return <div ref={viewportRef} className={cn("relative overflow-hidden border-y border-white/[.055] bg-[linear-gradient(180deg,rgba(34,45,72,.76),rgba(13,18,31,.7))]", compact ? "h-[112px]" : "h-[168px] md:h-[184px]")}>
-    <div className="pointer-events-none absolute inset-y-2 left-1/2 z-20 w-[2px] -translate-x-1/2 rounded-full bg-white/65 shadow-[0_0_24px_5px_rgba(174,205,255,.8)]" />
-    <i className="pointer-events-none absolute left-1/2 top-0 z-30 h-0 w-0 -translate-x-1/2 border-x-[13px] border-t-[18px] border-x-transparent border-t-white drop-shadow-[0_5px_8px_rgba(0,0,0,.25)]" />
-    <i className="pointer-events-none absolute bottom-0 left-1/2 z-30 h-0 w-0 -translate-x-1/2 rotate-180 border-x-[13px] border-t-[18px] border-x-transparent border-t-white drop-shadow-[0_-5px_8px_rgba(0,0,0,.25)]" />
-    <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-20 bg-gradient-to-r from-[#101728] via-[#101728]/88 to-transparent md:w-40" /><div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-20 bg-gradient-to-l from-[#101728] via-[#101728]/88 to-transparent md:w-40" />
-    <div className="absolute left-3 top-3 z-20 rounded-full bg-white/10 px-2 py-1 text-[8px] font-black text-white/55 backdrop-blur-sm">#{lane}</div>
+  return <div ref={viewportRef} className={cn("relative overflow-hidden", compact ? "h-[128px]" : "h-[220px] md:h-[244px]")}>
+    <i className="pointer-events-none absolute left-1/2 top-0 z-30 h-0 w-0 -translate-x-1/2 border-x-[13px] border-t-[18px] border-x-transparent border-t-white" />
+    <i className="pointer-events-none absolute bottom-0 left-1/2 z-30 h-0 w-0 -translate-x-1/2 rotate-180 border-x-[13px] border-t-[18px] border-x-transparent border-t-white" />
+    <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-gradient-to-r from-[#19428b] to-transparent md:w-24" /><div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-[#19428b] to-transparent md:w-24" />
+    <span className="sr-only">Reel {lane}</span>
     <div className="flex h-full items-center gap-3 will-change-transform" style={{ transform: `translate3d(${offset}px,0,0)`, transition: moving ? `transform ${fast ? 0.62 : 4.35 + lane * 0.12}s cubic-bezier(.08,.7,.04,1)` : "none" }}>
       {reel.map((gift, index) => {
-        const rarity = rarityOf(gift.rarity)
         const winner = moving && index === winIndex
-        return <div key={`${gift.slug}-${index}`} className={cn("flex w-[132px] shrink-0 flex-col items-center justify-end rounded-[26px] px-2 pb-2 pt-1 transition-all", compact ? "h-[98px]" : "h-[148px]", winner ? "scale-[1.06] bg-[#41208b] shadow-[0_0_0_2px_rgba(255,255,255,.22),0_18px_40px_rgba(12,20,64,.45)]" : "bg-white/[.025]")}>
-          <img src={gift.imageUrl || "/images/nft-gift.png"} alt="" className={cn("object-contain drop-shadow-[0_13px_12px_rgba(3,11,35,.45)]", compact ? "h-[52px] w-[72px]" : "h-[88px] w-[98px]")} />
-          {!compact && <span className={cn("mt-0.5 max-w-[118px] truncate text-[9px] font-black", rarity.text)}>{gift.name}</span>}
-          <span className="mt-1 flex items-center gap-1 rounded-full bg-white/12 px-2.5 py-1 text-[10px] font-black text-white shadow-sm backdrop-blur-sm"><Coin className="h-3 w-3" />{fmt(gift.value)}</span>
+        return <div key={`${gift.slug}-${index}`} className={cn("flex w-[164px] shrink-0 flex-col items-center justify-center rounded-2xl px-2 py-3 transition-colors", compact ? "h-[108px]" : "h-[200px]", winner ? "bg-white/[.08]" : "bg-transparent")}>
+          <img src={gift.imageUrl || "/images/nft-gift.png"} alt="" className={cn("object-contain", compact ? "h-16 w-20" : "h-32 w-36")} />
+          {!compact && <span className="mt-2 max-w-[148px] truncate text-sm font-medium text-white/90">{gift.name}</span>}
+          <span className="mt-1 flex items-center gap-1.5 text-sm font-semibold tabular-nums text-white"><Coin className="h-3.5 w-3.5" />{fmt(gift.value)}</span>
         </div>
       })}
     </div>

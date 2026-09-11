@@ -2,14 +2,14 @@
 
 import { useEffect, useState } from "react"
 import useSWR from "swr"
-import { Check, ChevronRight, ExternalLink, Gift, Loader2, Send, ShoppingBag, SlidersHorizontal, Trophy, X, Zap } from "lucide-react"
+import { Check, ChevronRight, ExternalLink, Loader2, Send, ShoppingBag, SlidersHorizontal, Trophy, X, Zap } from "lucide-react"
 import type { CaseDTO, GiftDTO } from "@/app/actions/cases"
 import { AppHeader } from "@/components/app-header"
 import { CaseRoulette } from "@/components/case-roulette"
 import { WinModal } from "@/components/win-modal"
 import { Coin } from "@/components/coin"
 import { useUser } from "@/components/user-provider"
-import { rarityOf, fmt } from "@/lib/format"
+import { fmt } from "@/lib/format"
 import { haptic, hapticNotify, sharePreparedMessage } from "@/lib/telegram-webapp"
 import { cn } from "@/lib/utils"
 import { fetchFreeCaseRequirements, fetchLiveDrops, openCasesApi, sellGiftApi, sellGiftBatchApi, updateFreeCaseRequirement } from "@/lib/client-game-api"
@@ -168,44 +168,87 @@ export function CaseView({ c }: { c: CaseDTO }) {
   return (
     <>
       <AppHeader title={c.isFree ? "Free Case" : c.name} />
-      <main className="game-surface game-surface--case relative flex min-h-[calc(var(--tg-viewport-stable-height,100dvh)-64px)] w-full flex-col overflow-hidden pb-[max(1rem,var(--tg-content-safe-area-inset-bottom,0px))] text-white">
-        <div className="pointer-events-none absolute inset-0 opacity-20 [background-image:radial-gradient(rgba(255,255,255,.28)_.7px,transparent_.7px)] [background-size:38px_38px] [mask-image:linear-gradient(to_bottom,black,transparent_78%)]" />
-        <div className="relative z-10 mx-auto flex w-full max-w-[1280px] items-center gap-3 px-3 py-3 md:px-5">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] bg-[#4f75ff]/12 text-[#8da4ff] ring-1 ring-[#8da4ff]/15"><Gift className="h-5 w-5" /></span>
-          <div className="min-w-0 flex-1"><div className="text-[9px] font-black uppercase tracking-[.2em] text-blue-200/65">PugGift case</div><h1 className="truncate font-display text-xl font-black md:text-2xl">{c.isFree ? "Free Case" : c.name}</h1></div>
-          <span className="rounded-full bg-white/10 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-white/70 ring-1 ring-white/10 backdrop-blur-md">{spinning ? "Spinning" : c.isFree ? "Free" : `${openCount}× ready`}</span>
-        </div>
+      <main className="game-surface game-surface--case flex min-h-[calc(var(--tg-viewport-stable-height,100dvh)-64px)] w-full flex-col overflow-hidden pb-[max(1rem,var(--tg-content-safe-area-inset-bottom,0px))] text-white">
+        <h1 className="px-4 py-5 text-center text-xl font-semibold tracking-tight md:text-2xl">{c.isFree ? "Free Case" : c.name}</h1>
 
         <CaseLiveStrip />
 
-        <div className="relative z-10 flex min-h-[260px] flex-1 flex-col justify-center py-2 md:min-h-[380px]">
-          <div className="mx-auto flex w-full max-w-[1280px] items-end justify-between px-4 pb-1 md:px-8">
-            <div><div className="text-[9px] font-black uppercase tracking-[.2em] text-blue-100/55">Gift runway</div><div className="font-display text-lg font-black md:text-xl">{spinning ? "Catch your drop" : "Ready to spin"}</div></div>
-            <div className="text-right text-[10px] font-bold text-white/42">
-              <span className="text-blue-100/85">NFT chance {c.nftChancePercent}%</span>
-              <br />{c.items.length} possible rewards
-            </div>
-          </div>
+        <div className="flex min-h-[300px] flex-1 flex-col justify-center py-6 md:min-h-[400px]">
           <CaseRoulette pool={c.items} spinning={spinning} results={batchResults.map((drop) => drop.won)} selectedCount={openCount} fast={fastSpin} onSettled={handleSettled} />
         </div>
 
-        <div className="relative z-10 mx-auto flex w-full max-w-[680px] flex-col gap-2.5 px-3 pt-2 md:px-4">
-          {error && <p className="rounded-2xl bg-rose-500/18 px-3 py-2.5 text-center text-xs font-bold text-rose-100 ring-1 ring-rose-200/20">{error}</p>}
+        <div className="mx-auto flex w-full max-w-[680px] flex-col gap-3 px-4 pt-2">
+          {error && <p role="alert" className="rounded-xl bg-rose-950/30 px-3 py-3 text-center text-sm text-rose-100">{error}</p>}
 
-          {batchResults.length > 1 && !spinning && <section className="rounded-[24px] bg-[#102854]/80 p-3 ring-1 ring-white/10 backdrop-blur-xl"><div className="mb-2 flex items-center justify-between gap-3"><div><h2 className="font-display text-sm font-black">Your drops</h2><span className="text-[10px] font-bold text-white/40">Each reel landed separately</span></div>{batchResults.some((drop) => drop.inventoryId != null) && <button onClick={handleSellBatch} disabled={busy} className="flex shrink-0 items-center gap-1.5 rounded-xl bg-white px-3 py-2 text-[10px] font-black text-[#174699] disabled:opacity-50"><ShoppingBag className="h-3.5 w-3.5" />Sell all · {fmt(batchResults.reduce((sum, drop) => sum + (drop.inventoryId == null ? 0 : drop.won.value), 0))}</button>}</div><div className="no-scrollbar flex gap-2 overflow-x-auto">{batchResults.map(({ won: gift, inventoryId }, index) => { const rarity = rarityOf(gift.rarity); return <div key={`${gift.slug}-${index}`} className="w-24 shrink-0 rounded-[18px] bg-white/[.07] p-2 text-center ring-1 ring-white/10"><img src={gift.imageUrl || "/images/nft-gift.png"} alt={gift.name} className="mx-auto h-14 w-14 object-contain" /><div className={cn("mt-1 truncate text-[9px] font-black", rarity.text)}>{gift.name}</div><div className="mt-1 flex items-center justify-center gap-1 text-[9px] text-white/55"><Coin className="h-3 w-3" />{fmt(gift.value)}</div><div className="mt-1 text-[8px] font-black uppercase tracking-wider text-white/30">{inventoryId == null ? "credited" : `drop ${index + 1}`}</div></div> })}</div></section>}
+          {batchResults.length > 1 && !spinning && (
+            <section className="rounded-2xl bg-black/15 p-3">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                <h2 className="text-base font-semibold">Your gifts</h2>
+                {batchResults.some((drop) => drop.inventoryId != null) && (
+                  <button onClick={handleSellBatch} disabled={busy} className="flex items-center gap-1.5 rounded-xl bg-white/15 px-3 py-2 text-sm font-semibold disabled:opacity-50">
+                    <ShoppingBag className="h-4 w-4" />Sell all · {fmt(batchResults.reduce((sum, drop) => sum + (drop.inventoryId == null ? 0 : drop.won.value), 0))}
+                  </button>
+                )}
+              </div>
+              <div className="no-scrollbar flex gap-2 overflow-x-auto">
+                {batchResults.map(({ won: gift, inventoryId }, index) => (
+                  <div key={`${gift.slug}-${index}`} className="w-32 shrink-0 rounded-xl bg-white/[.06] p-3 text-center">
+                    <img src={gift.imageUrl || "/images/nft-gift.png"} alt={gift.name} className="mx-auto h-20 w-20 object-contain" />
+                    <div className="mt-2 truncate text-sm font-medium">{gift.name}</div>
+                    <div className="mt-1 flex items-center justify-center gap-1 text-sm tabular-nums text-white/80"><Coin className="h-3.5 w-3.5" />{fmt(gift.value)}</div>
+                    {inventoryId == null && <div className="mt-1 text-xs text-white/65">Added to balance</div>}
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
-          <div className="grid grid-cols-3 gap-2">
-            <button onClick={() => !c.isFree && setShowOptions((value) => !value)} disabled={c.isFree || spinning || busy} className="flex items-center justify-center gap-2 rounded-[18px] bg-white/16 py-3 text-xs font-black text-white/80 ring-1 ring-white/10 backdrop-blur-md disabled:opacity-45"><SlidersHorizontal className="h-4 w-4" />{c.isFree ? "One opening" : `Open ×${openCount}`}</button>
-            <button onClick={() => setFastSpin((value) => !value)} disabled={spinning || busy} className={cn("flex items-center justify-center gap-1.5 rounded-[18px] py-3 text-xs font-black ring-1 backdrop-blur-md disabled:opacity-45", fastSpin ? "bg-amber-300 text-amber-950 ring-amber-100/40" : "bg-white/16 text-white/80 ring-white/10")}><Zap className={cn("h-4 w-4", fastSpin && "fill-current")} />Fast</button>
-            <button onClick={() => setShowPrizes((value) => !value)} className="flex items-center justify-center gap-2 rounded-[18px] bg-white/16 py-3 text-xs font-black text-white/80 ring-1 ring-white/10 backdrop-blur-md"><Trophy className="h-4 w-4" />Prizes</button>
+          <div className="grid grid-cols-2 gap-3">
+            <button onClick={() => setShowOptions((value) => !value)} disabled={spinning || busy} aria-expanded={showOptions} aria-controls="case-settings" className="flex min-h-12 items-center justify-center gap-2 rounded-xl bg-white/10 text-sm font-medium text-white/90 disabled:opacity-45">
+              <SlidersHorizontal className="h-4 w-4" />Settings{openCount > 1 && <span className="text-white/65">· ×{openCount}</span>}
+            </button>
+            <button onClick={() => setShowPrizes((value) => !value)} aria-expanded={showPrizes} aria-controls="case-prizes" className="flex min-h-12 items-center justify-center gap-2 rounded-xl bg-white/10 text-sm font-medium text-white/90">
+              <Trophy className="h-4 w-4" />Prizes
+            </button>
           </div>
 
-          {showOptions && !c.isFree && <div className="grid grid-cols-4 gap-2 rounded-[22px] bg-[#102854]/85 p-2 ring-1 ring-white/10 backdrop-blur-xl">{[1, 2, 3, 5].map((count) => <button key={count} onClick={() => { setOpenCount(count); setShowOptions(false) }} disabled={spinning || busy} className={cn("rounded-[15px] py-2.5 text-xs font-black transition-all", openCount === count ? "bg-white text-[#174699]" : "bg-white/8 text-white/55")}>×{count}</button>)}</div>}
+          {showOptions && (
+            <section id="case-settings" aria-label="Spin settings" className="rounded-2xl bg-black/15 p-3">
+              {!c.isFree && (
+                <div className="mb-3">
+                  <h2 className="mb-2 text-sm font-medium text-white/80">Number of openings</h2>
+                  <div className="grid grid-cols-4 gap-2">
+                    {[1, 2, 3, 5].map((count) => <button key={count} onClick={() => { setOpenCount(count); setShowOptions(false) }} disabled={spinning || busy} aria-pressed={openCount === count} className={cn("min-h-11 rounded-xl text-sm font-semibold transition-colors", openCount === count ? "bg-white text-[#19428b]" : "bg-white/10 text-white/80")}>×{count}</button>)}
+                  </div>
+                </div>
+              )}
+              <button onClick={() => setFastSpin((value) => !value)} disabled={spinning || busy} aria-pressed={fastSpin} className="flex min-h-11 w-full items-center justify-between gap-3 rounded-xl px-2 text-sm font-medium disabled:opacity-45">
+                <span className="flex items-center gap-2"><Zap className="h-4 w-4" />Fast spin</span>
+                <span className={cn("rounded-lg px-3 py-1.5 text-sm", fastSpin ? "bg-white text-[#19428b]" : "bg-white/10 text-white/70")}>{fastSpin ? "On" : "Off"}</span>
+              </button>
+            </section>
+          )}
 
-          {showPrizes && <section className="rounded-[24px] bg-[#102854]/90 p-3 ring-1 ring-white/10 backdrop-blur-xl"><div className="mb-2 flex items-center justify-between"><h2 className="flex items-center gap-1.5 text-sm font-black"><Gift className="h-4 w-4 text-blue-200" />Case prizes</h2><button onClick={() => setShowPrizes(false)} className="flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-white/60"><X className="h-3.5 w-3.5" /></button></div><div className="no-scrollbar flex gap-2 overflow-x-auto pb-1">{c.items.map((gift) => { const rarity = rarityOf(gift.rarity); return <div key={gift.id} className="w-24 shrink-0 rounded-[18px] bg-white/[.07] p-2 text-center ring-1 ring-white/10"><img src={gift.imageUrl || "/images/nft-gift.png"} alt={gift.name} className="mx-auto h-14 w-14 object-contain" /><div className={cn("mt-1 truncate text-[9px] font-black", rarity.text)}>{gift.name}</div><div className="mt-1 flex items-center justify-center gap-1 text-[9px] font-bold text-white/60"><Coin className="h-3 w-3" />{fmt(gift.value)}</div></div> })}</div></section>}
+          {showPrizes && (
+            <section id="case-prizes" className="rounded-2xl bg-black/15 p-3">
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="text-base font-semibold">Prizes</h2>
+                <button onClick={() => setShowPrizes(false)} aria-label="Close prizes" className="flex h-9 w-9 items-center justify-center rounded-full text-white/70"><X className="h-5 w-5" /></button>
+              </div>
+              <div className="no-scrollbar flex gap-2 overflow-x-auto pb-1">
+                {c.items.map((gift) => (
+                  <div key={gift.id} className="w-32 shrink-0 rounded-xl bg-white/[.06] p-3 text-center">
+                    <img src={gift.imageUrl || "/images/nft-gift.png"} alt={gift.name} className="mx-auto h-20 w-20 object-contain" />
+                    <div className="mt-2 truncate text-sm font-medium">{gift.name}</div>
+                    <div className="mt-1 flex items-center justify-center gap-1 text-sm tabular-nums text-white/80"><Coin className="h-3.5 w-3.5" />{fmt(gift.value)}</div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
-          <button onClick={handleSpin} disabled={spinning || busy} className={cn("flex w-full items-center justify-center gap-2 rounded-[20px] py-4 font-display text-base font-black transition-all active:scale-[0.98]", canAfford ? "bg-[#2f70ff] text-white shadow-[0_13px_34px_-8px_rgba(21,40,110,.7),inset_0_1px_0_rgba(255,255,255,.3)]" : "bg-white/12 text-white/35", (spinning || busy) && "opacity-70")}>
-            {spinning ? "Spinning…" : <><span>{c.isFree ? (!freeReady ? "Free case recharging" : requirementsReady ? "Spin free" : "Complete requirements") : "Spin for"}</span><span className="flex items-center gap-1 rounded-full bg-black/18 px-2.5 py-0.5">{!c.isFree && <Coin className="h-3.5 w-3.5" />}<span className="font-mono">{c.isFree ? "FREE" : fmt(c.price * openCount)}</span></span></>}
+          <button onClick={handleSpin} disabled={spinning || busy} className={cn("flex min-h-14 w-full items-center justify-center gap-2 rounded-xl px-3 py-4 text-base font-semibold transition-colors active:scale-[0.99]", canAfford ? "bg-[#2b6eff] text-white" : "bg-white/12 text-white/60", (spinning || busy) && "opacity-70")}>
+            {spinning ? "Spinning…" : <><span>{c.isFree ? (!freeReady ? "Free case recharging" : requirementsReady ? "Spin free" : "Complete requirements") : "Spin"}</span>{!c.isFree && <span className="flex items-center gap-1.5"><span aria-hidden="true">·</span><Coin className="h-4 w-4" /><span className="tabular-nums">{fmt(c.price * openCount)}</span></span>}</>}
           </button>
         </div>
       </main>
@@ -234,31 +277,30 @@ function FreeCaseRequirementsModal({ requirements, busy, onClose, onShare, onTra
   onDone: () => void
 }) {
   const shared = requirements.shares >= requirements.requiredShares
-  return <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#020817]/75 p-4 backdrop-blur-md">
-    <section className="w-full max-w-[560px] rounded-[30px] bg-[#202328] p-5 text-white shadow-[0_30px_100px_rgba(0,0,0,.65)] ring-1 ring-white/10 md:p-6">
-      <div className="flex items-start justify-between gap-4"><div className="flex-1 text-center"><h2 className="font-display text-2xl font-black md:text-3xl">Complete the requirements</h2><p className="mt-1 text-sm font-bold text-white/50">To spin this free case</p></div><button onClick={onClose} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/5 text-white/45"><X className="h-5 w-5" /></button></div>
-      <div className="mt-5 overflow-hidden rounded-[24px] bg-[#3a3d42] p-2 ring-1 ring-white/[.06]">
+  return <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
+    <section role="dialog" aria-modal="true" aria-labelledby="free-case-title" className="max-h-[calc(100dvh-2rem)] w-full max-w-[460px] overflow-y-auto rounded-2xl bg-[#282b30] p-5 text-white">
+      <div className="flex items-start justify-between gap-4"><div className="flex-1"><h2 id="free-case-title" className="text-xl font-semibold">Unlock your free case</h2><p className="mt-1 text-sm text-white/65">Complete these three steps to spin.</p></div><button onClick={onClose} aria-label="Close requirements" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white/65"><X className="h-5 w-5" /></button></div>
+      <div className="mt-4 divide-y divide-white/[.06]">
         <RequirementRow icon={<Send className="h-5 w-5" />} tone="blue" title="Send to a friend" description={shared ? "Share confirmed" : "Send once in any private chat"} done={shared} busy={busy === "share"} onClick={onShare} />
         <RequirementRow icon={<span className="text-lg">📣</span>} tone="orange" title="Subscribe to @PugGift" description={requirements.subscribed ? "Subscription confirmed" : "Join the channel and come back"} done={requirements.subscribed} onClick={onChannel} />
         <RequirementRow icon={<ExternalLink className="h-5 w-5" />} tone="orange" title="Go to Trade" description={requirements.tradeVisited ? "Trade opened" : "Open the app and come back here"} done={requirements.tradeVisited} busy={busy === "trade"} onClick={onTrade} />
       </div>
-      <button onClick={onDone} disabled={busy !== null} className="mt-5 flex w-full items-center justify-center rounded-[18px] bg-[#3275ff] py-4 font-display text-lg font-black shadow-[0_12px_30px_rgba(36,92,230,.35)] disabled:opacity-60">{busy === "verify" ? <Loader2 className="h-5 w-5 animate-spin" /> : requirements.ready ? "Ready to spin" : "Done"}</button>
-      {!requirements.channelCheckAvailable && <p className="mt-3 text-center text-[11px] font-bold text-amber-200/80">The bot must be an admin of @PugGift to verify subscriptions.</p>}
+      <button onClick={onDone} disabled={busy !== null} className="mt-5 flex min-h-12 w-full items-center justify-center rounded-xl bg-[#2b6eff] py-3 text-base font-semibold disabled:opacity-60">{busy === "verify" ? <Loader2 className="h-5 w-5 animate-spin" /> : requirements.ready ? "Ready to spin" : "Done"}</button>
+      {!requirements.channelCheckAvailable && <p className="mt-3 text-center text-xs leading-relaxed text-amber-200/90">The bot must be an admin of @PugGift to verify subscriptions.</p>}
     </section>
   </div>
 }
 
 function RequirementRow({ icon, tone, title, description, done, busy, onClick }: { icon: React.ReactNode; tone: "blue" | "orange"; title: string; description: string; done: boolean; busy?: boolean; onClick: () => void }) {
-  return <button type="button" onClick={onClick} disabled={done || busy} className="flex w-full items-center gap-3 rounded-[18px] px-3 py-3 text-left transition hover:bg-white/[.04] disabled:opacity-80">
-    <span className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-white", tone === "blue" ? "bg-[#4384ff]" : "bg-[#ef6a3a]")}>{busy ? <Loader2 className="h-5 w-5 animate-spin" /> : icon}</span>
-    <span className="min-w-0 flex-1"><b className="block text-[15px] font-black">{title}</b><small className="block truncate text-xs font-bold text-white/45">{description}</small></span>
-    {done ? <span className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-400 text-emerald-950"><Check className="h-4 w-4 stroke-[3]" /></span> : <ChevronRight className="h-5 w-5 text-white/30" />}
+  return <button type="button" onClick={onClick} disabled={done || busy} className="flex w-full items-center gap-3 py-4 text-left transition hover:bg-white/[.04] disabled:opacity-80">
+    <span className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl", tone === "blue" ? "bg-[#2b6eff]/20 text-[#8bb4ff]" : "bg-[#ef6a3a]/15 text-[#f19c7e]")}>{busy ? <Loader2 className="h-5 w-5 animate-spin" /> : icon}</span>
+    <span className="min-w-0 flex-1"><b className="block text-sm font-semibold">{title}</b><small className="mt-0.5 block text-xs leading-relaxed text-white/65">{description}</small></span>
+    {done ? <span className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-400/15 text-emerald-300"><Check className="h-4 w-4 stroke-[3]" /></span> : <ChevronRight className="h-5 w-5 text-white/30" />}
   </button>
 }
 
 function CaseLiveStrip() {
   const { data: drops } = useSWR("case-live-drops", fetchLiveDrops, { refreshInterval: 12_000 })
   if (!drops?.length) return null
-  const loop = [...drops, ...drops]
-  return <div className="relative z-10 w-full overflow-hidden border-y border-white/[.055] bg-[#121a2a]/82 py-2.5 backdrop-blur-xl"><div className="no-scrollbar flex items-center gap-4 overflow-x-auto px-3"><span className="flex shrink-0 items-center gap-2 pr-1 text-[10px] font-black uppercase tracking-[.14em] text-white/62"><i className="h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_10px_#6ee7b7]" />LIVE</span>{loop.map((drop, index) => <img key={`${drop.id}-${index}`} src={drop.imageUrl} alt={drop.name} className="h-10 w-10 shrink-0 object-contain drop-shadow-[0_7px_8px_rgba(4,14,45,.45)]" />)}</div></div>
+  return <div className="w-full overflow-hidden bg-black/10 py-2.5"><div className="no-scrollbar flex items-center gap-4 overflow-x-auto px-4"><span className="shrink-0 text-xs font-medium text-white/70">Live</span>{drops.map((drop) => <img key={drop.id} src={drop.imageUrl} alt={drop.name} className="h-10 w-10 shrink-0 object-contain" />)}</div></div>
 }

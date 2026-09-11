@@ -176,7 +176,7 @@ export async function getCases(): Promise<CaseDTO[]> {
       id: c.id,
       slug: c.slug,
       name: c.isFree ? "Free Case" : c.name,
-      coverUrl: c.isFree ? "/images/menu/gift-v6.svg" : c.coverUrl,
+      coverUrl: c.isFree ? "/images/menu/bunny-muffin.png" : c.coverUrl,
       price: livePrice || Number(c.price),
       accent: c.accent,
       isFree: c.isFree,

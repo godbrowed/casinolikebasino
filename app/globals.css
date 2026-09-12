@@ -364,9 +364,16 @@
   .animate-pug-impact { animation: pug-impact .72s cubic-bezier(.2,.75,.25,1) both; will-change: transform, opacity; }
 
   /* Small sticker performances: transform-only, staggered and mostly at rest. */
-  .game-scene { position: relative; display: block; width: 76px; height: 76px; }
+  .game-scene { position: relative; display: block; width: 82px; height: 82px; }
   .game-scene img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
-  .game-scene .scene-rocket { inset: -14px; width: 104px; height: 104px; mix-blend-mode: lighten; animation: lobby-flight 4.8s ease-in-out infinite; }
+  .game-scene .scene-rocket { inset: -11px; width: 104px; height: 104px; animation: lobby-flight 4.8s ease-in-out infinite; }
+  .game-scene .scene-pug { inset: -4px 0 0; width: 78px; height: 78px; animation: lobby-gift 5s ease-in-out infinite; }
+  .game-scene .scene-pug-gift { inset: auto -3px -2px auto; width: 38px; height: 38px; }
+  .pug-loading-mascot { animation: pug-greeting 1.8s ease-in-out infinite; }
+  @keyframes pug-greeting {
+    0%,100% { transform: translateY(0) rotate(-4deg); }
+    50% { transform: translateY(-7px) rotate(4deg); }
+  }
   .scene-sword--left { transform-origin: 80% 85%; animation: lobby-clash-left 4.4s ease-in-out infinite; }
   .scene-sword--right { transform-origin: 20% 85%; animation: lobby-clash-right 4.4s ease-in-out infinite; }
   .scene-mine { animation: lobby-mine 6.2s cubic-bezier(.45,0,.25,1) infinite; }
@@ -407,7 +414,7 @@
     92% { transform: rotate(-3deg); }
   }
   @media (prefers-reduced-motion: reduce) {
-    .game-scene img { animation: none !important; }
+    .game-scene img, .pug-loading-mascot { animation: none !important; }
   }
 
   .giveaway-hero {

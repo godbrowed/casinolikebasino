@@ -22,7 +22,7 @@ export function HomeLobby({ online, freeCaseSlug, paidCaseCount = 0 }: { online:
 
     <div className="mx-auto flex w-full max-w-[584px] flex-col gap-3 px-3">
       <h1 className="sr-only">PugGift games</h1>
-      <div className="flex flex-col gap-3">
+      <div className="lobby-collection flex flex-col gap-3">
         {freeCaseSlug && <ModeRow href={`/case/${freeCaseSlug}`} title="Free" subtitle="Free case" color="#343946" art={<GameScene kind="free" />} />}
         <ModeRow href="/cases" title="Cases" subtitle={paidCaseCount ? `${paidCaseCount} cases` : "Collect Telegram gifts"} color="#2054bd" art={<CaseStack />} />
         <ModeRow href="/upgrade" title="Upgrade" subtitle="Improve your gifts" color="#552393" image="/images/menu/plush-pepe.webp" />
@@ -43,13 +43,13 @@ export function HomeLobby({ online, freeCaseSlug, paidCaseCount = 0 }: { online:
 }
 
 function ModeRow({ href, title, subtitle, color, image, art }: { href: string; title: string; subtitle?: string; color: string; image?: string; art?: ReactNode }) {
-  return <Link href={href} className="lobby-mode-row group flex min-h-[96px] items-center gap-4 overflow-hidden rounded-[30px] py-3 pl-4 pr-5 text-white sm:min-h-[108px] sm:gap-5 sm:rounded-[38px] sm:pl-5" style={{ backgroundColor: color }}>
-    <span className="relative flex h-[70px] w-[70px] shrink-0 items-center justify-center" aria-hidden="true">
+  return <Link href={href} className="lobby-mode-row group flex min-h-[104px] items-center gap-5 overflow-hidden rounded-[28px] py-3 pl-5 pr-6 text-white sm:min-h-[116px] sm:rounded-[32px]" style={{ backgroundColor: color }}>
+    <span className="lobby-art relative flex h-[78px] w-[86px] shrink-0 items-center justify-center" aria-hidden="true">
       {art ?? <img src={image} alt="" className="h-[58px] w-[58px] object-contain sm:h-16 sm:w-16" loading="lazy" />}
     </span>
     <span className="min-w-0 flex-1">
       <span className="block text-[24px] font-bold leading-tight tracking-[-.025em] sm:text-[26px]">{title}</span>
-      {subtitle && <span className="mt-1 block text-[14px] font-semibold leading-snug text-white/55 sm:text-[16px]">{subtitle}</span>}
+      {subtitle && <span className="mt-1 block text-[14px] font-medium leading-snug text-white/70 sm:text-[15px]">{subtitle}</span>}
     </span>
   </Link>
 }

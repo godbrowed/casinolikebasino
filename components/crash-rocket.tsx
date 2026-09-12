@@ -90,7 +90,7 @@ export function CrashRocket({
 
       <div ref={rocketRef} className="pointer-events-none absolute inset-0 z-10 will-change-transform">
         <div ref={spriteRef} className="absolute left-[45%] top-[61%]" style={{ transform: "translate3d(-50%,-50%,0) rotate(-8deg)" }}>
-          <img src="/images/puggift-rocket-v5.webp" alt="PugGift rocket" className="h-40 w-40 object-contain mix-blend-lighten md:h-56 md:w-56" />
+          <img src="/images/puggift-rocket-v7.webp" alt="PugGift rocket" className="h-44 w-44 object-contain md:h-60 md:w-60" />
           {payloadImage && <img src={payloadImage} alt="" aria-hidden className="absolute -bottom-1 -left-2 h-9 w-9 object-contain drop-shadow-lg md:h-11 md:w-11" />}
         </div>
       </div>
@@ -98,9 +98,9 @@ export function CrashRocket({
 
     {crashed && showImpact && <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center pt-16">
       <img
-        src="/images/puggift-rocket-v5.webp"
+        src="/images/puggift-rocket-v7.webp"
         alt="PugGift crash impact"
-        className="animate-pug-impact w-[min(58vw,260px)] object-contain mix-blend-lighten"
+        className="animate-pug-impact w-[min(58vw,260px)] object-contain"
         style={{ animationDuration: "440ms" }}
       />
     </div>}

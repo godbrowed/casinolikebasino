@@ -22,10 +22,10 @@ async function tg(method: string, body: unknown) {
 }
 
 async function setBotAvatar() {
-  const image = await readFile(path.join(process.cwd(), "public", "images", "puggift-bot-avatar-v5.png"))
+  const image = await readFile(path.join(process.cwd(), "public", "images", "puggift-bot-avatar-v7.png"))
   const form = new FormData()
   form.set("photo", JSON.stringify({ type: "static", photo: "attach://avatar" }))
-  form.set("avatar", new Blob([new Uint8Array(image)], { type: "image/png" }), "puggift-avatar-v3.png")
+  form.set("avatar", new Blob([new Uint8Array(image)], { type: "image/png" }), "puggift-avatar-v7.png")
   const res = await fetch(`https://api.telegram.org/bot${token}/setMyProfilePhoto`, { method: "POST", body: form })
   return res.json()
 }
@@ -77,7 +77,7 @@ export async function GET(req: Request) {
     },
   })
   const name = await tg("setMyName", { name: "PugGift" })
-  const shortDescription = await tg("setMyShortDescription", { short_description: "Telegram gifts, live Crash and real-player PvP with the black pug." })
+  const shortDescription = await tg("setMyShortDescription", { short_description: "Telegram gifts, live Crash and real-player PvP with PugGift." })
   const description = await tg("setMyDescription", { description: "Open Telegram gifts, upgrade your collection, fly in synchronized Crash rounds and challenge real players in PvP. Enter the PugGift arcade below." })
   const avatar = await setBotAvatar().catch((error) => ({ ok: false, description: error instanceof Error ? error.message : "Avatar upload failed" }))
 

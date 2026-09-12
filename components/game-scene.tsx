@@ -20,13 +20,13 @@ export function GameScene({ kind }: { kind: Scene }) {
   }, [])
 
   return <span ref={ref} className={`game-scene game-scene--${kind}`} aria-hidden="true">
-    {kind === "crash" ? <img className="scene-rocket" src="/images/puggift-rocket-v5.webp" alt="" />
+    {kind === "crash" ? <img className="scene-rocket" src="/images/puggift-rocket-v7.webp" alt="" />
       : kind === "pvp" ? <>
         <img className="scene-sword scene-sword--left" src="/images/menu/sword-left.svg" alt="" />
         <img className="scene-sword scene-sword--right" src="/images/menu/sword-right.svg" alt="" />
       </>
       : kind === "mines" ? <img className="scene-mine" src="/images/menu/bomb-telegram.webp" alt="" />
       : kind === "dice" ? <img className="scene-dice" src="/images/menu/dice-telegram.png" alt="" />
-      : <img className="scene-gift" src="/images/menu/bunny-muffin.png" alt="" />}
+      : <><img className="scene-pug" src="/images/puggift-mark-v7.webp" alt="" /><img className="scene-pug-gift" src="/images/menu/bunny-muffin.png" alt="" /></>}
   </span>
 }

@@ -34,7 +34,7 @@ export function BottomNav() {
                     active ? "text-[#2b6eff]" : "text-[#8a8d92] hover:text-white/80",
                   )}
                 >
-                  <span className="flex h-7 w-8 items-center justify-center">
+                  <span className={cn("flex h-8 w-12 items-center justify-center rounded-xl transition-colors", active && "bg-[#2b6eff]/10")}>
                     <Icon className="h-[27px] w-[27px]" strokeWidth={active ? 2.5 : 2} />
                   </span>
                   <span>{t(item.label as "games" | "battles" | "crash" | "mines" | "upgrade" | "profile")}</span>
